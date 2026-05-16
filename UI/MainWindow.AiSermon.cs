@@ -223,6 +223,16 @@ namespace ImageColorChanger.UI
                     ShowStatus(status);
                 }));
             };
+            _aiSermonCoordinator.DebugMessageEmitted += message =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_aiSermonDebugEnabled)
+                    {
+                        _aiAssistantPanelWindow?.AppendDebug(message);
+                    }
+                }));
+            };
             _aiSermonCoordinator.ScriptureCandidateAccepted += candidate =>
             {
                 Dispatcher.BeginInvoke(new Action(() =>

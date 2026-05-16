@@ -40,6 +40,7 @@ namespace ImageColorChanger.Services.Ai
         public event Action AssistantMessageStarted;
         public event Action<string> AssistantDeltaReceived;
         public event Action<string> StatusChanged;
+        public event Action<string> DebugMessageEmitted;
         public event Action<AiScriptureCandidate> ScriptureCandidateAccepted;
 
         public AiSermonConversationCoordinator(
@@ -251,11 +252,13 @@ namespace ImageColorChanger.Services.Ai
                 ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请先纠错理解为可能的普通话语义，再判断讲员可能在讲什么。" +
                   BuildDialectPromptHint() +
+                  BuildCurrentOutputHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}"
                 : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请结合今日幻灯片上下文、讲师长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断讲员当前可能在讲什么。" +
                   BuildDialectPromptHint() +
+                  BuildCurrentOutputHint() +
                   "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
                   $"raw_asr_window_version：{snapshot.Version}\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}";
@@ -328,7 +331,7 @@ namespace ImageColorChanger.Services.Ai
                     UserId = _session == null ? "canvas-sermon" : $"canvas-sermon-{_session.ProjectId}",
                     EnableScriptureTool = true
                 };
-                TracePromptCacheLayout(request.Messages);
+                EmitPromptCacheLayout(request.Messages);
 
                 bool receivedAnyDelta = false;
                 var result = await _chatClient.StreamChatAsync(
@@ -387,6 +390,8 @@ namespace ImageColorChanger.Services.Ai
                         ? 0
                         : (int)Math.Round(result.PromptCacheHitTokens * 100d / totalCacheTokens);
                     StatusChanged?.Invoke($"AI缓存：hit={result.PromptCacheHitTokens}, miss={result.PromptCacheMissTokens}, 命中率={hitRate}%");
+                    DebugMessageEmitted?.Invoke(
+                        $"缓存统计：hit={result.PromptCacheHitTokens}, miss={result.PromptCacheMissTokens}, hitRate={hitRate}%, total={totalCacheTokens}");
                 }
             }
             catch (OperationCanceledException)
@@ -539,10 +544,23 @@ namespace ImageColorChanger.Services.Ai
                 $"讲师标签：{session.SpeakerName}"
             };
 
-            parts.Add(string.Equals(session.OutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
-                ? "输出偏好：详细说明判断理由、历史线索和不确定点。"
-                : "输出偏好：简洁给出当前理解、候选经文和必要提醒。");
+            parts.Add(BuildOutputModeInstruction(session.OutputMode));
             return string.Join("\n\n", parts);
+        }
+
+        private static string BuildOutputModeInstruction(string outputMode)
+        {
+            if (string.Equals(outputMode, "detailed", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                    "输出模式：详细。\n" +
+                    "请按 4 段输出：1) 当前理解；2) 判断依据（ASR、幻灯片、讲师画像、历史线索分别说明）；3) 可能经文与候选理由；4) 不确定点。\n" +
+                    "详细模式允许解释推理路径，但不要编造经文，不要声称已写入历史槽。";
+            }
+
+            return
+                "输出模式：简洁。\n" +
+                "只输出 1-2 句当前理解；如有明确经文候选可简短提示。不要展开长理由，不要复述原始ASR，不要列调试信息。";
         }
 
         private static string BuildSpeakerProfileContext(AiSermonSessionState session)
@@ -619,6 +637,13 @@ namespace ImageColorChanger.Services.Ai
                 "；",
                 activeDialectTags.Select(tag => $"若文本疑似{tag}音系，优先尝试{tag}同音/近音映射后再判经文"));
             return $"已启用方言增强，当前标签：{labels}。{perDialect}。";
+        }
+
+        private string BuildCurrentOutputHint()
+        {
+            return string.Equals(_session?.OutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
+                ? "本次输出按详细模式：必须说明判断依据、历史线索影响、不确定点和候选经文理由。"
+                : "本次输出按简洁模式：只给1-2句当前理解，避免长篇解释。";
         }
 
         private static string BuildDialectSystemHint(IReadOnlyCollection<string> activeDialectTags)
@@ -715,7 +740,7 @@ namespace ImageColorChanger.Services.Ai
             return "全历史线索（按顺序，已去除秒级时间以提升缓存稳定性）:\n" + string.Join("\n", historySnapshot.TakeLast(80));
         }
 
-        private static void TracePromptCacheLayout(IReadOnlyList<AiConversationMessage> messages)
+        private void EmitPromptCacheLayout(IReadOnlyList<AiConversationMessage> messages)
         {
             if (messages == null || messages.Count == 0)
             {
@@ -726,10 +751,25 @@ namespace ImageColorChanger.Services.Ai
                 .Select((message, index) =>
                 {
                     string name = string.IsNullOrWhiteSpace(message.Name) ? message.Role : message.Name;
+                    int chars = (message.Content ?? string.Empty).Length;
+                    int estimatedTokens = EstimatePromptTokens(message.Content);
                     string hash = StableShortHash(message.Content);
-                    return $"{index}:{name}:{(message.Content ?? string.Empty).Length}:{hash}";
+                    return $"{index}:{name}:chars={chars},estTok={estimatedTokens},hash={hash}";
                 });
-            Debug.WriteLine("[AiSermon][CacheLayout] " + string.Join(" | ", parts));
+            string layout = "缓存分段：" + string.Join(" | ", parts);
+            Debug.WriteLine("[AiSermon][CacheLayout] " + layout);
+            DebugMessageEmitted?.Invoke(layout);
+        }
+
+        private static int EstimatePromptTokens(string text)
+        {
+            string value = text ?? string.Empty;
+            if (value.Length == 0)
+            {
+                return 0;
+            }
+
+            return Math.Max(1, (int)Math.Ceiling(value.Length / 1.8d));
         }
 
         private static string StableShortHash(string text)
