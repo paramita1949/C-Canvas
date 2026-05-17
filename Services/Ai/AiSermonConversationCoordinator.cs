@@ -32,12 +32,14 @@ namespace ImageColorChanger.Services.Ai
         private const int MaxHistoricalSignalCount = 800;
         private const int MaxHistoricalSignalLineLength = 180;
         private const int MaxAsrPendingWindow = 2;
+        private const decimal MinimumWorkingBalance = 0.05m;
         private const string UnlabeledSpeakerName = "未标记讲师";
         private string _selectedSpeakerName = "未标记讲师";
         private bool _dialectSchemeEnabled;
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private AiSermonSessionState _session;
         private DeepSeekBalanceSnapshot _sessionStartBalance;
+        private DeepSeekBalanceSnapshot _lastBalance;
 
         public event Action<AiConversationMessage> MessageAppended;
         public event Action AssistantMessageStarted;
@@ -76,6 +78,7 @@ namespace ImageColorChanger.Services.Ai
 
         public bool HasActiveSession => _session != null;
         public string CurrentSpeakerName => _session?.SpeakerName ?? _selectedSpeakerName;
+        public string CurrentOutputMode => _session?.OutputMode ?? "concise";
 
         public Task RefreshBalanceAsync(CancellationToken cancellationToken = default)
         {
@@ -343,6 +346,11 @@ namespace ImageColorChanger.Services.Ai
                 return;
             }
 
+            if (!await EnsureBalanceAllowsWorkAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             var message = new AiConversationMessage
             {
                 Role = "user",
@@ -384,6 +392,7 @@ namespace ImageColorChanger.Services.Ai
                     EnableScriptureTool = true
                 };
                 EmitPromptCacheLayout(request.Messages);
+                EmitDetailedPromptPreview(request.Messages);
 
                 bool receivedAnyDelta = false;
                 StatusChanged?.Invoke("正在发送提示词…");
@@ -824,6 +833,51 @@ namespace ImageColorChanger.Services.Ai
             DebugMessageEmitted?.Invoke(layout);
         }
 
+        private void EmitDetailedPromptPreview(IReadOnlyList<AiConversationMessage> messages)
+        {
+            if (!string.Equals(CurrentOutputMode, "detailed", StringComparison.OrdinalIgnoreCase) ||
+                messages == null ||
+                messages.Count == 0)
+            {
+                return;
+            }
+
+            DebugMessageEmitted?.Invoke(BuildDetailedPromptPreview(messages));
+        }
+
+        internal static string BuildDetailedPromptPreview(IReadOnlyList<AiConversationMessage> messages)
+        {
+            const int maxSegmentChars = 900;
+            const int maxTotalChars = 6000;
+            if (messages == null || messages.Count == 0)
+            {
+                return "提示词预览（详细模式）：空";
+            }
+
+            var builder = new StringBuilder();
+            builder.AppendLine("提示词预览（详细模式）：");
+            for (int i = 0; i < messages.Count; i++)
+            {
+                var message = messages[i];
+                string name = string.IsNullOrWhiteSpace(message.Name) ? message.Role : message.Name;
+                string content = message.Content ?? string.Empty;
+                builder.AppendLine($"[{i}] {name} role={message.Role}, chars={content.Length}, estTok={EstimatePromptTokens(content)}");
+
+                string preview = content.Length > maxSegmentChars
+                    ? content.Substring(0, maxSegmentChars) + $"…（已截断，剩余{content.Length - maxSegmentChars}字）"
+                    : content;
+                builder.AppendLine(preview);
+
+                if (builder.Length >= maxTotalChars)
+                {
+                    builder.AppendLine($"…（提示词预览已限制在约{maxTotalChars}字，避免拖慢实时界面）");
+                    break;
+                }
+            }
+
+            return builder.ToString().TrimEnd();
+        }
+
         internal static bool IsCacheLayoutDebugOutputEnabled(string value)
         {
             return string.Equals(value, "1", StringComparison.Ordinal);
@@ -854,18 +908,72 @@ namespace ImageColorChanger.Services.Ai
             try
             {
                 var balance = await _chatClient.GetBalanceAsync(cancellationToken).ConfigureAwait(false);
+                _lastBalance = balance;
                 if (setBaseline || _sessionStartBalance == null)
                 {
                     _sessionStartBalance = balance;
                 }
 
                 BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
+                if (IsBalanceBelowMinimum(balance))
+                {
+                    StatusChanged?.Invoke(BuildLowBalanceStopMessage());
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 BalanceStatusChanged?.Invoke("余额：读取失败，消耗：待计算");
                 DebugMessageEmitted?.Invoke($"余额查询失败：{ex.Message}");
             }
+        }
+
+        private async Task<bool> EnsureBalanceAllowsWorkAsync(CancellationToken cancellationToken)
+        {
+            if (IsBalanceBelowMinimum(_lastBalance))
+            {
+                StatusChanged?.Invoke(BuildLowBalanceStopMessage());
+                return false;
+            }
+
+            if (_lastBalance != null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var balance = await _chatClient.GetBalanceAsync(cancellationToken).ConfigureAwait(false);
+                _lastBalance = balance;
+                if (_sessionStartBalance == null)
+                {
+                    _sessionStartBalance = balance;
+                }
+
+                BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
+                if (IsBalanceBelowMinimum(balance))
+                {
+                    StatusChanged?.Invoke(BuildLowBalanceStopMessage());
+                    return false;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                DebugMessageEmitted?.Invoke($"余额检查失败：{ex.Message}");
+            }
+
+            return true;
+        }
+
+        internal static bool IsBalanceBelowMinimum(DeepSeekBalanceSnapshot balance)
+        {
+            return balance != null &&
+                   balance.IsAvailable &&
+                   balance.TotalBalance < MinimumWorkingBalance;
+        }
+
+        private static string BuildLowBalanceStopMessage()
+        {
+            return $"余额低于{MinimumWorkingBalance.ToString("0.00", CultureInfo.InvariantCulture)}，AI已停止工作。";
         }
 
         private static int EstimatePromptTokens(string text)

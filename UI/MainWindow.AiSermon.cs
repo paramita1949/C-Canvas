@@ -18,6 +18,7 @@ namespace ImageColorChanger.UI
         private System.Windows.Threading.DispatcherTimer _aiBalanceRefreshTimer;
         private bool _aiSermonReceiveAsr;
         private bool _aiSermonDebugEnabled;
+        private string _aiSermonOutputMode = "concise";
         private bool _aiBalanceRefreshInFlight;
         private int _aiPanelF5HotKeyId = -1;
         internal static readonly TimeSpan AiBalanceRefreshInterval = TimeSpan.FromMinutes(5);
@@ -40,6 +41,7 @@ namespace ImageColorChanger.UI
             StartAiBalanceRefreshTimer();
 
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
+            SyncAiOutputModeFromCoordinator();
             await RefreshAiSpeakerListAsync();
 
             if (startAsr)
@@ -66,6 +68,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.Activate();
             StartAiBalanceRefreshTimer();
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
+            SyncAiOutputModeFromCoordinator();
             await RefreshAiSpeakerListAsync();
             ShowStatus($"AI字幕已读取本场主题：{item.Name}");
         }
@@ -101,6 +104,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
             StartAiBalanceRefreshTimer();
+            SyncAiOutputModeFromCoordinator();
             _ = RefreshAiBalanceStatusAsync();
             _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
             _ = RefreshAiHistoryInPanelAsync();
@@ -137,7 +141,13 @@ namespace ImageColorChanger.UI
             };
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
-            _aiAssistantPanelWindow.OutputModeChanged += mode => _ = _aiSermonCoordinator?.SetOutputModeAsync(mode);
+            _aiAssistantPanelWindow.OutputModeChanged += mode =>
+            {
+                _aiSermonOutputMode = string.Equals(mode, "detailed", StringComparison.OrdinalIgnoreCase)
+                    ? "detailed"
+                    : "concise";
+                _ = _aiSermonCoordinator?.SetOutputModeAsync(mode);
+            };
             _aiAssistantPanelWindow.DialectSchemeChanged += (enabled, tags) => _ = _aiSermonCoordinator?.SetDialectSchemeAsync(enabled, tags);
             _aiAssistantPanelWindow.HistoryRequested += () => _ = RefreshAiHistoryInPanelAsync();
             _aiAssistantPanelWindow.HistorySessionDeleteRequested += sessionId => _ = DeleteAiHistorySessionAsync(sessionId);
@@ -147,6 +157,7 @@ namespace ImageColorChanger.UI
                 _aiAssistantPanelWindow = null;
                 _aiSermonReceiveAsr = false;
                 _aiSermonDebugEnabled = false;
+                _aiSermonOutputMode = "concise";
                 _aiAsrFlushTimer?.Stop();
                 StopAiBalanceRefreshTimer();
             };
@@ -182,12 +193,22 @@ namespace ImageColorChanger.UI
                 _aiAssistantPanelWindow.Show();
                 _aiAssistantPanelWindow.Activate();
                 StartAiBalanceRefreshTimer();
+                SyncAiOutputModeFromCoordinator();
                 _ = RefreshAiBalanceStatusAsync();
                 _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
                 _ = RefreshAiHistoryInPanelAsync();
             }
 
             return true;
+        }
+
+        private void SyncAiOutputModeFromCoordinator()
+        {
+            string mode = string.Equals(_aiSermonCoordinator?.CurrentOutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
+                ? "detailed"
+                : "concise";
+            _aiSermonOutputMode = mode;
+            _aiAssistantPanelWindow?.SetOutputMode(mode);
         }
 
         private void EnsureAiAsrFlushTimer()
@@ -292,7 +313,7 @@ namespace ImageColorChanger.UI
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (_aiSermonDebugEnabled)
+                    if (_aiSermonDebugEnabled || string.Equals(_aiSermonOutputMode, "detailed", StringComparison.OrdinalIgnoreCase))
                     {
                         _aiAssistantPanelWindow?.AppendDebug(message);
                     }

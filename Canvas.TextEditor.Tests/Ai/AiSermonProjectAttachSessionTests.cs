@@ -159,6 +159,122 @@ namespace Canvas.TextEditor.Tests.Ai
             }
         }
 
+        [Fact]
+        public async Task SendAsrTurnAsync_DetailedMode_EmitsPromptPreviewForInspection()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-detailed-prompt-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new RecordingChatClient(),
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+                var debugMessages = new List<string>();
+                coordinator.DebugMessageEmitted += debugMessages.Add;
+
+                await coordinator.StartProjectAsync(7);
+                await coordinator.SetOutputModeAsync("detailed");
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-detailed",
+                    Text = "我们继续看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                Assert.Contains(debugMessages, message => message.Contains("提示词预览（详细模式）", StringComparison.Ordinal));
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task SendAsrTurnAsync_ConciseMode_DoesNotEmitPromptPreview()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-concise-prompt-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new RecordingChatClient(),
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+                var debugMessages = new List<string>();
+                coordinator.DebugMessageEmitted += debugMessages.Add;
+
+                await coordinator.StartProjectAsync(7);
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-concise",
+                    Text = "我们继续看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                Assert.DoesNotContain(debugMessages, message => message.Contains("提示词预览（详细模式）", StringComparison.Ordinal));
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task StartProjectAsync_WhenBalanceBelowMinimum_DoesNotSendAiRequest()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-low-balance-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new LowBalanceChatClient();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                var statuses = new List<string>();
+                coordinator.StatusChanged += statuses.Add;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.Empty(chat.Requests);
+                Assert.Contains("余额低于0.05，AI已停止工作。", statuses);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
         private sealed class RecordingChatClient : IDeepSeekChatClient
         {
             public List<AiChatRequest> Requests { get; } = new();
@@ -218,6 +334,30 @@ namespace Canvas.TextEditor.Tests.Ai
                     IsAvailable = true,
                     Currency = "CNY",
                     TotalBalance = 100m
+                });
+            }
+        }
+
+        private sealed class LowBalanceChatClient : IDeepSeekChatClient
+        {
+            public List<AiChatRequest> Requests { get; } = new();
+
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                Requests.Add(request);
+                return Task.FromResult(new AiChatStreamResult { Content = "不应发送" });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 0.04m
                 });
             }
         }

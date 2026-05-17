@@ -498,7 +498,7 @@
 
                                 <StackPanel Orientation="Horizontal"
                                             VerticalAlignment="Center">
-                                    <TextBlock Text="输出"
+                                    <TextBlock Text="显示"
                                                Foreground="#8FB8D1"
                                                FontSize="11"
                                                VerticalAlignment="Center"
