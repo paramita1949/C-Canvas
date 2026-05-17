@@ -332,13 +332,12 @@
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Row="0"
                         Grid.RowSpan="2"
                         Grid.Column="0"
-                        Margin="0,0,10,0"
+                        Margin="0"
                         Padding="0"
                         BorderBrush="#4D90C4"
                         BorderThickness="1"
@@ -406,21 +405,6 @@
                                 </Grid>
                             </Button>
 
-                            <Border Grid.Column="1"
-                                    BorderBrush="#315F86"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Background="#0B2035"
-                                    Padding="8,3"
-                                    Margin="0,5,10,5"
-                                    VerticalAlignment="Center">
-                                <TextBlock x:Name="LanguageBadgeText"
-                                           Text="国语"
-                                           Foreground="#BFEFFF"
-                                           FontSize="11"
-                                           FontWeight="Bold"/>
-                            </Border>
-
                             <primitives:Popup x:Name="SpeakerPopup"
                                               PlacementTarget="{Binding ElementName=SpeakerMenuButton}"
                                               Placement="Bottom"
@@ -445,11 +429,39 @@
                                     <StackPanel x:Name="SpeakerPopupStack"/>
                                 </Border>
                             </primitives:Popup>
+
+                            <Border Grid.Column="1"
+                                    BorderBrush="#4D90C4"
+                                    BorderThickness="1"
+                                    CornerRadius="9"
+                                    Background="#132D44"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Height="32"
+                                    Margin="8,0,10,0"
+                                    ClipToBounds="True">
+                                <UniformGrid Rows="1" Columns="2">
+                                    <ToggleButton x:Name="RealtimeViewButton"
+                                                  Content="实时"
+                                                  IsChecked="True"
+                                                  MinWidth="54"
+                                                  Height="30"
+                                                  Style="{StaticResource HudViewSwitchLeftButtonStyle}"
+                                                  Checked="ViewModeToggleButton_Checked"/>
+                                    <ToggleButton x:Name="HistoryViewButton"
+                                                  Content="历史"
+                                                  MinWidth="54"
+                                                  Height="30"
+                                                  Style="{StaticResource HudViewSwitchRightButtonStyle}"
+                                                  Checked="ViewModeToggleButton_Checked"/>
+                                </UniformGrid>
+                            </Border>
                         </Grid>
 
                         <Grid Grid.Row="1"
                               Margin="12,10,12,12">
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
@@ -521,84 +533,70 @@
                                            VerticalAlignment="Center"
                                            Margin="8,0,0,0"/>
                             </Grid>
+
+                            <Grid Grid.Row="2"
+                                  Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="阈值"
+                                               Foreground="#8FB8D1"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0"/>
+                                    <Border BorderBrush="#4D90C4"
+                                            BorderThickness="1"
+                                            CornerRadius="7"
+                                            Background="#132D44">
+                                        <UniformGrid Rows="1" Columns="3">
+                                            <ToggleButton x:Name="ThresholdLowButton"
+                                                          Content="低"
+                                                          ToolTipService.ShowDuration="20000"
+                                                          Style="{StaticResource HudThresholdButtonStyle}"
+                                                          Checked="ThresholdToggleButton_Checked"/>
+                                            <ToggleButton x:Name="ThresholdMidButton"
+                                                          Content="中"
+                                                          ToolTipService.ShowDuration="20000"
+                                                          Style="{StaticResource HudThresholdButtonStyle}"
+                                                          Checked="ThresholdToggleButton_Checked"/>
+                                            <ToggleButton x:Name="ThresholdHighButton"
+                                                          Content="高"
+                                                          ToolTipService.ShowDuration="20000"
+                                                          Style="{StaticResource HudThresholdButtonStyle}"
+                                                          Checked="ThresholdToggleButton_Checked"/>
+                                        </UniformGrid>
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Margin="12,0,0,0">
+                                    <TextBlock Text="透明"
+                                               Foreground="#8FB8D1"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0"/>
+                                    <Slider x:Name="PanelOpacitySlider"
+                                            Width="70"
+                                            Minimum="35"
+                                            Maximum="100"
+                                            TickFrequency="5"
+                                            Value="80"
+                                            IsSnapToTickEnabled="True"
+                                            ToolTip="调节面板背景透明度"
+                                            ValueChanged="PanelOpacitySlider_ValueChanged"/>
+                                </StackPanel>
+                            </Grid>
                         </Grid>
                     </Grid>
                 </Border>
-
-                <Border Grid.Row="0"
-                        Grid.Column="1"
-                        BorderBrush="#4D90C4"
-                        BorderThickness="1"
-                        CornerRadius="9"
-                        Background="#132D44"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Height="32"
-                        ClipToBounds="True">
-                    <UniformGrid Rows="1" Columns="2">
-                        <ToggleButton x:Name="RealtimeViewButton"
-                                      Content="实时"
-                                      IsChecked="True"
-                                      MinWidth="54"
-                                      Height="30"
-                                      Style="{StaticResource HudViewSwitchLeftButtonStyle}"
-                                      Checked="ViewModeToggleButton_Checked"/>
-                        <ToggleButton x:Name="HistoryViewButton"
-                                      Content="历史"
-                                      MinWidth="54"
-                                      Height="30"
-                                      Style="{StaticResource HudViewSwitchRightButtonStyle}"
-                                      Checked="ViewModeToggleButton_Checked"/>
-                    </UniformGrid>
-                </Border>
-
-                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock Text="阈值"
-                                   Foreground="#B7D3E8"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,6,0"/>
-                        <Border BorderBrush="#4D90C4"
-                                BorderThickness="1"
-                                CornerRadius="7"
-                                Background="#132D44">
-                            <UniformGrid Rows="1" Columns="3">
-                                <ToggleButton x:Name="ThresholdLowButton"
-                                              Content="低"
-                                              ToolTipService.ShowDuration="20000"
-                                              Style="{StaticResource HudThresholdButtonStyle}"
-                                              Checked="ThresholdToggleButton_Checked"/>
-                                <ToggleButton x:Name="ThresholdMidButton"
-                                              Content="中"
-                                              ToolTipService.ShowDuration="20000"
-                                              Style="{StaticResource HudThresholdButtonStyle}"
-                                              Checked="ThresholdToggleButton_Checked"/>
-                                <ToggleButton x:Name="ThresholdHighButton"
-                                              Content="高"
-                                              ToolTipService.ShowDuration="20000"
-                                              Style="{StaticResource HudThresholdButtonStyle}"
-                                              Checked="ThresholdToggleButton_Checked"/>
-                            </UniformGrid>
-                        </Border>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Right">
-                        <TextBlock Text="透明"
-                                   Foreground="#B7D3E8"
-                                   FontSize="11"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,6,0"/>
-                        <Slider x:Name="PanelOpacitySlider"
-                                Width="76"
-                                Minimum="35"
-                                Maximum="100"
-                                TickFrequency="5"
-                                Value="80"
-                                IsSnapToTickEnabled="True"
-                                ToolTip="调节面板背景透明度"
-                                ValueChanged="PanelOpacitySlider_ValueChanged"/>
-                    </StackPanel>
-                </StackPanel>
             </Grid>
 
             <Border x:Name="MessageContainerBorder"

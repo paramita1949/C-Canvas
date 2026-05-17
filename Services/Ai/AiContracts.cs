@@ -71,10 +71,10 @@ namespace ImageColorChanger.Services.Ai
 
     public sealed class AiSermonSessionState
     {
-        public int ProjectId { get; init; }
-        public string ProjectName { get; init; } = string.Empty;
-        public string ProjectContext { get; init; } = string.Empty;
-        public string RuntimeContext { get; init; } = string.Empty;
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string ProjectContext { get; set; } = string.Empty;
+        public string RuntimeContext { get; set; } = string.Empty;
         public int SpeakerId { get; set; }
         public string SpeakerName { get; set; } = "未标记讲师";
         public int HistorySessionId { get; set; }

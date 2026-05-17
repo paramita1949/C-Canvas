@@ -97,35 +97,68 @@ namespace ImageColorChanger.Services.Ai
         public async Task StartProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
-            var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
-            _selectedSpeakerName = speaker.Name;
-            LoadDialectTagsForSpeaker(_selectedSpeakerName);
-            var historySession = await _historyStore.CreateSessionAsync(
-                speaker.Id,
-                context.ProjectId,
-                context.ProjectName,
-                "concise").ConfigureAwait(false);
-            _session = new AiSermonSessionState
+            bool createdNewSession = false;
+
+            await _sessionInitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                ProjectId = context.ProjectId,
-                ProjectName = context.ProjectName,
-                ProjectContext = context.ContextText,
-                RuntimeContext = context.RuntimeContextText,
-                SpeakerId = speaker.Id,
-                SpeakerName = speaker.Name,
-                HistorySessionId = historySession.Id,
-                OutputMode = historySession.OutputMode,
-                SpeakerStyleSummary = speaker.StyleSummary,
-                SessionSummary = historySession.Summary,
-                StartedAt = DateTimeOffset.Now
-            };
-            lock (_stateLock)
-            {
-                _visibleMessages.Clear();
-                _historicalSignals.Clear();
+                if (_session == null)
+                {
+                    var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
+                    _selectedSpeakerName = speaker.Name;
+                    LoadDialectTagsForSpeaker(_selectedSpeakerName);
+                    var historySession = await _historyStore.CreateSessionAsync(
+                        speaker.Id,
+                        context.ProjectId,
+                        context.ProjectName,
+                        "concise").ConfigureAwait(false);
+                    _session = new AiSermonSessionState
+                    {
+                        ProjectId = context.ProjectId,
+                        ProjectName = context.ProjectName,
+                        ProjectContext = context.ContextText,
+                        RuntimeContext = context.RuntimeContextText,
+                        SpeakerId = speaker.Id,
+                        SpeakerName = speaker.Name,
+                        HistorySessionId = historySession.Id,
+                        OutputMode = historySession.OutputMode,
+                        SpeakerStyleSummary = speaker.StyleSummary,
+                        SessionSummary = historySession.Summary,
+                        StartedAt = DateTimeOffset.Now
+                    };
+                    lock (_stateLock)
+                    {
+                        _visibleMessages.Clear();
+                        _historicalSignals.Clear();
+                    }
+                    createdNewSession = true;
+                }
+                else
+                {
+                    _session.ProjectId = context.ProjectId;
+                    _session.ProjectName = context.ProjectName;
+                    _session.ProjectContext = context.ContextText;
+                    _session.RuntimeContext = context.RuntimeContextText;
+                    if (_session.HistorySessionId > 0)
+                    {
+                        await _historyStore.UpdateSessionProjectAsync(
+                            _session.HistorySessionId,
+                            context.ProjectId,
+                            context.ProjectName).ConfigureAwait(false);
+                    }
+                    AppendHistoricalSignal($"项目上下文绑定: {NormalizeSignal(context.ProjectName)}");
+                }
             }
+            finally
+            {
+                _sessionInitLock.Release();
+            }
+
             StatusChanged?.Invoke($"已绑定项目：{context.ProjectName}");
-            await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);
+            if (createdNewSession)
+            {
+                await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);
+            }
 
             string prompt =
                 "请解析这个幻灯片项目，建立今天讲章的上下文。请用正常对话简短说明今日主题、显式经文、后续 ASR 应重点关注的经文线索。\n\n" +

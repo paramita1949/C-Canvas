@@ -155,6 +155,27 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
+        public async Task UpdateSessionProjectAsync(int sessionId, int projectId, string title)
+        {
+            await _dbLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var session = await _context.AiSermonSessions.FindAsync(sessionId).ConfigureAwait(false);
+                if (session == null)
+                {
+                    return;
+                }
+
+                session.ProjectId = projectId;
+                session.Title = string.IsNullOrWhiteSpace(title) ? "未命名讲章" : title.Trim();
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _dbLock.Release();
+            }
+        }
+
         public async Task UpdateSessionOutputModeAsync(int sessionId, string outputMode)
         {
             await _dbLock.WaitAsync().ConfigureAwait(false);

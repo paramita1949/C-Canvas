@@ -868,7 +868,6 @@ namespace ImageColorChanger.UI
             {
                 _selectedDialectTags.Add("国语");
             }
-            UpdateLanguageBadgeVisual();
         }
 
         private void UpdateSpeakerSelectionVisual(string speaker)
@@ -1296,34 +1295,6 @@ namespace ImageColorChanger.UI
                     Tags = kvp.Value.ToArray()
                 })
                 .ToArray();
-            UpdateLanguageBadgeVisual();
-        }
-
-        private void UpdateLanguageBadgeVisual()
-        {
-            if (LanguageBadgeText == null)
-            {
-                return;
-            }
-
-            var tags = _selectedDialectTags
-                .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(tag => tag.Trim())
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-
-            if (tags.Count == 0)
-            {
-                LanguageBadgeText.Text = "国语";
-            }
-            else if (tags.Count <= 2)
-            {
-                LanguageBadgeText.Text = string.Join("、", tags);
-            }
-            else
-            {
-                LanguageBadgeText.Text = $"{tags[0]} +{tags.Count - 1}";
-            }
         }
 
         private void FocusSpeakerSearchBox()
