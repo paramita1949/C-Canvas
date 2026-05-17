@@ -343,13 +343,7 @@ namespace ImageColorChanger.UI
             }
 
             string text = status.Trim();
-            if (string.Equals(text, "DeepSeek请求已发送，处理中…", StringComparison.Ordinal) ||
-                string.Equals(text, "DeepSeek已返回结果。", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            return true;
+            return text.StartsWith("AI缓存", StringComparison.Ordinal);
         }
 
         public void AppendDebug(string message)

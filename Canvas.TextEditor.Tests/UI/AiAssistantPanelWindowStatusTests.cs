@@ -8,6 +8,12 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         [Theory]
         [InlineData("DeepSeek请求已发送，处理中…")]
         [InlineData("DeepSeek已返回结果。")]
+        [InlineData("正在整理提示词…")]
+        [InlineData("正在发送提示词…")]
+        [InlineData("已收到反馈，正在生成摘要…")]
+        [InlineData("已收到反馈，本次无摘要。")]
+        [InlineData("反馈接收完成。")]
+        [InlineData("已选择传道人：B")]
         public void ShouldAppendStatusToTimeline_FiltersOperationalStatus(string status)
         {
             Assert.False(AiAssistantPanelWindow.ShouldAppendStatusToTimeline(status));
@@ -17,12 +23,6 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         public void ShouldAppendStatusToTimeline_KeepsCacheStatusForOperatorVisibility()
         {
             Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline("AI缓存：hit=1408, miss=664, 命中率=68%"));
-        }
-
-        [Fact]
-        public void ShouldAppendStatusToTimeline_KeepsUserMeaningfulStatus()
-        {
-            Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline("已选择传道人：B"));
         }
 
         [Fact]
