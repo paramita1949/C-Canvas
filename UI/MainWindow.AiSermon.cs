@@ -15,9 +15,13 @@ namespace ImageColorChanger.UI
         private AiSermonConversationCoordinator _aiSermonCoordinator;
         private readonly AiAsrTurnAggregator _aiAsrTurnAggregator = new();
         private System.Windows.Threading.DispatcherTimer _aiAsrFlushTimer;
+        private System.Windows.Threading.DispatcherTimer _aiBalanceRefreshTimer;
         private bool _aiSermonReceiveAsr;
         private bool _aiSermonDebugEnabled;
+        private bool _aiBalanceRefreshInFlight;
         private int _aiPanelF5HotKeyId = -1;
+        internal static readonly TimeSpan AiBalanceRefreshInterval = TimeSpan.FromMinutes(5);
+        internal static readonly TimeSpan AiAsrFlushInterval = TimeSpan.FromMilliseconds(150);
 
         private async Task AnalyzeTextProjectWithAiAsync(ProjectTreeItem item, bool startAsr)
         {
@@ -33,6 +37,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
+            StartAiBalanceRefreshTimer();
 
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
             await RefreshAiSpeakerListAsync();
@@ -59,6 +64,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
+            StartAiBalanceRefreshTimer();
             await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
             await RefreshAiSpeakerListAsync();
             ShowStatus($"AI字幕已读取本场主题：{item.Name}");
@@ -94,7 +100,8 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
-            _ = _aiSermonCoordinator.RefreshBalanceAsync(CancellationToken.None);
+            StartAiBalanceRefreshTimer();
+            _ = RefreshAiBalanceStatusAsync();
             _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
             _ = RefreshAiHistoryInPanelAsync();
         }
@@ -120,6 +127,7 @@ namespace ImageColorChanger.UI
                 Owner = this
             };
             EnsureAiAsrFlushTimer();
+            EnsureAiBalanceRefreshTimer();
             SetAiSermonReceiveAsr(true);
             _aiAssistantPanelWindow.DebugModeChanged += enabled => _aiSermonDebugEnabled = enabled;
             _aiAssistantPanelWindow.ModelChanged += model =>
@@ -140,6 +148,7 @@ namespace ImageColorChanger.UI
                 _aiSermonReceiveAsr = false;
                 _aiSermonDebugEnabled = false;
                 _aiAsrFlushTimer?.Stop();
+                StopAiBalanceRefreshTimer();
             };
         }
 
@@ -166,12 +175,14 @@ namespace ImageColorChanger.UI
             if (_aiAssistantPanelWindow.IsVisible)
             {
                 _aiAssistantPanelWindow.Hide();
+                StopAiBalanceRefreshTimer();
             }
             else
             {
                 _aiAssistantPanelWindow.Show();
                 _aiAssistantPanelWindow.Activate();
-                _ = _aiSermonCoordinator.RefreshBalanceAsync(CancellationToken.None);
+                StartAiBalanceRefreshTimer();
+                _ = RefreshAiBalanceStatusAsync();
                 _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
                 _ = RefreshAiHistoryInPanelAsync();
             }
@@ -190,10 +201,56 @@ namespace ImageColorChanger.UI
                 System.Windows.Threading.DispatcherPriority.Background,
                 Dispatcher)
             {
-                Interval = TimeSpan.FromMilliseconds(350)
+                Interval = AiAsrFlushInterval
             };
             _aiAsrFlushTimer.Tick += (_, _) => FlushPendingAiAsrTurn();
             _aiAsrFlushTimer.Start();
+        }
+
+        private void EnsureAiBalanceRefreshTimer()
+        {
+            if (_aiBalanceRefreshTimer != null)
+            {
+                return;
+            }
+
+            _aiBalanceRefreshTimer = new System.Windows.Threading.DispatcherTimer(
+                System.Windows.Threading.DispatcherPriority.Background,
+                Dispatcher)
+            {
+                Interval = AiBalanceRefreshInterval
+            };
+            _aiBalanceRefreshTimer.Tick += (_, _) => _ = RefreshAiBalanceStatusAsync();
+        }
+
+        private void StartAiBalanceRefreshTimer()
+        {
+            EnsureAiBalanceRefreshTimer();
+            _aiBalanceRefreshTimer?.Start();
+        }
+
+        private void StopAiBalanceRefreshTimer()
+        {
+            _aiBalanceRefreshTimer?.Stop();
+            _aiBalanceRefreshInFlight = false;
+        }
+
+        private async Task RefreshAiBalanceStatusAsync()
+        {
+            if (_aiSermonCoordinator == null || _aiBalanceRefreshInFlight)
+            {
+                return;
+            }
+
+            _aiBalanceRefreshInFlight = true;
+            try
+            {
+                await _aiSermonCoordinator.RefreshBalanceAsync(CancellationToken.None);
+            }
+            finally
+            {
+                _aiBalanceRefreshInFlight = false;
+            }
         }
 
         private void EnsureAiSermonCoordinator()

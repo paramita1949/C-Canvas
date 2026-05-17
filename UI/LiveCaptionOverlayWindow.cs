@@ -92,6 +92,7 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _ndiStyleActionText;
         private readonly TextBlock _localStyleActionText;
         private readonly Border _projectionAction;
+        private readonly Border _aiPanelAction;
         private readonly Border _ndiAction;
         private readonly Border _ndiStyleAction;
         private readonly Border _localStyleAction;
@@ -144,6 +145,7 @@ namespace ImageColorChanger.UI
         private bool _suppressRecognitionToggleEvents;
 
         public event Action SettingsRequested;
+        public event Action AiPanelRequested;
         public event Action ProjectionToggleRequested;
         public event Action NdiToggleRequested;
         public event Action NdiStyleRequested;
@@ -297,6 +299,15 @@ namespace ImageColorChanger.UI
             };
             SetProjectionToggleState(hidden: false);
 
+            _aiPanelAction = CreateTextActionItem("AI面板", out _);
+            _aiPanelAction.Margin = new Thickness(6, 0, 0, 0);
+            _aiPanelAction.ToolTip = "打开或隐藏AI面板";
+            _aiPanelAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                AiPanelRequested?.Invoke();
+            };
+
             _ndiAction = CreateTextActionItem("NDI投影", out _ndiActionText);
             _ndiAction.Margin = new Thickness(6, 0, 0, 0);
             _ndiAction.ToolTip = "NDI投影（点击开启）";
@@ -354,6 +365,7 @@ namespace ImageColorChanger.UI
 
             _actionPanel.Children.Add(_realtimeRecognitionToggle);
             _actionPanel.Children.Add(_shortPhraseRecognitionToggle);
+            _actionPanel.Children.Add(_aiPanelAction);
             _actionPanel.Children.Add(_projectionAction);
             _actionPanel.Children.Add(_ndiAction);
             _actionPanel.Children.Add(_ndiStyleAction);
@@ -717,7 +729,14 @@ namespace ImageColorChanger.UI
             DependencyObject current = source;
             while (current != null)
             {
-                if (ReferenceEquals(current, _projectionAction) || ReferenceEquals(current, _styleAction) || ReferenceEquals(current, _settingsAction) || ReferenceEquals(current, _closeAction))
+                if (ReferenceEquals(current, _aiPanelAction) ||
+                    ReferenceEquals(current, _projectionAction) ||
+                    ReferenceEquals(current, _ndiAction) ||
+                    ReferenceEquals(current, _ndiStyleAction) ||
+                    ReferenceEquals(current, _localStyleAction) ||
+                    ReferenceEquals(current, _styleAction) ||
+                    ReferenceEquals(current, _settingsAction) ||
+                    ReferenceEquals(current, _closeAction))
                 {
                     return true;
                 }

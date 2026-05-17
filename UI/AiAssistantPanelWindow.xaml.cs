@@ -281,7 +281,7 @@ namespace ImageColorChanger.UI
                 HideEmptyState();
                 _currentAssistantText = new TextBlock
                 {
-                    Text = $"{BuildTimePrefix()} [AI理解] ",
+                    Text = BuildMessageHeader("摘要") + Environment.NewLine,
                     TextWrapping = TextWrapping.WrapWithOverflow,
                     Foreground = CreateBrush("#F4FBFF"),
                     FontSize = 12,
@@ -344,8 +344,7 @@ namespace ImageColorChanger.UI
 
             string text = status.Trim();
             if (string.Equals(text, "DeepSeek请求已发送，处理中…", StringComparison.Ordinal) ||
-                string.Equals(text, "DeepSeek已返回结果。", StringComparison.Ordinal) ||
-                text.StartsWith("AI缓存：", StringComparison.Ordinal))
+                string.Equals(text, "DeepSeek已返回结果。", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -375,7 +374,7 @@ namespace ImageColorChanger.UI
                 string label = string.Equals(sender, "系统", StringComparison.Ordinal) ? "状态" : sender;
                 var textBlock = new TextBlock
                 {
-                    Text = $"{BuildTimePrefix()} [{label}] {(content ?? string.Empty)}",
+                    Text = $"{BuildMessageHeader(label)} {(content ?? string.Empty)}",
                     FontWeight = FontWeights.Medium,
                     Foreground = CreateBrush(foreground),
                     FontSize = 12,
@@ -1484,6 +1483,17 @@ namespace ImageColorChanger.UI
         private static string BuildTimePrefix()
         {
             return DateTime.Now.ToString("HH:mm:ss");
+        }
+
+        internal static string BuildMessageHeaderForTest(string label)
+        {
+            return BuildMessageHeader(label);
+        }
+
+        private static string BuildMessageHeader(string label)
+        {
+            string safeLabel = string.IsNullOrWhiteSpace(label) ? "信息" : label.Trim();
+            return $"{BuildTimePrefix()} [{safeLabel}]";
         }
 
         private static SolidColorBrush CreateBrush(string hex)

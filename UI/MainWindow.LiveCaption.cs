@@ -307,6 +307,7 @@ namespace ImageColorChanger.UI
             {
                 _liveCaptionOverlayWindow = new LiveCaptionOverlayWindow();
                 _liveCaptionOverlayWindow.SettingsRequested += OpenLiveCaptionOverlaySettings;
+                _liveCaptionOverlayWindow.AiPanelRequested += OpenAiPanelFromLiveCaptionOverlay;
                 _liveCaptionOverlayWindow.CaptionStyleRequested += OpenLiveCaptionStyleSettings;
                 _liveCaptionOverlayWindow.NdiStyleRequested += OpenLiveCaptionNdiStyleSettings;
                 _liveCaptionOverlayWindow.LocalStyleRequested += OpenLiveCaptionLocalStyleSettings;
@@ -1195,6 +1196,7 @@ namespace ImageColorChanger.UI
                 {
                     PersistLiveCaptionFloatingBoundsToConfig("dispose");
                     _liveCaptionOverlayWindow.SettingsRequested -= OpenLiveCaptionOverlaySettings;
+                    _liveCaptionOverlayWindow.AiPanelRequested -= OpenAiPanelFromLiveCaptionOverlay;
                     _liveCaptionOverlayWindow.CaptionStyleRequested -= OpenLiveCaptionStyleSettings;
                     _liveCaptionOverlayWindow.NdiStyleRequested -= OpenLiveCaptionNdiStyleSettings;
                     _liveCaptionOverlayWindow.LocalStyleRequested -= OpenLiveCaptionLocalStyleSettings;
@@ -1250,6 +1252,11 @@ namespace ImageColorChanger.UI
             menu.VerticalOffset = 0;
             menu.IsOpen = true;
             LiveCaptionDebugLogger.Log("Settings: context menu opened.");
+        }
+
+        private void OpenAiPanelFromLiveCaptionOverlay()
+        {
+            ToggleAiAssistantPanelVisibilityByShortcut();
         }
 
         private void OpenLiveCaptionStyleSettings()

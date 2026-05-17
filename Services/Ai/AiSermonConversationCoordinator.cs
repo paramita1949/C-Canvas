@@ -376,7 +376,7 @@ namespace ImageColorChanger.Services.Ai
                     AssistantMessageStarted?.Invoke();
                 }
 
-                StatusChanged?.Invoke("DeepSeek请求已发送，处理中…");
+                StatusChanged?.Invoke("正在整理提示词…");
                 var request = new AiChatRequest
                 {
                     Messages = BuildMessagesForRequest(name),
@@ -386,13 +386,18 @@ namespace ImageColorChanger.Services.Ai
                 EmitPromptCacheLayout(request.Messages);
 
                 bool receivedAnyDelta = false;
+                StatusChanged?.Invoke("正在发送提示词…");
                 var result = await _chatClient.StreamChatAsync(
                     request,
                     chunk =>
                     {
                         if (!string.IsNullOrEmpty(chunk))
                         {
-                            receivedAnyDelta = true;
+                            if (!receivedAnyDelta)
+                            {
+                                StatusChanged?.Invoke("已收到反馈，正在生成摘要…");
+                                receivedAnyDelta = true;
+                            }
                         }
 
                         if (!isAsr)
@@ -421,20 +426,21 @@ namespace ImageColorChanger.Services.Ai
                         await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
                     }
 
+                    await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
                     await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
                 }
                 else if (!receivedAnyDelta)
                 {
-                    StatusChanged?.Invoke("DeepSeek已响应（本次无文本输出）。");
+                    StatusChanged?.Invoke("已收到反馈，本次无摘要。");
+                    await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
                     await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
                 }
 
                 if (receivedAnyDelta)
                 {
-                    StatusChanged?.Invoke("DeepSeek已返回结果。");
+                    StatusChanged?.Invoke("反馈接收完成。");
                 }
 
-                await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
                 if (result.PromptCacheHitTokens > 0 || result.PromptCacheMissTokens > 0)
                 {
                     int totalCacheTokens = result.PromptCacheHitTokens + result.PromptCacheMissTokens;

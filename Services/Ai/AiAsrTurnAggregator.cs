@@ -21,8 +21,8 @@ namespace ImageColorChanger.Services.Ai
         public AiAsrTurnAggregator(
             int minTextLength = 8,
             int minInterimTextLength = 14,
-            int interimSilenceTimeoutSeconds = 2,
-            int minTurnIntervalSeconds = 8)
+            int interimSilenceTimeoutSeconds = 1,
+            int minTurnIntervalSeconds = 4)
         {
             _minTextLength = Math.Max(1, minTextLength);
             _minInterimTextLength = Math.Max(_minTextLength, minInterimTextLength);

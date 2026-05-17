@@ -72,6 +72,93 @@ namespace Canvas.TextEditor.Tests.Ai
             }
         }
 
+        [Fact]
+        public async Task StartProjectAsync_ReportsDetailedRequestProgressStatuses()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-status-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new RecordingChatClient(),
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                var statuses = new List<string>();
+                coordinator.StatusChanged += statuses.Add;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.Contains("正在整理提示词…", statuses);
+                Assert.Contains("正在发送提示词…", statuses);
+                Assert.Contains("已收到反馈，正在生成摘要…", statuses);
+                Assert.Contains("反馈接收完成。", statuses);
+                Assert.DoesNotContain("DeepSeek请求已发送，处理中…", statuses);
+                Assert.DoesNotContain("DeepSeek已返回结果。", statuses);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task SendAsrTurnAsync_WhenScriptureCandidateReturned_ConfirmsCandidateBeforeCompletion()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-candidate-priority-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new CandidateChatClient();
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+            var order = new List<string>();
+                coordinator.StatusChanged += status =>
+                {
+                    if (status.StartsWith("AI经文候选已确认", StringComparison.Ordinal))
+                    {
+                        order.Add("candidate");
+                    }
+                    else if (string.Equals(status, "反馈接收完成。", StringComparison.Ordinal))
+                    {
+                        order.Add("complete");
+                    }
+                };
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-candidate",
+                    Text = "我们今天讲约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                Assert.Equal(new[] { "candidate", "complete" }, order);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
         private sealed class RecordingChatClient : IDeepSeekChatClient
         {
             public List<AiChatRequest> Requests { get; } = new();
@@ -84,6 +171,44 @@ namespace Canvas.TextEditor.Tests.Ai
                 Requests.Add(request);
                 onContentDelta?.Invoke("已理解");
                 return Task.FromResult(new AiChatStreamResult { Content = "已理解" });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                });
+            }
+        }
+
+        private sealed class CandidateChatClient : IDeepSeekChatClient
+        {
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                onContentDelta?.Invoke("候选摘要");
+                return Task.FromResult(new AiChatStreamResult
+                {
+                    Content = "候选摘要",
+                    ScriptureCandidates = new[]
+                    {
+                        new AiScriptureCandidate
+                        {
+                            BookId = 43,
+                            BookName = "约翰福音",
+                            Chapter = 3,
+                            StartVerse = 16,
+                            EndVerse = 16,
+                            Confidence = 0.95,
+                            Reason = "ASR明确提到约翰福音三章十六节"
+                        }
+                    }
+                });
             }
 
             public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)

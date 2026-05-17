@@ -124,5 +124,49 @@ namespace Canvas.TextEditor.Tests.Ai
             Assert.False(accepted);
             Assert.Null(turn);
         }
+
+        [Fact]
+        public void TryFlushPendingInterim_DefaultLatencyFlushesAfterOneSecond()
+        {
+            var aggregator = new AiAsrTurnAggregator();
+            var t0 = new DateTimeOffset(2026, 5, 12, 0, 30, 0, TimeSpan.FromHours(8));
+
+            Assert.False(aggregator.TryAccept(
+                "实时ASR已经形成足够长的一段内容，需要尽快交给AI理解。",
+                isFinal: false,
+                capturedAt: t0,
+                out _));
+
+            bool accepted = aggregator.TryFlushPendingInterim(t0.AddSeconds(1), out var turn);
+
+            Assert.True(accepted);
+            Assert.NotNull(turn);
+            Assert.False(turn.IsFinal);
+        }
+
+        [Fact]
+        public void TryFlushPendingInterim_DefaultCadenceAllowsFourSecondUpdates()
+        {
+            var aggregator = new AiAsrTurnAggregator();
+            var t0 = new DateTimeOffset(2026, 5, 12, 0, 30, 0, TimeSpan.FromHours(8));
+
+            Assert.False(aggregator.TryAccept(
+                "第一段实时ASR已经足够长，需要先形成一次AI理解。",
+                isFinal: false,
+                capturedAt: t0,
+                out _));
+            Assert.True(aggregator.TryFlushPendingInterim(t0.AddSeconds(1), out _));
+
+            Assert.False(aggregator.TryAccept(
+                "第二段实时ASR继续推进讲章内容，不能等到八秒以后才处理。",
+                isFinal: false,
+                capturedAt: t0.AddSeconds(4),
+                out _));
+
+            bool accepted = aggregator.TryFlushPendingInterim(t0.AddSeconds(5), out var turn);
+
+            Assert.True(accepted);
+            Assert.NotNull(turn);
+        }
     }
 }
