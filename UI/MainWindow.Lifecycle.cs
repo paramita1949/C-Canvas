@@ -657,6 +657,9 @@ namespace ImageColorChanger.UI
                 
                 // 处理圣经历史记录
                 HandleBibleHistoryOnClosing();
+
+                // AI 面板经常被直接关闭或随软件退出，这里做本场费用与结束时间的兜底结算。
+                FinalizeAiSermonSessionForShutdown();
                 
                 // 清理数据库连接（关闭WAL文件）
                 CleanupDatabase();

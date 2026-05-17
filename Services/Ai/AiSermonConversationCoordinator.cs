@@ -85,6 +85,46 @@ namespace ImageColorChanger.Services.Ai
             return RefreshBalanceStatusAsync(setBaseline: false, cancellationToken);
         }
 
+        public async Task FinalizeActiveSessionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_session == null)
+            {
+                return;
+            }
+
+            bool sendLockHeld = false;
+            int asrLocksHeld = 0;
+            try
+            {
+                await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                sendLockHeld = true;
+                await _asrSendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                asrLocksHeld++;
+                await _asrSendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                asrLocksHeld++;
+
+                await RefreshBalanceStatusAsync(setBaseline: false, cancellationToken).ConfigureAwait(false);
+                await PersistSessionSettlementAsync(markEnded: true).ConfigureAwait(false);
+                ResetActiveSessionAfterFinalSettlement();
+            }
+            catch (OperationCanceledException)
+            {
+                await PersistSessionSettlementAsync(markEnded: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                for (int i = 0; i < asrLocksHeld; i++)
+                {
+                    _asrSendGate.Release();
+                }
+
+                if (sendLockHeld)
+                {
+                    _sendLock.Release();
+                }
+            }
+        }
+
         internal static string ResolveSpeakerNameForSession(string speakerName)
         {
             string value = (speakerName ?? string.Empty).Trim();
@@ -129,6 +169,8 @@ namespace ImageColorChanger.Services.Ai
                         SessionSummary = historySession.Summary,
                         StartedAt = DateTimeOffset.Now
                     };
+                    _sessionStartBalance = null;
+                    _lastBalance = null;
                     lock (_stateLock)
                     {
                         _visibleMessages.Clear();
@@ -915,6 +957,7 @@ namespace ImageColorChanger.Services.Ai
                 }
 
                 BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
+                await PersistSessionSettlementAsync(markEnded: false).ConfigureAwait(false);
                 if (IsBalanceBelowMinimum(balance))
                 {
                     StatusChanged?.Invoke(BuildLowBalanceStopMessage());
@@ -950,6 +993,7 @@ namespace ImageColorChanger.Services.Ai
                 }
 
                 BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
+                await PersistSessionSettlementAsync(markEnded: false).ConfigureAwait(false);
                 if (IsBalanceBelowMinimum(balance))
                 {
                     StatusChanged?.Invoke(BuildLowBalanceStopMessage());
@@ -967,8 +1011,95 @@ namespace ImageColorChanger.Services.Ai
         internal static bool IsBalanceBelowMinimum(DeepSeekBalanceSnapshot balance)
         {
             return balance != null &&
-                   balance.IsAvailable &&
-                   balance.TotalBalance < MinimumWorkingBalance;
+                balance.IsAvailable &&
+                balance.TotalBalance < MinimumWorkingBalance;
+        }
+
+        private async Task PersistSessionSettlementAsync(bool markEnded)
+        {
+            var session = _session;
+            if (session == null || session.HistorySessionId <= 0)
+            {
+                return;
+            }
+
+            var start = _sessionStartBalance;
+            var current = _lastBalance;
+            decimal? startBalance = GetPersistableBalance(start);
+            decimal? lastBalance = GetPersistableBalance(current);
+            string currency = GetSettlementCurrency(start, current);
+            decimal? sessionCost = CalculateSessionCost(start, current);
+
+            if (!markEnded && startBalance == null && lastBalance == null && sessionCost == null)
+            {
+                return;
+            }
+
+            await _historyStore.UpdateSessionSettlementAsync(
+                session.HistorySessionId,
+                startBalance,
+                lastBalance,
+                sessionCost,
+                currency,
+                markEnded).ConfigureAwait(false);
+        }
+
+        private static decimal? GetPersistableBalance(DeepSeekBalanceSnapshot balance)
+        {
+            if (balance == null || !balance.IsAvailable || string.IsNullOrWhiteSpace(balance.Currency))
+            {
+                return null;
+            }
+
+            return balance.TotalBalance;
+        }
+
+        private static string GetSettlementCurrency(
+            DeepSeekBalanceSnapshot start,
+            DeepSeekBalanceSnapshot current)
+        {
+            if (current != null && current.IsAvailable && !string.IsNullOrWhiteSpace(current.Currency))
+            {
+                return current.Currency.Trim();
+            }
+
+            if (start != null && start.IsAvailable && !string.IsNullOrWhiteSpace(start.Currency))
+            {
+                return start.Currency.Trim();
+            }
+
+            return string.Empty;
+        }
+
+        private static decimal? CalculateSessionCost(
+            DeepSeekBalanceSnapshot start,
+            DeepSeekBalanceSnapshot current)
+        {
+            if (start == null ||
+                current == null ||
+                !start.IsAvailable ||
+                !current.IsAvailable ||
+                string.IsNullOrWhiteSpace(start.Currency) ||
+                string.IsNullOrWhiteSpace(current.Currency) ||
+                !string.Equals(start.Currency, current.Currency, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return Math.Max(0m, start.TotalBalance - current.TotalBalance);
+        }
+
+        private void ResetActiveSessionAfterFinalSettlement()
+        {
+            lock (_stateLock)
+            {
+                _visibleMessages.Clear();
+                _historicalSignals.Clear();
+            }
+
+            _session = null;
+            _sessionStartBalance = null;
+            _lastBalance = null;
         }
 
         private static string BuildLowBalanceStopMessage()
@@ -1124,6 +1255,8 @@ namespace ImageColorChanger.Services.Ai
                     SessionSummary = historySession.Summary,
                     StartedAt = DateTimeOffset.Now
                 };
+                _sessionStartBalance = null;
+                _lastBalance = null;
 
                 StatusChanged?.Invoke("已自动创建实时历史会话");
                 await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);

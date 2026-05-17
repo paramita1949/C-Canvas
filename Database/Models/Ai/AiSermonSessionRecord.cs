@@ -36,6 +36,18 @@ namespace ImageColorChanger.Database.Models.Ai
         [Column("ended_at")]
         public DateTime? EndedAt { get; set; }
 
+        [Column("start_balance")]
+        public decimal? StartBalance { get; set; }
+
+        [Column("last_balance")]
+        public decimal? LastBalance { get; set; }
+
+        [Column("session_cost")]
+        public decimal? SessionCost { get; set; }
+
+        [Column("balance_currency")]
+        public string BalanceCurrency { get; set; } = string.Empty;
+
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
     }

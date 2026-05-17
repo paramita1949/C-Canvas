@@ -275,6 +275,43 @@ namespace Canvas.TextEditor.Tests.Ai
             }
         }
 
+        [Fact]
+        public async Task FinalizeActiveSessionAsync_PersistsLastKnownCostAndEndsSession()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-finalize-session-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new BalanceSequenceChatClient(100m, 99.60m, 99.25m);
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+
+                await coordinator.StartProjectAsync(7);
+                await coordinator.FinalizeActiveSessionAsync(CancellationToken.None);
+
+                var session = await context.AiSermonSessions.SingleAsync();
+                Assert.Equal(100m, session.StartBalance);
+                Assert.Equal(99.25m, session.LastBalance);
+                Assert.Equal(0.75m, session.SessionCost);
+                Assert.Equal("CNY", session.BalanceCurrency);
+                Assert.NotNull(session.EndedAt);
+                Assert.False(coordinator.HasActiveSession);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
         private sealed class RecordingChatClient : IDeepSeekChatClient
         {
             public List<AiChatRequest> Requests { get; } = new();
@@ -358,6 +395,36 @@ namespace Canvas.TextEditor.Tests.Ai
                     IsAvailable = true,
                     Currency = "CNY",
                     TotalBalance = 0.04m
+                });
+            }
+        }
+
+        private sealed class BalanceSequenceChatClient : IDeepSeekChatClient
+        {
+            private readonly Queue<decimal> _balances;
+
+            public BalanceSequenceChatClient(params decimal[] balances)
+            {
+                _balances = new Queue<decimal>(balances);
+            }
+
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                onContentDelta?.Invoke("已理解");
+                return Task.FromResult(new AiChatStreamResult { Content = "已理解" });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                decimal balance = _balances.Count > 0 ? _balances.Dequeue() : 99.25m;
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = balance
                 });
             }
         }

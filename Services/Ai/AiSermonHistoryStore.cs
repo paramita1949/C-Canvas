@@ -218,6 +218,40 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
+        public async Task UpdateSessionSettlementAsync(
+            int sessionId,
+            decimal? startBalance,
+            decimal? lastBalance,
+            decimal? sessionCost,
+            string currency,
+            bool markEnded)
+        {
+            await _dbLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var session = await _context.AiSermonSessions.FindAsync(sessionId).ConfigureAwait(false);
+                if (session == null)
+                {
+                    return;
+                }
+
+                session.StartBalance = startBalance;
+                session.LastBalance = lastBalance;
+                session.SessionCost = sessionCost;
+                session.BalanceCurrency = currency ?? string.Empty;
+                if (markEnded && session.EndedAt == null)
+                {
+                    session.EndedAt = DateTime.Now;
+                }
+
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _dbLock.Release();
+            }
+        }
+
         public async Task UpdateSpeakerStyleSummaryAsync(int speakerId, string styleSummary)
         {
             await _dbLock.WaitAsync().ConfigureAwait(false);
@@ -346,6 +380,11 @@ namespace ImageColorChanger.Services.Ai
                                 ProjectId = session.ProjectId,
                                 Summary = session.Summary,
                                 StartedAt = session.StartedAt,
+                                EndedAt = session.EndedAt,
+                                StartBalance = session.StartBalance,
+                                LastBalance = session.LastBalance,
+                                SessionCost = session.SessionCost,
+                                BalanceCurrency = session.BalanceCurrency,
                                 Messages = messages
                                     .Where(message => message.SessionId == session.Id)
                                     .Select(message => new AiConversationHistoryMessage
@@ -385,6 +424,11 @@ namespace ImageColorChanger.Services.Ai
         public string Title { get; init; } = string.Empty;
         public string Summary { get; init; } = string.Empty;
         public DateTime StartedAt { get; init; }
+        public DateTime? EndedAt { get; init; }
+        public decimal? StartBalance { get; init; }
+        public decimal? LastBalance { get; init; }
+        public decimal? SessionCost { get; init; }
+        public string BalanceCurrency { get; init; } = string.Empty;
         public IReadOnlyList<AiConversationHistoryMessage> Messages { get; init; } = Array.Empty<AiConversationHistoryMessage>();
     }
 

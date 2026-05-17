@@ -1364,6 +1364,10 @@ namespace ImageColorChanger.Database
                         output_mode TEXT NOT NULL DEFAULT 'concise',
                         started_at TEXT NOT NULL,
                         ended_at TEXT NULL,
+                        start_balance TEXT NULL,
+                        last_balance TEXT NULL,
+                        session_cost TEXT NULL,
+                        balance_currency TEXT NOT NULL DEFAULT '',
                         is_deleted INTEGER NOT NULL DEFAULT 0
                     );
 
@@ -1385,6 +1389,11 @@ namespace ImageColorChanger.Database
                     CREATE INDEX IF NOT EXISTS idx_ai_conversation_records_created ON ai_conversation_records(created_at);
                     CREATE INDEX IF NOT EXISTS idx_ai_conversation_records_deleted ON ai_conversation_records(is_deleted);
                 ");
+
+                EnsureColumnExists("ai_sermon_sessions", "start_balance", "TEXT NULL");
+                EnsureColumnExists("ai_sermon_sessions", "last_balance", "TEXT NULL");
+                EnsureColumnExists("ai_sermon_sessions", "session_cost", "TEXT NULL");
+                EnsureColumnExists("ai_sermon_sessions", "balance_currency", "TEXT NOT NULL DEFAULT ''");
             }
             catch (Exception ex)
             {

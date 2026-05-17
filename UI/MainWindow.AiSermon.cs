@@ -152,15 +152,52 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.HistoryRequested += () => _ = RefreshAiHistoryInPanelAsync();
             _aiAssistantPanelWindow.HistorySessionDeleteRequested += sessionId => _ = DeleteAiHistorySessionAsync(sessionId);
             _aiAssistantPanelWindow.HistoryMessageDeleteRequested += messageId => _ = DeleteAiHistoryMessageAsync(messageId);
-            _aiAssistantPanelWindow.Closed += (_, _) =>
+            _aiAssistantPanelWindow.Closed += async (_, _) =>
             {
-                _aiAssistantPanelWindow = null;
                 _aiSermonReceiveAsr = false;
                 _aiSermonDebugEnabled = false;
                 _aiSermonOutputMode = "concise";
                 _aiAsrFlushTimer?.Stop();
                 StopAiBalanceRefreshTimer();
+                await FinalizeAiSermonSessionAsync();
+                _aiAssistantPanelWindow = null;
             };
+        }
+
+        private async Task FinalizeAiSermonSessionAsync()
+        {
+            if (_aiSermonCoordinator == null)
+            {
+                return;
+            }
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await _aiSermonCoordinator.FinalizeActiveSessionAsync(cts.Token);
+            }
+            catch (Exception)
+            {
+                // Closing the panel must never block the live app; the coordinator persists the last known balance on cancellation.
+            }
+        }
+
+        private void FinalizeAiSermonSessionForShutdown()
+        {
+            if (_aiSermonCoordinator == null)
+            {
+                return;
+            }
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                _aiSermonCoordinator.FinalizeActiveSessionAsync(cts.Token).GetAwaiter().GetResult();
+            }
+            catch (Exception)
+            {
+                // Shutdown cleanup is best effort; do not prevent the user from closing the app.
+            }
         }
 
         private void RegisterAiPanelF5HotKey()

@@ -1,5 +1,16 @@
 # Changelog
 
+## 6.0.6.1 (2026-05-18)
+
+### Added
+
+- 新增 AI 讲章会话项目绑定与生命周期相关测试覆盖（`AiSermonProjectAttachSessionTests`、`AiSermonHistoryStoreTests`）。
+
+### Changed
+
+- AI 讲章历史会话存储与模型结构调整，补充会话记录字段与 `CanvasDbContext` 映射同步。
+- AI 助手面板与主窗口 AI 讲章链路继续优化：会话项目绑定、状态联动与生命周期处理进一步稳定。
+
 ## 6.0.5.10 (2026-05-17)
 
 ### Added

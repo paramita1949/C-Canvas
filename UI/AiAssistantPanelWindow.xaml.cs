@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -497,6 +498,19 @@ namespace ImageColorChanger.UI
                 });
             }
 
+            string settlementText = BuildSessionSettlementText(session);
+            if (!string.IsNullOrWhiteSpace(settlementText))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = settlementText,
+                    Foreground = CreateBrush("#7EEBFF"),
+                    FontSize = 10,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 2, 0, 4)
+                });
+            }
+
             if (session.Messages.Count > 0)
             {
                 var detailsExpander = new Expander
@@ -523,6 +537,32 @@ namespace ImageColorChanger.UI
             }
 
             return root;
+        }
+
+        private static string BuildSessionSettlementText(AiSermonSessionHistory session)
+        {
+            if (session == null)
+            {
+                return string.Empty;
+            }
+
+            var parts = new List<string>();
+            if (session.LastBalance.HasValue)
+            {
+                parts.Add("余额 " + session.LastBalance.Value.ToString("0.00", CultureInfo.InvariantCulture));
+            }
+
+            if (session.SessionCost.HasValue)
+            {
+                parts.Add("消耗 " + session.SessionCost.Value.ToString("0.00", CultureInfo.InvariantCulture));
+            }
+
+            if (session.EndedAt.HasValue)
+            {
+                parts.Add("结束 " + session.EndedAt.Value.ToString("HH:mm", CultureInfo.InvariantCulture));
+            }
+
+            return string.Join(" · ", parts);
         }
 
         private FrameworkElement CreateMessageHistoryLine(AiConversationHistoryMessage message)

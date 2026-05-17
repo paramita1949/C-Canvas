@@ -44,5 +44,42 @@ namespace Canvas.TextEditor.Tests.Ai
                 try { System.IO.File.Delete(dbPath); } catch { }
             }
         }
+
+        [Fact]
+        public async Task UpdateSessionSettlementAsync_PersistsBalanceCostAndEndTime()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-history-settlement-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+                var store = new AiSermonHistoryStore(context);
+
+                var speaker = await store.GetOrCreateSpeakerAsync("讲师A");
+                var session = await store.CreateSessionAsync(speaker.Id, projectId: 10, title: "主日讲章");
+
+                await store.UpdateSessionSettlementAsync(
+                    session.Id,
+                    startBalance: 100m,
+                    lastBalance: 99.42m,
+                    sessionCost: 0.58m,
+                    currency: "CNY",
+                    markEnded: true);
+
+                var groups = await store.GetSessionGroupsBySpeakerAsync();
+                var saved = groups.Single().Sessions.Single();
+
+                Assert.Equal(100m, saved.StartBalance);
+                Assert.Equal(99.42m, saved.LastBalance);
+                Assert.Equal(0.58m, saved.SessionCost);
+                Assert.Equal("CNY", saved.BalanceCurrency);
+                Assert.NotNull(saved.EndedAt);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
     }
 }
