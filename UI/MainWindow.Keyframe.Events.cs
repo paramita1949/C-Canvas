@@ -6,7 +6,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Managers;
 using ImageColorChanger.Managers.Keyframes;
+using ImageColorChanger.Services.Diagnostics;
 using MessageBox = System.Windows.MessageBox;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +23,166 @@ namespace ImageColorChanger.UI
         private System.Windows.Threading.DispatcherTimer _compositeSpeedMenuAutoCloseTimer;
         private DateTime _compositeSpeedMenuLastKeepAliveUtc = DateTime.MinValue;
         private const double CompositeSpeedMenuCloseGracePeriodMs = 320;
+        private Guid _compositeDiagnosticsSessionId = Guid.Empty;
+        private System.Diagnostics.Stopwatch _compositeDiagnosticsStopwatch;
+        private long _compositeDiagnosticsLastFrameTicks;
+        private int _compositeDiagnosticsFrameCount;
+        private int _compositeDiagnosticsSyncCount;
+        private double _compositeDiagnosticsLargestFrameGapMs;
+        private DateTime _compositeDiagnosticsLastSampleUtc = DateTime.MinValue;
+
+        private void StartCompositeDiagnosticsSession()
+        {
+            _compositeDiagnosticsSessionId = Guid.NewGuid();
+            _compositeDiagnosticsStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            _compositeDiagnosticsLastFrameTicks = 0;
+            _compositeDiagnosticsFrameCount = 0;
+            _compositeDiagnosticsSyncCount = 0;
+            _compositeDiagnosticsLargestFrameGapMs = 0;
+            _compositeDiagnosticsLastSampleUtc = DateTime.MinValue;
+
+            var projectionSnapshot = _projectionManager?.GetProjectionScrollSnapshot() ?? new ProjectionScrollSnapshot(0, 0);
+            string monitorSummary = BuildCompositeDiagnosticsMonitorSummary();
+
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildSessionStartLine(
+                _compositeDiagnosticsSessionId,
+                Environment.MachineName,
+                Environment.UserName,
+                Environment.OSVersion.VersionString,
+                _currentImageId,
+                IsProjectionEnabled,
+                ScreenSelector?.SelectedIndex ?? -1,
+                ImageScrollViewer?.VerticalOffset ?? 0,
+                ImageScrollViewer?.ScrollableHeight ?? 0,
+                projectionSnapshot.VerticalOffset,
+                projectionSnapshot.ScrollableHeight,
+                monitorSummary));
+        }
+
+        private void LogCompositeScrollRequestDiagnostics(Services.Implementations.CompositeScrollEventArgs e, double mainOffset)
+        {
+            if (_compositeDiagnosticsSessionId == Guid.Empty || e == null)
+            {
+                return;
+            }
+
+            var projectionSnapshot = _projectionManager?.GetProjectionScrollSnapshot() ?? new ProjectionScrollSnapshot(0, 0);
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildScrollRequestLine(
+                _compositeDiagnosticsSessionId,
+                e.StartPosition,
+                e.EndPosition,
+                e.Duration,
+                e.SpeedRatio,
+                mainOffset,
+                projectionSnapshot.VerticalOffset));
+        }
+
+        private void RecordCompositeFrameDiagnostics(bool projectionSyncAttempted)
+        {
+            if (_compositeDiagnosticsSessionId == Guid.Empty || _compositeDiagnosticsStopwatch == null)
+            {
+                return;
+            }
+
+            long nowTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_compositeDiagnosticsLastFrameTicks != 0)
+            {
+                double gapMs = (nowTicks - _compositeDiagnosticsLastFrameTicks) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                if (gapMs > _compositeDiagnosticsLargestFrameGapMs)
+                {
+                    _compositeDiagnosticsLargestFrameGapMs = gapMs;
+                }
+            }
+
+            _compositeDiagnosticsLastFrameTicks = nowTicks;
+            _compositeDiagnosticsFrameCount++;
+            if (projectionSyncAttempted)
+            {
+                _compositeDiagnosticsSyncCount++;
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            if (_compositeDiagnosticsLastSampleUtc != DateTime.MinValue &&
+                (nowUtc - _compositeDiagnosticsLastSampleUtc).TotalMilliseconds < 1000)
+            {
+                return;
+            }
+
+            _compositeDiagnosticsLastSampleUtc = nowUtc;
+            LogCompositeFrameSampleDiagnostics();
+        }
+
+        private void LogCompositeFrameSampleDiagnostics()
+        {
+            if (_compositeDiagnosticsSessionId == Guid.Empty || _compositeDiagnosticsStopwatch == null)
+            {
+                return;
+            }
+
+            var projectionSnapshot = _projectionManager?.GetProjectionScrollSnapshot() ?? new ProjectionScrollSnapshot(0, 0);
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildFrameSampleLine(
+                _compositeDiagnosticsSessionId,
+                _compositeDiagnosticsStopwatch.ElapsedMilliseconds,
+                _compositeDiagnosticsFrameCount,
+                _compositeDiagnosticsSyncCount,
+                _compositeDiagnosticsLargestFrameGapMs,
+                _fpsMonitor?.GetMainFps() ?? 0,
+                _fpsMonitor?.GetProjectionFps() ?? 0,
+                ImageScrollViewer?.VerticalOffset ?? 0,
+                ImageScrollViewer?.ScrollableHeight ?? 0,
+                projectionSnapshot.VerticalOffset,
+                projectionSnapshot.ScrollableHeight));
+        }
+
+        private void EndCompositeDiagnosticsSession(string reason)
+        {
+            if (_compositeDiagnosticsSessionId == Guid.Empty || _compositeDiagnosticsStopwatch == null)
+            {
+                return;
+            }
+
+            LogCompositeFrameSampleDiagnostics();
+            var projectionSnapshot = _projectionManager?.GetProjectionScrollSnapshot() ?? new ProjectionScrollSnapshot(0, 0);
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildSessionEndLine(
+                _compositeDiagnosticsSessionId,
+                reason,
+                _compositeDiagnosticsStopwatch.ElapsedMilliseconds,
+                _compositeDiagnosticsFrameCount,
+                _compositeDiagnosticsSyncCount,
+                _compositeDiagnosticsLargestFrameGapMs,
+                ImageScrollViewer?.VerticalOffset ?? 0,
+                projectionSnapshot.VerticalOffset));
+
+            _compositeDiagnosticsSessionId = Guid.Empty;
+            _compositeDiagnosticsStopwatch = null;
+            _compositeDiagnosticsLastFrameTicks = 0;
+            _compositeDiagnosticsLastSampleUtc = DateTime.MinValue;
+        }
+
+        private void LogCompositeDiagnosticsEvent(string eventName, string details)
+        {
+            if (_compositeDiagnosticsSessionId == Guid.Empty)
+            {
+                return;
+            }
+
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildEventLine(
+                _compositeDiagnosticsSessionId,
+                eventName,
+                details));
+        }
+
+        private static string BuildCompositeDiagnosticsMonitorSummary()
+        {
+            try
+            {
+                return string.Join(" | ", WpfScreenHelper.GetAllScreens().Select((screen, index) => $"[{index}] {screen}"));
+            }
+            catch (Exception ex)
+            {
+                return $"monitor-summary-failed: {ex.Message}";
+            }
+        }
 
         #region 关键帧按钮事件
 
@@ -601,6 +763,8 @@ namespace ImageColorChanger.UI
                 #if DEBUG
                 //System.Diagnostics.Debug.WriteLine($"[合成播放][StartRequest] source=BtnCompositePlay_Click, imageId={_currentImageId}, isPlayingBefore={compositeService.IsPlaying}, isPausedBefore={compositeService.IsPaused}");
                 #endif
+                EndCompositeDiagnosticsSession("restart-before-new-session");
+                StartCompositeDiagnosticsSession();
                 await compositeService.StartPlaybackAsync(_currentImageId);
                 
                 //#if DEBUG
@@ -618,6 +782,7 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
+                EndCompositeDiagnosticsSession("start-failed");
                 ShowStatus($"合成播放失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($" 合成播放异常: {ex}");
             }
@@ -918,6 +1083,7 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"   当前关键帧索引: {_keyframeManager?.CurrentKeyframeIndex ?? -1}");
                     //#endif
                     var currentOffsetBefore = scrollViewer.VerticalOffset;
+                    LogCompositeScrollRequestDiagnostics(e, currentOffsetBefore);
 
                     // 停止之前的合成滚动动画（如果有）
                     StopCompositeScrollAnimation();
@@ -1050,15 +1216,19 @@ namespace ImageColorChanger.UI
                         {
                             _fpsMonitor?.RecordMainFrame();
                             _projectionManager?.SyncSharedRendering();
+                            bool projectionSyncAttempted = false;
                             if (IsProjectionEnabled)
                             {
                                 _projectionManager?.SyncProjectionScroll(force: true);
+                                projectionSyncAttempted = true;
                             }
+                            RecordCompositeFrameDiagnostics(projectionSyncAttempted);
                         }
                     );
                 }
                 catch (Exception)
                 {
+                    LogCompositeDiagnosticsEvent("scroll_request_failed", "handler exception");
                     SetAutoProjectionSyncEnabled(true);
                     // 忽略异常
                 }
@@ -1109,6 +1279,9 @@ namespace ImageColorChanger.UI
                 {
                     bool isPauseOnly = (sender as Services.Implementations.CompositePlaybackService)?.IsPaused == true;
                     bool preserveCountdown = e?.PreserveCountdown == true;
+                    LogCompositeDiagnosticsEvent(
+                        "scroll_stop_requested",
+                        $"isPauseOnly={isPauseOnly} preserveCountdown={preserveCountdown}");
 
                     // 立即停止合成播放的滚动动画
                     StopCompositeScrollAnimation();
@@ -1139,6 +1312,7 @@ namespace ImageColorChanger.UI
         {
             Dispatcher.Invoke(() =>
             {
+                EndCompositeDiagnosticsSession("playback_completed");
                 _lastCompositeAutoStopKeyframeId = -1;
                 SetCompositePlayButtonContent(false);
                 BtnCompositePause.Visibility = Visibility.Collapsed;
@@ -1226,6 +1400,7 @@ namespace ImageColorChanger.UI
 
             await compositeService.StopPlaybackAsync();
             _lastCompositeAutoStopKeyframeId = -1;
+            EndCompositeDiagnosticsSession(statusMessage);
 
             #if DEBUG
             //System.Diagnostics.Debug.WriteLine($"[合成播放][StopLikeButton] status='{statusMessage}', imageId={_currentImageId}, isPlayingAfterStop={compositeService.IsPlaying}, isPausedAfterStop={compositeService.IsPaused}");
@@ -1732,6 +1907,7 @@ namespace ImageColorChanger.UI
                     if (compositeService != null && compositeService.IsPlaying)
                     {
                         await compositeService.StopPlaybackAsync();
+                        EndCompositeDiagnosticsSession("StopCompositePlaybackAsync");
                     
                     // 更新UI（必须在UI线程）
                     if (Dispatcher.CheckAccess())

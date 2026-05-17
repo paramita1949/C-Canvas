@@ -6,6 +6,18 @@ using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Managers
 {
+    public readonly struct ProjectionScrollSnapshot
+    {
+        public ProjectionScrollSnapshot(double verticalOffset, double scrollableHeight)
+        {
+            VerticalOffset = verticalOffset;
+            ScrollableHeight = scrollableHeight;
+        }
+
+        public double VerticalOffset { get; }
+        public double ScrollableHeight { get; }
+    }
+
     /// <summary>
     /// ProjectionManager 滚动同步与 UI 状态辅助逻辑（部分类）。
     /// </summary>
@@ -91,6 +103,25 @@ namespace ImageColorChanger.Managers
             finally
             {
                 Interlocked.Exchange(ref _projectionScrollSyncRunning, 0);
+            }
+        }
+
+        public ProjectionScrollSnapshot GetProjectionScrollSnapshot()
+        {
+            if (_projectionWindow == null || _projectionScrollViewer == null)
+            {
+                return new ProjectionScrollSnapshot(0, 0);
+            }
+
+            try
+            {
+                return RunOnMainDispatcher(() => new ProjectionScrollSnapshot(
+                    _projectionScrollViewer?.VerticalOffset ?? 0,
+                    _projectionScrollViewer?.ScrollableHeight ?? 0));
+            }
+            catch
+            {
+                return new ProjectionScrollSnapshot(0, 0);
             }
         }
 
