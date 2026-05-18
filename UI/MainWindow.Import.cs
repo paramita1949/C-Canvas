@@ -145,7 +145,7 @@ namespace ImageColorChanger.UI
             // AI平台
             var aiItem = new MenuItem { Header = "AI平台" };
 
-            var aiPanelItem = new MenuItem { Header = "AI面板" };
+            var aiPanelItem = new MenuItem { Header = "AI面板    F5" };
             aiPanelItem.Click += (s, args) => OpenAiSubtitlePanel();
             aiItem.Items.Add(aiPanelItem);
 
@@ -153,7 +153,7 @@ namespace ImageColorChanger.UI
             panelConfigItem.Click += (s, args) => OpenAiPlatformWindow(focusDeepSeekConfig: true);
             aiItem.Items.Add(panelConfigItem);
 
-            var aiCaptionItem = new MenuItem { Header = "AI字幕" };
+            var aiCaptionItem = new MenuItem { Header = "AI字幕    F4" };
             aiCaptionItem.Click += (s, args) => OpenAiRealtimeSubtitle();
             aiItem.Items.Add(aiCaptionItem);
 

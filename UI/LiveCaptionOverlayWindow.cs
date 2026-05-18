@@ -93,6 +93,7 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _localStyleActionText;
         private readonly Border _projectionAction;
         private readonly Border _aiPanelAction;
+        private readonly Border _hideAction;
         private readonly Border _ndiAction;
         private readonly Border _ndiStyleAction;
         private readonly Border _localStyleAction;
@@ -146,6 +147,7 @@ namespace ImageColorChanger.UI
 
         public event Action SettingsRequested;
         public event Action AiPanelRequested;
+        public event Action HideRequested;
         public event Action ProjectionToggleRequested;
         public event Action NdiToggleRequested;
         public event Action NdiStyleRequested;
@@ -308,6 +310,15 @@ namespace ImageColorChanger.UI
                 AiPanelRequested?.Invoke();
             };
 
+            _hideAction = CreateTextActionItem("隐藏", out _);
+            _hideAction.Margin = new Thickness(6, 0, 0, 0);
+            _hideAction.ToolTip = "隐藏字幕面板（F4）";
+            _hideAction.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                e.Handled = true;
+                HideRequested?.Invoke();
+            };
+
             _ndiAction = CreateTextActionItem("NDI投影", out _ndiActionText);
             _ndiAction.Margin = new Thickness(6, 0, 0, 0);
             _ndiAction.ToolTip = "NDI投影（点击开启）";
@@ -366,6 +377,7 @@ namespace ImageColorChanger.UI
             _actionPanel.Children.Add(_realtimeRecognitionToggle);
             _actionPanel.Children.Add(_shortPhraseRecognitionToggle);
             _actionPanel.Children.Add(_aiPanelAction);
+            _actionPanel.Children.Add(_hideAction);
             _actionPanel.Children.Add(_projectionAction);
             _actionPanel.Children.Add(_ndiAction);
             _actionPanel.Children.Add(_ndiStyleAction);

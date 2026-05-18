@@ -25,6 +25,46 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
             Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline("AI缓存：hit=1408, miss=664, 命中率=68%"));
         }
 
+        [Theory]
+        [InlineData("ASR已连接")]
+        [InlineData("ASR未启用")]
+        public void ShouldAppendStatusToTimeline_KeepsAsrStatusAsInformationFlow(string status)
+        {
+            Assert.True(AiAssistantPanelWindow.ShouldAppendStatusToTimeline(status));
+        }
+
+        [Theory]
+        [InlineData("AI已加入历史记录：希伯来书11章23节", "希伯来书11章23节")]
+        [InlineData(" AI已加入历史记录：出埃及记2章1节 ", "出埃及记2章1节")]
+        [InlineData("AI缓存：hit=1408, miss=664, 命中率=68%", "")]
+        public void ExtractCollapsedScriptureText_ReturnsOnlyInsertedScripture(string status, string expected)
+        {
+            Assert.Equal(expected, AiAssistantPanelWindow.ExtractCollapsedScriptureText(status));
+        }
+
+        [Theory]
+        [InlineData(false, false, "ASR未启用")]
+        [InlineData(true, false, "ASR未启用")]
+        [InlineData(false, true, "ASR未启用")]
+        [InlineData(true, true, "ASR已连接")]
+        public void BuildAsrConnectionStatus_RequiresAiReceiveAndRealtimeEngine(bool aiReceiveAsr, bool realtimeConnected, string expected)
+        {
+            Assert.Equal(expected, AiAssistantPanelWindow.BuildAsrConnectionStatus(aiReceiveAsr, realtimeConnected));
+        }
+
+        [Theory]
+        [InlineData(false, false, false, "字幕", "打开 AI字幕 (F4)", false)]
+        [InlineData(true, true, true, "字幕", "AI字幕运行中 (F4)", true)]
+        [InlineData(true, true, false, "字幕", "AI字幕运行中 (F4)", true)]
+        public void BuildAiCaptionButtonState_ReflectsRealtimeAndOverlayState(bool realtimeEnabled, bool engineRunning, bool overlayVisible, string text, string tooltip, bool active)
+        {
+            var state = MainWindow.BuildAiCaptionButtonStateForTest(realtimeEnabled, engineRunning, overlayVisible);
+
+            Assert.Equal(text, state.Text);
+            Assert.Equal(tooltip, state.ToolTip);
+            Assert.Equal(active, state.IsActive);
+        }
+
         [Fact]
         public void BuildMessageHeader_AssistantDetailedStream_UsesVisibleTimestampAndLabel()
         {

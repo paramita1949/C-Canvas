@@ -494,6 +494,7 @@ namespace ImageColorChanger.UI
             bool changed = _aiSermonReceiveAsr != enabled;
             _aiSermonReceiveAsr = enabled;
             _aiAssistantPanelWindow?.SetReceiveAsr(enabled);
+            SyncAiPanelAsrConnectionStatus();
             if (enabled)
             {
                 _aiAsrFlushTimer?.Start();

@@ -16,7 +16,11 @@ namespace ImageColorChanger.UI
 {
     public partial class AiAssistantPanelWindow : Window
     {
+        private const string AiSermonPanelPlacementKey = "ai.sermon.panel";
+        private const double CollapsedPanelHeight = 104;
         private const string UnlabeledSpeakerName = "未标记讲师";
+        private const string DefaultCollapsedStatus = "等待幻灯片 / 实时识别";
+        private const string InsertedScriptureStatusPrefix = "AI已加入历史记录：";
         private readonly ConfigManager _configManager;
         private TextBlock _currentAssistantText;
         private bool _isUpdatingThresholdUi;
@@ -31,6 +35,7 @@ namespace ImageColorChanger.UI
         private bool _dialectSchemeEnabled;
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private double _expandedHeight = 500;
+        private string _lastAsrConnectionStatus = string.Empty;
 
         public event Action<bool> DebugModeChanged;
         public event Action<string> SpeakerApplied;
@@ -53,6 +58,18 @@ namespace ImageColorChanger.UI
             SyncPanelOpacityUiFromConfig();
             ApplyPanelOpacityFromSlider();
             SetActiveView(showHistory: false, requestRefresh: false);
+            WindowPlacementTracker.Restore(
+                this,
+                _configManager,
+                AiSermonPanelPlacementKey,
+                includeSize: true,
+                restoreCollapsedState: RestoreCollapsedState);
+            WindowPlacementTracker.Track(
+                this,
+                _configManager,
+                AiSermonPanelPlacementKey,
+                includeSize: true,
+                getCollapsedState: () => _isCollapsed);
             _uiReady = true;
         }
 
@@ -131,7 +148,24 @@ namespace ImageColorChanger.UI
 
         public void SetReceiveAsr(bool enabled)
         {
-            _ = enabled;
+            SetAsrConnectionState(enabled, realtimeConnected: false);
+        }
+
+        public void SetAsrConnectionState(bool aiReceiveAsr, bool realtimeConnected)
+        {
+            string status = BuildAsrConnectionStatus(aiReceiveAsr, realtimeConnected);
+            if (string.Equals(_lastAsrConnectionStatus, status, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastAsrConnectionStatus = status;
+            AppendStatus(status);
+        }
+
+        public static string BuildAsrConnectionStatus(bool aiReceiveAsr, bool realtimeConnected)
+        {
+            return aiReceiveAsr && realtimeConnected ? "ASR已连接" : "ASR未启用";
         }
 
         public void SetModelName(string modelName)
@@ -325,6 +359,8 @@ namespace ImageColorChanger.UI
                 HideEmptyState();
                 string text = status.Trim();
                 StatusText.Text = text;
+                UpdateCollapsedStatus(text);
+                UpdateCollapsedScripture(text);
 
                 if (!ShouldAppendStatusToTimeline(text))
                 {
@@ -343,7 +379,50 @@ namespace ImageColorChanger.UI
             }
 
             string text = status.Trim();
-            return text.StartsWith("AI缓存", StringComparison.Ordinal);
+            return text.StartsWith("AI缓存", StringComparison.Ordinal)
+                || string.Equals(text, "ASR已连接", StringComparison.Ordinal)
+                || string.Equals(text, "ASR未启用", StringComparison.Ordinal);
+        }
+
+        public static string ExtractCollapsedScriptureText(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return string.Empty;
+            }
+
+            string text = status.Trim();
+            return text.StartsWith(InsertedScriptureStatusPrefix, StringComparison.Ordinal)
+                ? text.Substring(InsertedScriptureStatusPrefix.Length).Trim()
+                : string.Empty;
+        }
+
+        private void UpdateCollapsedStatus(string status)
+        {
+            if (CollapsedStatusText == null)
+            {
+                return;
+            }
+
+            string text = string.IsNullOrWhiteSpace(status) ? DefaultCollapsedStatus : status.Trim();
+            CollapsedStatusText.Text = text;
+        }
+
+        private void UpdateCollapsedScripture(string status)
+        {
+            if (CollapsedScriptureText == null)
+            {
+                return;
+            }
+
+            string scripture = ExtractCollapsedScriptureText(status);
+            if (string.IsNullOrWhiteSpace(scripture))
+            {
+                return;
+            }
+
+            CollapsedScriptureText.Text = $"经文：{scripture}";
+            CollapsedScriptureText.Visibility = Visibility.Visible;
         }
 
         public void AppendDebug(string message)
@@ -632,7 +711,10 @@ namespace ImageColorChanger.UI
             MessageStackPanel.Children.Clear();
             _currentAssistantText = null;
             EmptyStatePanel.Visibility = Visibility.Visible;
-            StatusText.Text = "等待幻灯片 / 实时识别";
+            StatusText.Text = DefaultCollapsedStatus;
+            UpdateCollapsedStatus(DefaultCollapsedStatus);
+            CollapsedScriptureText.Text = string.Empty;
+            CollapsedScriptureText.Visibility = Visibility.Collapsed;
             DebugModeChanged?.Invoke(false);
         }
 
@@ -686,19 +768,45 @@ namespace ImageColorChanger.UI
 
         private void CollapseButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isCollapsed)
+            SetCollapsedState(!_isCollapsed, rememberExpandedHeight: true);
+        }
+
+        private void RestoreCollapsedState(bool collapsed)
+        {
+            if (!collapsed)
             {
-                _expandedHeight = Math.Max(Height, 220);
+                return;
+            }
+
+            SetCollapsedState(collapsed: true, rememberExpandedHeight: false);
+        }
+
+        private void SetCollapsedState(bool collapsed, bool rememberExpandedHeight)
+        {
+            if (collapsed == _isCollapsed)
+            {
+                return;
+            }
+
+            if (collapsed)
+            {
+                if (rememberExpandedHeight)
+                {
+                    _expandedHeight = Math.Max(Height, 220);
+                }
+
                 MetaSectionGrid.Visibility = Visibility.Collapsed;
                 MessageContainerBorder.Visibility = Visibility.Collapsed;
                 FooterHintGrid.Visibility = Visibility.Collapsed;
-                Height = 64;
+                CollapsedInfoGrid.Visibility = Visibility.Visible;
+                Height = CollapsedPanelHeight;
                 CollapseButton.Content = "▸";
                 CollapseButton.ToolTip = "展开";
                 _isCollapsed = true;
                 return;
             }
 
+            CollapsedInfoGrid.Visibility = Visibility.Collapsed;
             MetaSectionGrid.Visibility = Visibility.Visible;
             MessageContainerBorder.Visibility = Visibility.Visible;
             FooterHintGrid.Visibility = Visibility.Visible;

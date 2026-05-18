@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
@@ -308,6 +309,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow = new LiveCaptionOverlayWindow();
                 _liveCaptionOverlayWindow.SettingsRequested += OpenLiveCaptionOverlaySettings;
                 _liveCaptionOverlayWindow.AiPanelRequested += OpenAiPanelFromLiveCaptionOverlay;
+                _liveCaptionOverlayWindow.HideRequested += HideLiveCaptionOverlayFromPanel;
                 _liveCaptionOverlayWindow.CaptionStyleRequested += OpenLiveCaptionStyleSettings;
                 _liveCaptionOverlayWindow.NdiStyleRequested += OpenLiveCaptionNdiStyleSettings;
                 _liveCaptionOverlayWindow.LocalStyleRequested += OpenLiveCaptionLocalStyleSettings;
@@ -351,14 +353,92 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
+            if (IsLiveCaptionRealtimeConnected())
+            {
+                TryToggleLiveCaptionOverlayVisibilityInternal("top-button");
+                SyncAiCaptionUiState();
+                return;
+            }
+
             _configManager.LiveCaptionRealtimeEnabled = true;
             StartLiveCaption(_liveCaptionCurrentSource);
+        }
+
+        public static (string Text, string ToolTip, bool IsActive) BuildAiCaptionButtonStateForTest(
+            bool realtimeEnabled,
+            bool engineRunning,
+            bool overlayVisible)
+        {
+            bool active = realtimeEnabled && engineRunning;
+            _ = overlayVisible;
+            if (!active)
+            {
+                return ("字幕", "打开 AI字幕 (F4)", false);
+            }
+
+            return ("字幕", "AI字幕运行中 (F4)", true);
+        }
+
+        private bool IsLiveCaptionRealtimeConnected()
+        {
+            return _configManager?.LiveCaptionRealtimeEnabled == true && _liveCaptionEngine?.IsRunning == true;
+        }
+
+        private void SyncAiCaptionUiState()
+        {
+            UpdateAiCaptionTopButtonState();
+            SyncAiPanelAsrConnectionStatus();
+        }
+
+        private void UpdateAiCaptionTopButtonState()
+        {
+            if (BtnAiCaption == null)
+            {
+                return;
+            }
+
+            var state = BuildAiCaptionButtonStateForTest(
+                _configManager?.LiveCaptionRealtimeEnabled == true,
+                _liveCaptionEngine?.IsRunning == true,
+                _liveCaptionOverlayWindow?.IsVisible == true);
+
+            if (BtnAiCaptionText != null)
+            {
+                BtnAiCaptionText.Text = state.Text;
+            }
+            BtnAiCaption.ToolTip = state.ToolTip;
+
+            if (state.IsActive)
+            {
+                BtnAiCaption.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD9, 0xF9, 0xE6));
+                BtnAiCaption.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x22, 0xC5, 0x5E));
+                BtnAiCaption.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x0F, 0x3D, 0x24));
+                if (BtnAiCaptionIcon != null)
+                {
+                    BtnAiCaptionIcon.Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x16, 0xA3, 0x4A));
+                }
+                return;
+            }
+
+            BtnAiCaption.ClearValue(System.Windows.Controls.Control.BackgroundProperty);
+            BtnAiCaption.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
+            BtnAiCaption.ClearValue(System.Windows.Controls.Control.ForegroundProperty);
+            if (BtnAiCaptionIcon != null)
+            {
+                BtnAiCaptionIcon.ClearValue(System.Windows.Shapes.Shape.StrokeProperty);
+            }
+        }
+
+        private void SyncAiPanelAsrConnectionStatus()
+        {
+            _aiAssistantPanelWindow?.SetAsrConnectionState(_aiSermonReceiveAsr, IsLiveCaptionRealtimeConnected());
         }
 
         private void OpenLiveCaptionPanel()
         {
             if (!_liveCaptionOverlayWindow.IsVisible)
             {
+                LoadLiveCaptionFloatingBoundsFromConfig();
                 _liveCaptionOverlayWindow.Show();
             }
 
@@ -367,6 +447,7 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
             ApplyLiveCaptionTypographyFromBible();
             SyncLiveCaptionVisibilityWithMainWindowContext("panel-open");
+            SyncAiCaptionUiState();
         }
 
         private void OpenAiConfigFile()
@@ -453,6 +534,7 @@ namespace ImageColorChanger.UI
             bool wasVisible = _liveCaptionOverlayWindow.IsVisible;
             if (!wasVisible)
             {
+                LoadLiveCaptionFloatingBoundsFromConfig();
                 _liveCaptionOverlayWindow.Show();
             }
             LiveCaptionDebugLogger.Log($"StartPerf: overlay-show={sw.ElapsedMilliseconds}ms");
@@ -495,6 +577,7 @@ namespace ImageColorChanger.UI
                 LiveCaptionDebugLogger.Log($"Start: apply recognition failed with {ex.GetType().Name}: {ex.Message}");
                 ShowStatus($"字幕启动失败：{ex.Message}");
             }
+            SyncAiCaptionUiState();
             LiveCaptionDebugLogger.Log($"Start: recognition state applied, dock={_liveCaptionDockMode}, overlayVisible={_liveCaptionOverlayWindow.IsVisible}");
         }
 
@@ -534,6 +617,7 @@ namespace ImageColorChanger.UI
                 StopProjectionNdiSenderIfUnused();
                 ApplyMainWindowLiveCaptionReservation();
                 UnregisterLiveCaptionF4HotKey();
+                SyncAiCaptionUiState();
                 LiveCaptionDebugLogger.Log("Stop: completed.");
             }
             catch (Exception ex)
@@ -593,6 +677,7 @@ namespace ImageColorChanger.UI
                 }
                 _sharedAudioCaptureSession?.Stop();
                 ShowStatus("字幕识别已关闭");
+                SyncAiCaptionUiState();
                 return;
             }
 
@@ -611,6 +696,7 @@ namespace ImageColorChanger.UI
 
                     LiveCaptionDebugLogger.Log($"RecognitionState: shared audio capture failed, error='{error}'.");
                     ShowStatus(error);
+                    SyncAiCaptionUiState();
                     return;
                 }
 
@@ -693,6 +779,8 @@ namespace ImageColorChanger.UI
                 await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
                 ShowStatus("经文识别已关闭");
             }
+
+            SyncAiCaptionUiState();
         }
 
         internal async Task ApplyLiveCaptionRecognitionStateFromConfigAsync()
@@ -1197,6 +1285,7 @@ namespace ImageColorChanger.UI
                     PersistLiveCaptionFloatingBoundsToConfig("dispose");
                     _liveCaptionOverlayWindow.SettingsRequested -= OpenLiveCaptionOverlaySettings;
                     _liveCaptionOverlayWindow.AiPanelRequested -= OpenAiPanelFromLiveCaptionOverlay;
+                    _liveCaptionOverlayWindow.HideRequested -= HideLiveCaptionOverlayFromPanel;
                     _liveCaptionOverlayWindow.CaptionStyleRequested -= OpenLiveCaptionStyleSettings;
                     _liveCaptionOverlayWindow.NdiStyleRequested -= OpenLiveCaptionNdiStyleSettings;
                     _liveCaptionOverlayWindow.LocalStyleRequested -= OpenLiveCaptionLocalStyleSettings;
@@ -1297,6 +1386,7 @@ namespace ImageColorChanger.UI
                     setProjectionVerticalAnchor: value => SetProjectionCaptionVerticalAnchor(value, GetProjectionCaptionVerticalAnchorDisplayName(value)));
                 _projectionCaptionStyleWindow.Owner = this;
                 _projectionCaptionStyleWindow.Closed += (_, _) => _projectionCaptionStyleWindow = null;
+                RestoreAndTrackLiveCaptionStyleWindow(_projectionCaptionStyleWindow, "liveCaption.style.projection");
                 _projectionCaptionStyleWindow.Show();
             }
             else
@@ -1338,6 +1428,7 @@ namespace ImageColorChanger.UI
                     setLatestColor: hex => { _configManager.LiveCaptionLocalLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); });
                 _localCaptionStyleWindow.Owner = this;
                 _localCaptionStyleWindow.Closed += (_, _) => _localCaptionStyleWindow = null;
+                RestoreAndTrackLiveCaptionStyleWindow(_localCaptionStyleWindow, "liveCaption.style.local");
                 _localCaptionStyleWindow.Show();
             }
             else
@@ -1384,12 +1475,24 @@ namespace ImageColorChanger.UI
                     setNdiAlignment: value => SetNdiAlignment(value, value switch { "left" => "左对齐", "right" => "右对齐", _ => "居中" }));
                 _ndiCaptionStyleWindow.Owner = this;
                 _ndiCaptionStyleWindow.Closed += (_, _) => _ndiCaptionStyleWindow = null;
+                RestoreAndTrackLiveCaptionStyleWindow(_ndiCaptionStyleWindow, "liveCaption.style.ndi");
                 _ndiCaptionStyleWindow.Show();
             }
             else
             {
                 _ndiCaptionStyleWindow.Activate();
             }
+        }
+
+        private void RestoreAndTrackLiveCaptionStyleWindow(Window window, string placementKey)
+        {
+            if (window == null || _configManager == null)
+            {
+                return;
+            }
+
+            WindowPlacementTracker.Restore(window, _configManager, placementKey);
+            WindowPlacementTracker.Track(window, _configManager, placementKey);
         }
 
         private void PopulateNdiStyleMenu(MenuItem root)
@@ -3277,6 +3380,7 @@ namespace ImageColorChanger.UI
                     _liveCaptionComposer?.CurrentDisplay ?? string.Empty,
                     _liveCaptionComposer?.CurrentHighlightStart ?? -1);
                 ApplyMainWindowLiveCaptionReservation();
+                SyncAiCaptionUiState();
                 LiveCaptionDebugLogger.Log($"F4: overlay shown source={source}.");
             }
             finally
@@ -3304,7 +3408,13 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayManuallyHidden = true;
             _liveCaptionOverlayWindow.Hide();
             ApplyMainWindowLiveCaptionReservation();
+            SyncAiCaptionUiState();
             LiveCaptionDebugLogger.Log($"Overlay: hidden manually, source={source}.");
+        }
+
+        private void HideLiveCaptionOverlayFromPanel()
+        {
+            HideLiveCaptionOverlay("overlay-hide-button");
         }
 
         private static string TrimForLog(string text)
