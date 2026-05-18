@@ -81,5 +81,33 @@ namespace Canvas.TextEditor.Tests.Ai
                 try { System.IO.File.Delete(dbPath); } catch { }
             }
         }
+
+        [Fact]
+        public async Task RenameSpeakerAsync_UpdatesHistoryGroupNameWithoutLosingSessions()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-history-rename-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+                var store = new AiSermonHistoryStore(context);
+
+                var speaker = await store.GetOrCreateSpeakerAsync("传道人A");
+                await store.CreateSessionAsync(speaker.Id, projectId: 12, title: "主日分享");
+
+                bool renamed = await store.RenameSpeakerAsync("传道人A", "传道人B");
+                var groups = await store.GetSessionGroupsBySpeakerAsync();
+
+                Assert.True(renamed);
+                Assert.Single(groups);
+                Assert.Equal("传道人B", groups[0].SpeakerName);
+                Assert.Single(groups[0].Sessions);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
     }
 }

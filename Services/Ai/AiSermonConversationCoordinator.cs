@@ -307,6 +307,30 @@ namespace ImageColorChanger.Services.Ai
             return _historyStore.ArchiveSpeakerAsync(speakerName);
         }
 
+        public async Task<bool> RenameSpeakerAsync(string oldName, string newName)
+        {
+            bool renamed = await _historyStore.RenameSpeakerAsync(oldName, newName).ConfigureAwait(false);
+            if (!renamed)
+            {
+                return false;
+            }
+
+            string source = (oldName ?? string.Empty).Trim();
+            string target = (newName ?? string.Empty).Trim();
+            if (string.Equals(_selectedSpeakerName, source, StringComparison.Ordinal))
+            {
+                _selectedSpeakerName = target;
+            }
+
+            if (_session != null && string.Equals(_session.SpeakerName, source, StringComparison.Ordinal))
+            {
+                _session.SpeakerName = target;
+            }
+
+            StatusChanged?.Invoke($"已重命名传道人：{source} → {target}");
+            return true;
+        }
+
         public Task DeleteHistoryMessageAsync(int messageId)
         {
             return _historyStore.DeleteMessageAsync(messageId);

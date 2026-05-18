@@ -25,8 +25,6 @@ namespace ImageColorChanger.UI
         private bool _uiReady;
         private bool _isCollapsed;
         private string _lastAppliedSpeaker = string.Empty;
-        private string _speakerFilterText = string.Empty;
-        private System.Windows.Controls.TextBox _speakerSearchBox;
         private readonly List<string> _speakerNames = new();
         private readonly List<string> _dialectTags = new();
         private readonly Dictionary<string, HashSet<string>> _speakerDialectBindings = new(StringComparer.Ordinal);
@@ -37,6 +35,7 @@ namespace ImageColorChanger.UI
         public event Action<bool> DebugModeChanged;
         public event Action<string> SpeakerApplied;
         public event Action<string> SpeakerDeleteRequested;
+        public event Action<string, string> SpeakerRenameRequested;
         public event Action<string> OutputModeChanged;
         public event Action<string> ModelChanged;
         public event Action<bool, IReadOnlyList<string>> DialectSchemeChanged;
@@ -469,7 +468,10 @@ namespace ImageColorChanger.UI
             root.Child = sessionExpander;
 
             var header = new DockPanel { LastChildFill = true };
-            var deleteButton = CreateInlineDeleteButton("删除本场", () => HistorySessionDeleteRequested?.Invoke(session.Id));
+            var deleteButton = CreateInlineDeleteButton(
+                "删除本场",
+                "确认删除本场历史会话吗？此操作不可恢复。",
+                () => HistorySessionDeleteRequested?.Invoke(session.Id));
             DockPanel.SetDock(deleteButton, Dock.Right);
             header.Children.Add(deleteButton);
             header.Children.Add(new TextBlock
@@ -568,7 +570,10 @@ namespace ImageColorChanger.UI
         private FrameworkElement CreateMessageHistoryLine(AiConversationHistoryMessage message)
         {
             var row = new DockPanel { Margin = new Thickness(0, 5, 0, 0), LastChildFill = true };
-            var deleteButton = CreateInlineDeleteButton("删", () => HistoryMessageDeleteRequested?.Invoke(message.Id));
+            var deleteButton = CreateInlineDeleteButton(
+                "删",
+                "确认删除这条历史消息吗？此操作不可恢复。",
+                () => HistoryMessageDeleteRequested?.Invoke(message.Id));
             DockPanel.SetDock(deleteButton, Dock.Right);
             row.Children.Add(deleteButton);
 
@@ -587,7 +592,7 @@ namespace ImageColorChanger.UI
             return row;
         }
 
-        private System.Windows.Controls.Button CreateInlineDeleteButton(string text, Action action)
+        private System.Windows.Controls.Button CreateInlineDeleteButton(string text, string confirmMessage, Action action)
         {
             var button = new System.Windows.Controls.Button
             {
@@ -602,8 +607,24 @@ namespace ImageColorChanger.UI
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Margin = new Thickness(8, 0, 0, 0)
             };
-            button.Click += (_, _) => action?.Invoke();
+            button.Click += (_, _) =>
+            {
+                if (ConfirmDeleteAction(confirmMessage))
+                {
+                    action?.Invoke();
+                }
+            };
             return button;
+        }
+
+        private static bool ConfirmDeleteAction(string message)
+        {
+            return System.Windows.MessageBox.Show(
+                message,
+                "删除确认",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No) == MessageBoxResult.Yes;
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -737,10 +758,8 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _speakerFilterText = string.Empty;
             RebuildSpeakerMenu(_lastAppliedSpeaker);
             SpeakerPopup.IsOpen = true;
-            FocusSpeakerSearchBox();
         }
 
         private void AddSpeakerFromMenu()
@@ -749,7 +768,7 @@ namespace ImageColorChanger.UI
             {
                 SpeakerPopup.IsOpen = false;
             }
-            string name = PromptSpeakerName();
+            string name = PromptSpeakerName("添加传道人", "请输入传道人名称", string.Empty);
             if (string.IsNullOrWhiteSpace(name))
             {
                 return;
@@ -758,11 +777,28 @@ namespace ImageColorChanger.UI
             AddSpeakerOptionAndApply(name.Trim());
         }
 
-        private string PromptSpeakerName()
+        private void RenameSpeakerFromMenu(string speaker)
+        {
+            if (string.IsNullOrWhiteSpace(speaker) || !CanDeleteSpeaker(speaker))
+            {
+                return;
+            }
+
+            string target = PromptSpeakerName("重命名传道人", "请输入新名称", speaker);
+            string next = (target ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(next) || string.Equals(next, speaker, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            SpeakerRenameRequested?.Invoke(speaker, next);
+        }
+
+        private string PromptSpeakerName(string title, string hint, string initialValue)
         {
             var dialog = new Window
             {
-                Title = "添加传道人",
+                Title = title,
                 Width = 360,
                 Height = 165,
                 MinWidth = 320,
@@ -782,7 +818,7 @@ namespace ImageColorChanger.UI
 
             panel.Children.Add(new TextBlock
             {
-                Text = "请输入传道人名称",
+                Text = hint,
                 FontSize = 13,
                 Margin = new Thickness(0, 0, 0, 8),
                 Foreground = CreateBrush("#D7EEFF")
@@ -790,6 +826,7 @@ namespace ImageColorChanger.UI
 
             var textBox = new System.Windows.Controls.TextBox
             {
+                Text = initialValue ?? string.Empty,
                 Height = 30,
                 FontSize = 13,
                 Padding = new Thickness(8, 3, 8, 3),
@@ -844,7 +881,11 @@ namespace ImageColorChanger.UI
             cancelButton.Click += (_, _) => dialog.DialogResult = false;
 
             dialog.Content = panel;
-            dialog.Loaded += (_, _) => textBox.Focus();
+            dialog.Loaded += (_, _) =>
+            {
+                textBox.Focus();
+                textBox.CaretIndex = textBox.Text?.Length ?? 0;
+            };
 
             return dialog.ShowDialog() == true ? result : string.Empty;
         }
@@ -934,82 +975,16 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _speakerSearchBox = null;
             SpeakerPopupStack.Children.Clear();
             BuildDialectSchemeSection(selectedSpeaker);
-
-            var searchRow = new Border
-            {
-                Padding = new Thickness(10, 8, 10, 8),
-                BorderBrush = CreateBrush("#3866B8EA"),
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                Background = CreateBrush("#071C30")
-            };
-            var searchGrid = new Grid();
-            searchGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            searchGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            searchRow.Child = searchGrid;
-
-            var searchIcon = new TextBlock
-            {
-                Text = "⌕",
-                Foreground = CreateBrush("#7FA8C0"),
-                FontSize = 15,
-                FontWeight = FontWeights.Bold,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 7, 0)
-            };
-            searchGrid.Children.Add(searchIcon);
-
-            var inputHost = new Grid();
-            Grid.SetColumn(inputHost, 1);
-            searchGrid.Children.Add(inputHost);
-
-            var searchBox = new System.Windows.Controls.TextBox
-            {
-                Name = "SpeakerSearchBox",
-                Text = _speakerFilterText,
-                BorderThickness = new Thickness(0),
-                Background = System.Windows.Media.Brushes.Transparent,
-                Foreground = CreateBrush("#DFF5FF"),
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Padding = new Thickness(0),
-                MinWidth = 130,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "搜索传道人"
-            };
-            _speakerSearchBox = searchBox;
-            inputHost.Children.Add(searchBox);
-
-            var placeholder = new TextBlock
-            {
-                Text = "搜索传道人",
-                Foreground = CreateBrush("#7294AA"),
-                FontSize = 12,
-                FontWeight = FontWeights.Bold,
-                IsHitTestVisible = false,
-                VerticalAlignment = VerticalAlignment.Center,
-                Visibility = string.IsNullOrWhiteSpace(_speakerFilterText) ? Visibility.Visible : Visibility.Collapsed
-            };
-            inputHost.Children.Add(placeholder);
-            searchBox.TextChanged += (_, _) =>
-            {
-                _speakerFilterText = searchBox.Text ?? string.Empty;
-                RebuildSpeakerMenu(selectedSpeaker);
-                FocusSpeakerSearchBox();
-            };
-            SpeakerPopupStack.Children.Add(searchRow);
 
             var listPanel = new StackPanel
             {
                 Margin = new Thickness(8, 6, 8, 4)
             };
-            string filter = (_speakerFilterText ?? string.Empty).Trim();
             var visibleSpeakers = _speakerNames
                 .Where(speaker =>
-                    !string.Equals(speaker, UnlabeledSpeakerName, StringComparison.Ordinal) &&
-                    (string.IsNullOrWhiteSpace(filter) || speaker.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+                    !string.Equals(speaker, UnlabeledSpeakerName, StringComparison.Ordinal))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
@@ -1216,7 +1191,6 @@ namespace ImageColorChanger.UI
             PersistDialectSchemeToConfig();
             DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());
             RebuildSpeakerMenu(selectedSpeaker);
-            FocusSpeakerSearchBox();
         }
 
         private string PromptDialectTagName()
@@ -1330,25 +1304,6 @@ namespace ImageColorChanger.UI
                 .ToArray();
         }
 
-        private void FocusSpeakerSearchBox()
-        {
-            if (SpeakerPopup == null)
-            {
-                return;
-            }
-
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (_speakerSearchBox == null)
-                {
-                    return;
-                }
-
-                _speakerSearchBox.Focus();
-                _speakerSearchBox.CaretIndex = _speakerSearchBox.Text?.Length ?? 0;
-            }));
-        }
-
         private bool CanDeleteSpeaker(string speaker)
         {
             return !string.IsNullOrWhiteSpace(speaker) &&
@@ -1389,6 +1344,30 @@ namespace ImageColorChanger.UI
 
             if (canDelete)
             {
+                var renameButton = new System.Windows.Controls.Button
+                {
+                    Content = "✎",
+                    Width = 22,
+                    Height = 22,
+                    Padding = new Thickness(0),
+                    Margin = new Thickness(8, 0, 0, 0),
+                    Foreground = CreateBrush("#9FC7DD"),
+                    Background = System.Windows.Media.Brushes.Transparent,
+                    BorderBrush = CreateBrush("#2F5C78"),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "重命名传道人"
+                };
+                renameButton.Click += (_, e) =>
+                {
+                    e.Handled = true;
+                    RenameSpeakerFromMenu(speaker);
+                };
+                Grid.SetColumn(renameButton, 2);
+                grid.Children.Add(renameButton);
+
                 var deleteButton = new System.Windows.Controls.Button
                 {
                     Content = "×",
@@ -1408,6 +1387,11 @@ namespace ImageColorChanger.UI
                 deleteButton.Click += (_, e) =>
                 {
                     e.Handled = true;
+                    if (!ConfirmDeleteAction("确认删除该传道人吗？历史会自动归档到默认传道人。"))
+                    {
+                        return;
+                    }
+
                     if (SpeakerPopup != null)
                     {
                         SpeakerPopup.IsOpen = false;
@@ -1415,7 +1399,7 @@ namespace ImageColorChanger.UI
 
                     SpeakerDeleteRequested?.Invoke(speaker);
                 };
-                Grid.SetColumn(deleteButton, 2);
+                Grid.SetColumn(deleteButton, 3);
                 grid.Children.Add(deleteButton);
             }
 

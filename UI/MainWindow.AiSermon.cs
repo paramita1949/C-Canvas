@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.Ai;
 using ImageColorChanger.Services.LiveCaption;
@@ -141,6 +143,7 @@ namespace ImageColorChanger.UI
             };
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
+            _aiAssistantPanelWindow.SpeakerRenameRequested += (oldName, newName) => _ = RenameAiSpeakerAsync(oldName, newName);
             _aiAssistantPanelWindow.OutputModeChanged += mode =>
             {
                 _aiSermonOutputMode = string.Equals(mode, "detailed", StringComparison.OrdinalIgnoreCase)
@@ -405,6 +408,52 @@ namespace ImageColorChanger.UI
             }
 
             await RefreshAiSpeakerListAsync(nextSpeaker);
+            await RefreshAiHistoryInPanelAsync();
+        }
+
+        private async Task RenameAiSpeakerAsync(string oldName, string newName)
+        {
+            EnsureAiSermonCoordinator();
+            string source = (oldName ?? string.Empty).Trim();
+            string target = (newName ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target))
+            {
+                return;
+            }
+
+            bool renamed = await _aiSermonCoordinator.RenameSpeakerAsync(source, target);
+            if (!renamed)
+            {
+                ShowStatus("重命名失败：名称无效或已存在。");
+                return;
+            }
+
+            bool renamedCurrent = string.Equals(_aiSermonCoordinator.CurrentSpeakerName, source, StringComparison.Ordinal);
+            _configManager.AiSermonSpeakerDialectBindings = _configManager.AiSermonSpeakerDialectBindings
+                .Select(entry =>
+                {
+                    if (entry == null)
+                    {
+                        return null;
+                    }
+
+                    return string.Equals(entry.Speaker?.Trim(), source, StringComparison.Ordinal)
+                        ? new AiSpeakerDialectBindingEntry
+                        {
+                            Speaker = target,
+                            Tags = entry.Tags
+                        }
+                        : entry;
+                })
+                .Where(entry => entry != null)
+                .ToArray();
+
+            if (renamedCurrent)
+            {
+                await _aiSermonCoordinator.SetSpeakerAsync(target, CancellationToken.None);
+            }
+
+            await RefreshAiSpeakerListAsync(target);
             await RefreshAiHistoryInPanelAsync();
         }
 

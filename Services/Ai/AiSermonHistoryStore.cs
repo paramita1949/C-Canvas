@@ -344,6 +344,61 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
+        public async Task<bool> RenameSpeakerAsync(string oldName, string newName)
+        {
+            string source = string.IsNullOrWhiteSpace(oldName) ? string.Empty : oldName.Trim();
+            string target = string.IsNullOrWhiteSpace(newName) ? string.Empty : newName.Trim();
+            if (string.IsNullOrWhiteSpace(source) ||
+                string.IsNullOrWhiteSpace(target) ||
+                string.Equals(source, "未标记讲师", StringComparison.Ordinal) ||
+                string.Equals(target, "未标记讲师", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            await _dbLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var sourceSpeaker = await _context.AiSpeakers
+                    .FirstOrDefaultAsync(s => s.Name == source && !s.IsArchived)
+                    .ConfigureAwait(false);
+                if (sourceSpeaker == null)
+                {
+                    return false;
+                }
+
+                var targetSpeaker = await _context.AiSpeakers
+                    .FirstOrDefaultAsync(s => s.Name == target && !s.IsArchived)
+                    .ConfigureAwait(false);
+                if (targetSpeaker != null)
+                {
+                    var sessions = await _context.AiSermonSessions
+                        .Where(session => session.SpeakerId == sourceSpeaker.Id && !session.IsDeleted)
+                        .ToListAsync()
+                        .ConfigureAwait(false);
+                    foreach (var session in sessions)
+                    {
+                        session.SpeakerId = targetSpeaker.Id;
+                    }
+
+                    sourceSpeaker.IsArchived = true;
+                    sourceSpeaker.UpdatedAt = DateTime.Now;
+                    targetSpeaker.UpdatedAt = DateTime.Now;
+                    await _context.SaveChangesAsync().ConfigureAwait(false);
+                    return true;
+                }
+
+                sourceSpeaker.Name = target;
+                sourceSpeaker.UpdatedAt = DateTime.Now;
+                await _context.SaveChangesAsync().ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                _dbLock.Release();
+            }
+        }
+
         public async Task<IReadOnlyList<AiSpeakerSessionGroup>> GetSessionGroupsBySpeakerAsync()
         {
             await _dbLock.WaitAsync().ConfigureAwait(false);
