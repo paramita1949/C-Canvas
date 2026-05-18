@@ -89,14 +89,10 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _captionText;
         private readonly TextBlock _projectionActionText;
         private readonly TextBlock _ndiActionText;
-        private readonly TextBlock _ndiStyleActionText;
-        private readonly TextBlock _localStyleActionText;
         private readonly Border _projectionAction;
         private readonly Border _aiPanelAction;
         private readonly Border _hideAction;
         private readonly Border _ndiAction;
-        private readonly Border _ndiStyleAction;
-        private readonly Border _localStyleAction;
         private readonly StackPanel _actionPanel;
         private readonly Border _styleAction;
         private readonly Border _settingsAction;
@@ -150,8 +146,6 @@ namespace ImageColorChanger.UI
         public event Action HideRequested;
         public event Action ProjectionToggleRequested;
         public event Action NdiToggleRequested;
-        public event Action NdiStyleRequested;
-        public event Action LocalStyleRequested;
         public event Action<ProjectionCaptionOrientation> CaptionOrientationRequested;
         public event Action<ProjectionCaptionHorizontalAnchor, ProjectionCaptionVerticalAnchor> CaptionPositionRequested;
         public event Action CaptionStyleRequested;
@@ -329,27 +323,9 @@ namespace ImageColorChanger.UI
             };
             SetNdiToggleState(enabled: false);
 
-            _ndiStyleAction = CreateTextActionItem("NDI样式", out _ndiStyleActionText);
-            _ndiStyleAction.Margin = new Thickness(6, 0, 0, 0);
-            _ndiStyleAction.ToolTip = "NDI字幕样式设置";
-            _ndiStyleAction.PreviewMouseLeftButtonDown += (_, e) =>
-            {
-                e.Handled = true;
-                NdiStyleRequested?.Invoke();
-            };
-
-            _localStyleAction = CreateTextActionItem("本机样式", out _localStyleActionText);
-            _localStyleAction.Margin = new Thickness(6, 0, 0, 0);
-            _localStyleAction.ToolTip = "本机字幕样式设置";
-            _localStyleAction.PreviewMouseLeftButtonDown += (_, e) =>
-            {
-                e.Handled = true;
-                LocalStyleRequested?.Invoke();
-            };
-
-            _styleAction = CreateTextActionItem("投影样式", out _);
+            _styleAction = CreateTextActionItem("样式设置", out _);
             _styleAction.Margin = new Thickness(6, 0, 0, 0);
-            _styleAction.ToolTip = "投影字幕样式";
+            _styleAction.ToolTip = "字幕样式设置";
             _styleAction.PreviewMouseLeftButtonDown += (_, e) =>
             {
                 e.Handled = true;
@@ -380,8 +356,6 @@ namespace ImageColorChanger.UI
             _actionPanel.Children.Add(_hideAction);
             _actionPanel.Children.Add(_projectionAction);
             _actionPanel.Children.Add(_ndiAction);
-            _actionPanel.Children.Add(_ndiStyleAction);
-            _actionPanel.Children.Add(_localStyleAction);
             _actionPanel.Children.Add(_styleAction);
             _actionPanel.Children.Add(_settingsAction);
             _actionPanel.Children.Add(_closeAction);
@@ -513,8 +487,6 @@ namespace ImageColorChanger.UI
 
         public UIElement GetSettingsAnchorElement() => _settingsAction;
         public UIElement GetStyleAnchorElement() => _styleAction;
-        public UIElement GetLocalStyleAnchorElement() => _localStyleAction;
-        public UIElement GetNdiStyleAnchorElement() => _ndiStyleAction;
 
         public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
 
@@ -744,8 +716,6 @@ namespace ImageColorChanger.UI
                 if (ReferenceEquals(current, _aiPanelAction) ||
                     ReferenceEquals(current, _projectionAction) ||
                     ReferenceEquals(current, _ndiAction) ||
-                    ReferenceEquals(current, _ndiStyleAction) ||
-                    ReferenceEquals(current, _localStyleAction) ||
                     ReferenceEquals(current, _styleAction) ||
                     ReferenceEquals(current, _settingsAction) ||
                     ReferenceEquals(current, _closeAction))

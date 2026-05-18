@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using ImageColorChanger.Core;
@@ -25,18 +27,77 @@ namespace ImageColorChanger.UI
             public string ProjectionVerticalAnchor { get; set; } = "bottom";
         }
 
-        private readonly Func<State> _loadState;
-        private readonly Action<string> _setFontFamily;
-        private readonly Action<double> _setFontSize;
-        private readonly Action<double> _setLetterSpacing;
-        private readonly Action<double> _setLineGapLevel;
-        private readonly Action<string> _setTextColor;
-        private readonly Action<string> _setLatestColor;
-        private readonly Action<double> _setNdiLineCharLimit;
-        private readonly Action<string> _setNdiAlignment;
-        private readonly Action<string> _setProjectionOrientation;
-        private readonly Action<string> _setProjectionHorizontalAnchor;
-        private readonly Action<string> _setProjectionVerticalAnchor;
+        public sealed class Profile
+        {
+            public Profile(
+                string key,
+                string label,
+                string title,
+                string subtitle,
+                Func<State> loadState,
+                Action<string> setFontFamily,
+                Action<double> setFontSize,
+                Action<double> setLetterSpacing,
+                Action<double> setLineGapLevel,
+                Action<string> setTextColor,
+                Action<string> setLatestColor,
+                Action<double> setNdiLineCharLimit = null,
+                Action<string> setNdiAlignment = null,
+                Action<string> setProjectionOrientation = null,
+                Action<string> setProjectionHorizontalAnchor = null,
+                Action<string> setProjectionVerticalAnchor = null)
+            {
+                Key = string.IsNullOrWhiteSpace(key) ? throw new ArgumentException("Profile key is required.", nameof(key)) : key.Trim();
+                Label = string.IsNullOrWhiteSpace(label) ? Key : label.Trim();
+                Title = string.IsNullOrWhiteSpace(title) ? "字幕样式" : title.Trim();
+                Subtitle = string.IsNullOrWhiteSpace(subtitle) ? "拖动滑条或输入数值，步长 0.5。" : subtitle.Trim();
+                LoadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
+                SetFontFamily = setFontFamily ?? throw new ArgumentNullException(nameof(setFontFamily));
+                SetFontSize = setFontSize ?? throw new ArgumentNullException(nameof(setFontSize));
+                SetLetterSpacing = setLetterSpacing ?? throw new ArgumentNullException(nameof(setLetterSpacing));
+                SetLineGapLevel = setLineGapLevel ?? throw new ArgumentNullException(nameof(setLineGapLevel));
+                SetTextColor = setTextColor ?? throw new ArgumentNullException(nameof(setTextColor));
+                SetLatestColor = setLatestColor ?? throw new ArgumentNullException(nameof(setLatestColor));
+                SetNdiLineCharLimit = setNdiLineCharLimit;
+                SetNdiAlignment = setNdiAlignment;
+                SetProjectionOrientation = setProjectionOrientation;
+                SetProjectionHorizontalAnchor = setProjectionHorizontalAnchor;
+                SetProjectionVerticalAnchor = setProjectionVerticalAnchor;
+            }
+
+            public string Key { get; }
+            public string Label { get; }
+            public string Title { get; }
+            public string Subtitle { get; }
+            public Func<State> LoadState { get; }
+            public Action<string> SetFontFamily { get; }
+            public Action<double> SetFontSize { get; }
+            public Action<double> SetLetterSpacing { get; }
+            public Action<double> SetLineGapLevel { get; }
+            public Action<string> SetTextColor { get; }
+            public Action<string> SetLatestColor { get; }
+            public Action<double> SetNdiLineCharLimit { get; }
+            public Action<string> SetNdiAlignment { get; }
+            public Action<string> SetProjectionOrientation { get; }
+            public Action<string> SetProjectionHorizontalAnchor { get; }
+            public Action<string> SetProjectionVerticalAnchor { get; }
+        }
+
+        private readonly List<Profile> _profiles = new();
+        private readonly Dictionary<string, System.Windows.Controls.Button> _profileButtons = new(StringComparer.OrdinalIgnoreCase);
+        private Func<State> _loadState;
+        private Action<string> _setFontFamily;
+        private Action<double> _setFontSize;
+        private Action<double> _setLetterSpacing;
+        private Action<double> _setLineGapLevel;
+        private Action<string> _setTextColor;
+        private Action<string> _setLatestColor;
+        private Action<double> _setNdiLineCharLimit;
+        private Action<string> _setNdiAlignment;
+        private Action<string> _setProjectionOrientation;
+        private Action<string> _setProjectionHorizontalAnchor;
+        private Action<string> _setProjectionVerticalAnchor;
+        private Profile _activeProfile;
         private bool _syncingUi;
         private string _ndiAlignment = "center";
         private string _textColor = "#FFFFFF";
@@ -62,23 +123,42 @@ namespace ImageColorChanger.UI
             Action<string> setProjectionOrientation = null,
             Action<string> setProjectionHorizontalAnchor = null,
             Action<string> setProjectionVerticalAnchor = null)
+            : this(
+                new[]
+                {
+                    new Profile(
+                        key: "default",
+                        label: string.Empty,
+                        title: title,
+                        subtitle: subtitle,
+                        loadState: loadState,
+                        setFontFamily: setFontFamily,
+                        setFontSize: setFontSize,
+                        setLetterSpacing: setLetterSpacing,
+                        setLineGapLevel: setLineGapLevel,
+                        setTextColor: setTextColor,
+                        setLatestColor: setLatestColor,
+                        setNdiLineCharLimit: setNdiLineCharLimit,
+                        setNdiAlignment: setNdiAlignment,
+                        setProjectionOrientation: setProjectionOrientation,
+                        setProjectionHorizontalAnchor: setProjectionHorizontalAnchor,
+                        setProjectionVerticalAnchor: setProjectionVerticalAnchor)
+                },
+                "default")
         {
-            _loadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
-            _setFontFamily = setFontFamily ?? throw new ArgumentNullException(nameof(setFontFamily));
-            _setFontSize = setFontSize ?? throw new ArgumentNullException(nameof(setFontSize));
-            _setLetterSpacing = setLetterSpacing ?? throw new ArgumentNullException(nameof(setLetterSpacing));
-            _setLineGapLevel = setLineGapLevel ?? throw new ArgumentNullException(nameof(setLineGapLevel));
-            _setTextColor = setTextColor ?? throw new ArgumentNullException(nameof(setTextColor));
-            _setLatestColor = setLatestColor ?? throw new ArgumentNullException(nameof(setLatestColor));
-            _setNdiLineCharLimit = setNdiLineCharLimit;
-            _setNdiAlignment = setNdiAlignment;
-            _setProjectionOrientation = setProjectionOrientation;
-            _setProjectionHorizontalAnchor = setProjectionHorizontalAnchor;
-            _setProjectionVerticalAnchor = setProjectionVerticalAnchor;
+        }
+
+        public LiveCaptionStyleControlCenterWindow(IReadOnlyList<Profile> profiles, string initialProfileKey = null)
+        {
+            if (profiles == null || profiles.Count == 0)
+            {
+                throw new ArgumentException("At least one style profile is required.", nameof(profiles));
+            }
+
+            _profiles.AddRange(profiles);
 
             InitializeComponent();
-            TitleTextBlock.Text = string.IsNullOrWhiteSpace(title) ? "字幕样式" : title.Trim();
-            SubtitleTextBlock.Text = string.IsNullOrWhiteSpace(subtitle) ? "拖动滑条或输入数值，步长 0.5。" : subtitle.Trim();
+            BuildProfileSwitch();
 
             FontFamilyComboBox.ItemsSource = new[]
             {
@@ -87,7 +167,72 @@ namespace ImageColorChanger.UI
                 new FontOption("黑体", "SimHei"),
                 new FontOption("宋体", "SimSun")
             };
+            SelectProfile(initialProfileKey);
             Loaded += (_, _) => RefreshUi();
+        }
+
+        public void SelectProfile(string key)
+        {
+            Profile profile = _profiles.FirstOrDefault(item => string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase)) ?? _profiles[0];
+            _activeProfile = profile;
+            _loadState = profile.LoadState;
+            _setFontFamily = profile.SetFontFamily;
+            _setFontSize = profile.SetFontSize;
+            _setLetterSpacing = profile.SetLetterSpacing;
+            _setLineGapLevel = profile.SetLineGapLevel;
+            _setTextColor = profile.SetTextColor;
+            _setLatestColor = profile.SetLatestColor;
+            _setNdiLineCharLimit = profile.SetNdiLineCharLimit;
+            _setNdiAlignment = profile.SetNdiAlignment;
+            _setProjectionOrientation = profile.SetProjectionOrientation;
+            _setProjectionHorizontalAnchor = profile.SetProjectionHorizontalAnchor;
+            _setProjectionVerticalAnchor = profile.SetProjectionVerticalAnchor;
+
+            TitleTextBlock.Text = profile.Title;
+            SubtitleTextBlock.Text = profile.Subtitle;
+            UpdateProfileSwitchState();
+
+            if (IsLoaded)
+            {
+                RefreshUi();
+            }
+        }
+
+        private void BuildProfileSwitch()
+        {
+            ProfileSwitchPanel.Children.Clear();
+            _profileButtons.Clear();
+            ProfileSwitchPanel.Visibility = _profiles.Count <= 1 ? Visibility.Collapsed : Visibility.Visible;
+
+            foreach (Profile profile in _profiles)
+            {
+                var button = new System.Windows.Controls.Button
+                {
+                    Content = profile.Label,
+                    Tag = profile.Key,
+                    Style = (Style)FindResource("SegmentButtonStyle"),
+                    Margin = new Thickness(4, 0, 0, 0)
+                };
+                button.Click += ProfileButton_Click;
+                _profileButtons[profile.Key] = button;
+                ProfileSwitchPanel.Children.Add(button);
+            }
+        }
+
+        private void ProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button button && button.Tag is string key)
+            {
+                SelectProfile(key);
+            }
+        }
+
+        private void UpdateProfileSwitchState()
+        {
+            foreach (KeyValuePair<string, System.Windows.Controls.Button> pair in _profileButtons)
+            {
+                SetAlignButtonState(pair.Value, string.Equals(pair.Key, _activeProfile?.Key, StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         private void RefreshUi()

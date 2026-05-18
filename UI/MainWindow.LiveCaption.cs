@@ -21,9 +21,7 @@ namespace ImageColorChanger.UI
         private SharedAudioCaptureSession _sharedAudioCaptureSession;
         private BibleShortPhraseRuntime _bibleShortPhraseRuntime;
         private LiveCaptionOverlayWindow _liveCaptionOverlayWindow;
-        private LiveCaptionStyleControlCenterWindow _projectionCaptionStyleWindow;
-        private LiveCaptionStyleControlCenterWindow _localCaptionStyleWindow;
-        private LiveCaptionStyleControlCenterWindow _ndiCaptionStyleWindow;
+        private LiveCaptionStyleControlCenterWindow _captionStyleWindow;
         private LiveCaptionDockMode _liveCaptionDockMode = LiveCaptionDockMode.Floating;
         private bool _isDisposingLiveCaption;
         private bool _liveCaptionOverlayManuallyHidden;
@@ -311,8 +309,6 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.AiPanelRequested += OpenAiPanelFromLiveCaptionOverlay;
                 _liveCaptionOverlayWindow.HideRequested += HideLiveCaptionOverlayFromPanel;
                 _liveCaptionOverlayWindow.CaptionStyleRequested += OpenLiveCaptionStyleSettings;
-                _liveCaptionOverlayWindow.NdiStyleRequested += OpenLiveCaptionNdiStyleSettings;
-                _liveCaptionOverlayWindow.LocalStyleRequested += OpenLiveCaptionLocalStyleSettings;
                 _liveCaptionOverlayWindow.ProjectionToggleRequested += ToggleProjectionFromLiveCaptionOverlay;
                 _liveCaptionOverlayWindow.NdiToggleRequested += ToggleNdiFromLiveCaptionOverlay;
                 _liveCaptionOverlayWindow.CaptionOrientationRequested += OnLiveCaptionOverlayCaptionOrientationRequested;
@@ -1287,8 +1283,6 @@ namespace ImageColorChanger.UI
                     _liveCaptionOverlayWindow.AiPanelRequested -= OpenAiPanelFromLiveCaptionOverlay;
                     _liveCaptionOverlayWindow.HideRequested -= HideLiveCaptionOverlayFromPanel;
                     _liveCaptionOverlayWindow.CaptionStyleRequested -= OpenLiveCaptionStyleSettings;
-                    _liveCaptionOverlayWindow.NdiStyleRequested -= OpenLiveCaptionNdiStyleSettings;
-                    _liveCaptionOverlayWindow.LocalStyleRequested -= OpenLiveCaptionLocalStyleSettings;
                     _liveCaptionOverlayWindow.ProjectionToggleRequested -= ToggleProjectionFromLiveCaptionOverlay;
                     _liveCaptionOverlayWindow.NdiToggleRequested -= ToggleNdiFromLiveCaptionOverlay;
                     _liveCaptionOverlayWindow.CaptionOrientationRequested -= OnLiveCaptionOverlayCaptionOrientationRequested;
@@ -1350,138 +1344,130 @@ namespace ImageColorChanger.UI
 
         private void OpenLiveCaptionStyleSettings()
         {
+            OpenLiveCaptionStyleSettings("projection");
+        }
+
+        private void OpenLiveCaptionStyleSettings(string initialProfileKey)
+        {
             if (_liveCaptionOverlayWindow == null || _configManager == null)
             {
                 return;
             }
 
-            if (_projectionCaptionStyleWindow == null || !_projectionCaptionStyleWindow.IsVisible)
+            if (_captionStyleWindow == null || !_captionStyleWindow.IsVisible)
             {
-                _projectionCaptionStyleWindow = new LiveCaptionStyleControlCenterWindow(
-                    title: "AI字幕 · 投影样式",
-                    subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
-                    loadState: () => new LiveCaptionStyleControlCenterWindow.State
+                _captionStyleWindow = new LiveCaptionStyleControlCenterWindow(
+                    new[]
                     {
-                        FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
+                        CreateLocalCaptionStyleProfile(),
+                        CreateProjectionCaptionStyleProfile(),
+                        CreateNdiCaptionStyleProfile(),
+                    },
+                    initialProfileKey);
+                _captionStyleWindow.Owner = this;
+                _captionStyleWindow.Closed += (_, _) => _captionStyleWindow = null;
+                RestoreAndTrackLiveCaptionStyleWindow(_captionStyleWindow, "liveCaption.style.unified");
+                _captionStyleWindow.Show();
+            }
+            else
+            {
+                _captionStyleWindow.SelectProfile(initialProfileKey);
+                _captionStyleWindow.Activate();
+            }
+        }
+
+        private LiveCaptionStyleControlCenterWindow.Profile CreateProjectionCaptionStyleProfile()
+        {
+            return new LiveCaptionStyleControlCenterWindow.Profile(
+                key: "projection",
+                label: "投影",
+                title: "AI字幕 · 投影样式",
+                subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
+                loadState: () => new LiveCaptionStyleControlCenterWindow.State
+                {
+                    FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
+                        ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
+                        : _configManager.LiveCaptionFontFamily.Trim(),
+                    FontSize = Math.Clamp(_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager.BibleFontSize > 0 ? _configManager.BibleFontSize : 36), 20, 112),
+                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionLetterSpacing, 0, 10),
+                    LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLineGap),
+                    TextColor = NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF"),
+                    LatestColor = NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00"),
+                    ShowProjectionLayout = true,
+                    ProjectionOrientation = NormalizeProjectionCaptionOrientation(_configManager.LiveCaptionProjectionOrientation),
+                    ProjectionHorizontalAnchor = NormalizeProjectionCaptionHorizontalAnchor(_configManager.LiveCaptionProjectionHorizontalAnchor),
+                    ProjectionVerticalAnchor = NormalizeProjectionCaptionVerticalAnchor(_configManager.LiveCaptionProjectionVerticalAnchor),
+                },
+                setFontFamily: family => { _configManager.LiveCaptionFontFamily = family; ApplyLiveCaptionTypographyFromBible(); },
+                setFontSize: SetLiveCaptionFontSize,
+                setLetterSpacing: SetLiveCaptionLetterSpacing,
+                setLineGapLevel: SetLiveCaptionLineGap,
+                setTextColor: hex => { _configManager.LiveCaptionTextColor = NormalizeColorHex(hex, "#FFFFFF"); ApplyLiveCaptionTypographyFromBible(); },
+                setLatestColor: hex => { _configManager.LiveCaptionLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); },
+                setProjectionOrientation: value => SetProjectionCaptionOrientation(value, value == "vertical" ? "竖向" : "横向"),
+                setProjectionHorizontalAnchor: value => SetProjectionCaptionHorizontalAnchor(value, GetProjectionCaptionHorizontalAnchorDisplayName(value)),
+                setProjectionVerticalAnchor: value => SetProjectionCaptionVerticalAnchor(value, GetProjectionCaptionVerticalAnchorDisplayName(value)));
+        }
+
+        private LiveCaptionStyleControlCenterWindow.Profile CreateLocalCaptionStyleProfile()
+        {
+            return new LiveCaptionStyleControlCenterWindow.Profile(
+                key: "local",
+                label: "本机",
+                title: "AI字幕 · 本机样式",
+                subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
+                loadState: () => new LiveCaptionStyleControlCenterWindow.State
+                {
+                    FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionLocalFontFamily)
+                        ? (string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
                             ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
-                            : _configManager.LiveCaptionFontFamily.Trim(),
-                        FontSize = Math.Clamp(_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager.BibleFontSize > 0 ? _configManager.BibleFontSize : 36), 20, 112),
-                        LetterSpacing = Math.Clamp(_configManager.LiveCaptionLetterSpacing, 0, 10),
-                        LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLineGap),
-                        TextColor = NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF"),
-                        LatestColor = NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00"),
-                        ShowProjectionLayout = true,
-                        ProjectionOrientation = NormalizeProjectionCaptionOrientation(_configManager.LiveCaptionProjectionOrientation),
-                        ProjectionHorizontalAnchor = NormalizeProjectionCaptionHorizontalAnchor(_configManager.LiveCaptionProjectionHorizontalAnchor),
-                        ProjectionVerticalAnchor = NormalizeProjectionCaptionVerticalAnchor(_configManager.LiveCaptionProjectionVerticalAnchor),
-                    },
-                    setFontFamily: family => { _configManager.LiveCaptionFontFamily = family; ApplyLiveCaptionTypographyFromBible(); },
-                    setFontSize: SetLiveCaptionFontSize,
-                    setLetterSpacing: SetLiveCaptionLetterSpacing,
-                    setLineGapLevel: SetLiveCaptionLineGap,
-                    setTextColor: hex => { _configManager.LiveCaptionTextColor = NormalizeColorHex(hex, "#FFFFFF"); ApplyLiveCaptionTypographyFromBible(); },
-                    setLatestColor: hex => { _configManager.LiveCaptionLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); },
-                    setProjectionOrientation: value => SetProjectionCaptionOrientation(value, value == "vertical" ? "竖向" : "横向"),
-                    setProjectionHorizontalAnchor: value => SetProjectionCaptionHorizontalAnchor(value, GetProjectionCaptionHorizontalAnchorDisplayName(value)),
-                    setProjectionVerticalAnchor: value => SetProjectionCaptionVerticalAnchor(value, GetProjectionCaptionVerticalAnchorDisplayName(value)));
-                _projectionCaptionStyleWindow.Owner = this;
-                _projectionCaptionStyleWindow.Closed += (_, _) => _projectionCaptionStyleWindow = null;
-                RestoreAndTrackLiveCaptionStyleWindow(_projectionCaptionStyleWindow, "liveCaption.style.projection");
-                _projectionCaptionStyleWindow.Show();
-            }
-            else
-            {
-                _projectionCaptionStyleWindow.Activate();
-            }
+                            : _configManager.LiveCaptionFontFamily.Trim())
+                        : _configManager.LiveCaptionLocalFontFamily.Trim(),
+                    FontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
+                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing > 0 ? _configManager.LiveCaptionLocalLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
+                    LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLocalLineGap > 0 ? _configManager.LiveCaptionLocalLineGap : _configManager.LiveCaptionLineGap),
+                    TextColor = NormalizeColorHex(_configManager.LiveCaptionLocalTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
+                    LatestColor = NormalizeColorHex(_configManager.LiveCaptionLocalLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
+                },
+                setFontFamily: family => { _configManager.LiveCaptionLocalFontFamily = family; ApplyLiveCaptionTypographyFromBible(); },
+                setFontSize: SetLocalCaptionFontSize,
+                setLetterSpacing: SetLocalCaptionLetterSpacing,
+                setLineGapLevel: SetLocalCaptionLineGap,
+                setTextColor: hex => { _configManager.LiveCaptionLocalTextColor = NormalizeColorHex(hex, "#FFFFFF"); ApplyLiveCaptionTypographyFromBible(); },
+                setLatestColor: hex => { _configManager.LiveCaptionLocalLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); });
         }
 
-        private void OpenLiveCaptionLocalStyleSettings()
+        private LiveCaptionStyleControlCenterWindow.Profile CreateNdiCaptionStyleProfile()
         {
-            if (_liveCaptionOverlayWindow == null || _configManager == null)
-            {
-                return;
-            }
-
-            if (_localCaptionStyleWindow == null || !_localCaptionStyleWindow.IsVisible)
-            {
-                _localCaptionStyleWindow = new LiveCaptionStyleControlCenterWindow(
-                    title: "AI字幕 · 本机样式",
-                    subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
-                    loadState: () => new LiveCaptionStyleControlCenterWindow.State
-                    {
-                        FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionLocalFontFamily)
-                            ? (string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
-                                ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
-                                : _configManager.LiveCaptionFontFamily.Trim())
-                            : _configManager.LiveCaptionLocalFontFamily.Trim(),
-                        FontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
-                        LetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing > 0 ? _configManager.LiveCaptionLocalLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
-                        LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLocalLineGap > 0 ? _configManager.LiveCaptionLocalLineGap : _configManager.LiveCaptionLineGap),
-                        TextColor = NormalizeColorHex(_configManager.LiveCaptionLocalTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
-                        LatestColor = NormalizeColorHex(_configManager.LiveCaptionLocalLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
-                    },
-                    setFontFamily: family => { _configManager.LiveCaptionLocalFontFamily = family; ApplyLiveCaptionTypographyFromBible(); },
-                    setFontSize: SetLocalCaptionFontSize,
-                    setLetterSpacing: SetLocalCaptionLetterSpacing,
-                    setLineGapLevel: SetLocalCaptionLineGap,
-                    setTextColor: hex => { _configManager.LiveCaptionLocalTextColor = NormalizeColorHex(hex, "#FFFFFF"); ApplyLiveCaptionTypographyFromBible(); },
-                    setLatestColor: hex => { _configManager.LiveCaptionLocalLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); });
-                _localCaptionStyleWindow.Owner = this;
-                _localCaptionStyleWindow.Closed += (_, _) => _localCaptionStyleWindow = null;
-                RestoreAndTrackLiveCaptionStyleWindow(_localCaptionStyleWindow, "liveCaption.style.local");
-                _localCaptionStyleWindow.Show();
-            }
-            else
-            {
-                _localCaptionStyleWindow.Activate();
-            }
-        }
-
-        private void OpenLiveCaptionNdiStyleSettings()
-        {
-            if (_liveCaptionOverlayWindow == null || _configManager == null)
-            {
-                return;
-            }
-
-            if (_ndiCaptionStyleWindow == null || !_ndiCaptionStyleWindow.IsVisible)
-            {
-                _ndiCaptionStyleWindow = new LiveCaptionStyleControlCenterWindow(
-                    title: "AI字幕 · NDI样式",
-                    subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
-                    loadState: () => new LiveCaptionStyleControlCenterWindow.State
-                    {
-                        FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionNdiFontFamily)
-                            ? (string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
-                                ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
-                                : _configManager.LiveCaptionFontFamily.Trim())
-                            : _configManager.LiveCaptionNdiFontFamily.Trim(),
-                        FontSize = Math.Clamp(_configManager.LiveCaptionNdiFontSize > 0 ? _configManager.LiveCaptionNdiFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
-                        LetterSpacing = Math.Clamp(_configManager.LiveCaptionNdiLetterSpacing > 0 ? _configManager.LiveCaptionNdiLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
-                        LineGapLevel = LineGapToLevel(_configManager.LiveCaptionNdiLineGap > 0 ? _configManager.LiveCaptionNdiLineGap : _configManager.LiveCaptionLineGap),
-                        TextColor = NormalizeColorHex(_configManager.LiveCaptionNdiTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
-                        LatestColor = NormalizeColorHex(_configManager.LiveCaptionNdiLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
-                        ShowNdiAdvanced = true,
-                        NdiLineCharLimit = Math.Clamp(_configManager.LiveCaptionNdiLineCharLimit, 8, 80),
-                        NdiAlignment = NormalizeNdiAlignment(_configManager.LiveCaptionNdiTextAlignment),
-                    },
-                    setFontFamily: family => { _configManager.LiveCaptionNdiFontFamily = family; RefreshLiveCaptionNdiPreview(); },
-                    setFontSize: SetNdiFontSize,
-                    setLetterSpacing: SetNdiLetterSpacing,
-                    setLineGapLevel: SetNdiLineGap,
-                    setTextColor: hex => { _configManager.LiveCaptionNdiTextColor = NormalizeColorHex(hex, "#FFFFFF"); RefreshLiveCaptionNdiPreview(); },
-                    setLatestColor: hex => { _configManager.LiveCaptionNdiLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); RefreshLiveCaptionNdiPreview(); },
-                    setNdiLineCharLimit: value => SetLiveCaptionNdiChars((int)Math.Round(value)),
-                    setNdiAlignment: value => SetNdiAlignment(value, value switch { "left" => "左对齐", "right" => "右对齐", _ => "居中" }));
-                _ndiCaptionStyleWindow.Owner = this;
-                _ndiCaptionStyleWindow.Closed += (_, _) => _ndiCaptionStyleWindow = null;
-                RestoreAndTrackLiveCaptionStyleWindow(_ndiCaptionStyleWindow, "liveCaption.style.ndi");
-                _ndiCaptionStyleWindow.Show();
-            }
-            else
-            {
-                _ndiCaptionStyleWindow.Activate();
-            }
+            return new LiveCaptionStyleControlCenterWindow.Profile(
+                key: "ndi",
+                label: "NDI",
+                title: "AI字幕 · NDI样式",
+                subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
+                loadState: () => new LiveCaptionStyleControlCenterWindow.State
+                {
+                    FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionNdiFontFamily)
+                        ? (string.IsNullOrWhiteSpace(_configManager.LiveCaptionFontFamily)
+                            ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
+                            : _configManager.LiveCaptionFontFamily.Trim())
+                        : _configManager.LiveCaptionNdiFontFamily.Trim(),
+                    FontSize = Math.Clamp(_configManager.LiveCaptionNdiFontSize > 0 ? _configManager.LiveCaptionNdiFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
+                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionNdiLetterSpacing > 0 ? _configManager.LiveCaptionNdiLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
+                    LineGapLevel = LineGapToLevel(_configManager.LiveCaptionNdiLineGap > 0 ? _configManager.LiveCaptionNdiLineGap : _configManager.LiveCaptionLineGap),
+                    TextColor = NormalizeColorHex(_configManager.LiveCaptionNdiTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
+                    LatestColor = NormalizeColorHex(_configManager.LiveCaptionNdiLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
+                    ShowNdiAdvanced = true,
+                    NdiLineCharLimit = Math.Clamp(_configManager.LiveCaptionNdiLineCharLimit, 8, 80),
+                    NdiAlignment = NormalizeNdiAlignment(_configManager.LiveCaptionNdiTextAlignment),
+                },
+                setFontFamily: family => { _configManager.LiveCaptionNdiFontFamily = family; RefreshLiveCaptionNdiPreview(); },
+                setFontSize: SetNdiFontSize,
+                setLetterSpacing: SetNdiLetterSpacing,
+                setLineGapLevel: SetNdiLineGap,
+                setTextColor: hex => { _configManager.LiveCaptionNdiTextColor = NormalizeColorHex(hex, "#FFFFFF"); RefreshLiveCaptionNdiPreview(); },
+                setLatestColor: hex => { _configManager.LiveCaptionNdiLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); RefreshLiveCaptionNdiPreview(); },
+                setNdiLineCharLimit: value => SetLiveCaptionNdiChars((int)Math.Round(value)),
+                setNdiAlignment: value => SetNdiAlignment(value, value switch { "left" => "左对齐", "right" => "右对齐", _ => "居中" }));
         }
 
         private void RestoreAndTrackLiveCaptionStyleWindow(Window window, string placementKey)
