@@ -177,6 +177,7 @@ namespace ImageColorChanger.UI
                     : modelName.Trim();
                 ModelNameText.Text = value;
                 UpdateModelOptionVisual(value);
+                BalanceStatusText.Visibility = IsGeminiModel(value) ? Visibility.Collapsed : Visibility.Visible;
             });
         }
 
@@ -189,21 +190,36 @@ namespace ImageColorChanger.UI
 
             Dispatcher.Invoke(() =>
             {
+                if (IsGeminiModel(_configManager.DeepSeekModel))
+                {
+                    BalanceStatusText.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                BalanceStatusText.Visibility = Visibility.Visible;
                 BalanceStatusText.Text = status.Trim();
             });
         }
 
         private void UpdateModelOptionVisual(string modelName)
         {
-            if (ModelOptionFlash == null || ModelOptionPro == null)
+            if (ModelOptionFlash == null || ModelOptionPro == null || ModelOptionGeminiFlash == null)
             {
                 return;
             }
 
             bool isFlash = string.Equals(modelName, "deepseek-v4-flash", StringComparison.OrdinalIgnoreCase);
             bool isPro = string.Equals(modelName, "deepseek-v4-pro", StringComparison.OrdinalIgnoreCase);
+            bool isGeminiFlash = string.Equals(modelName, "gemini-3.5-flash", StringComparison.OrdinalIgnoreCase);
             ModelOptionFlash.Background = isFlash ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
             ModelOptionPro.Background = isPro ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
+            ModelOptionGeminiFlash.Background = isGeminiFlash ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
+        }
+
+        private static bool IsGeminiModel(string modelName)
+        {
+            return !string.IsNullOrWhiteSpace(modelName) &&
+                   modelName.Trim().StartsWith("gemini-", StringComparison.OrdinalIgnoreCase);
         }
 
         public void SetSpeakerNames(IEnumerable<string> speakerNames, string currentSpeaker = "")
@@ -751,6 +767,11 @@ namespace ImageColorChanger.UI
         private void ModelOptionPro_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             ApplyModelSelection("deepseek-v4-pro");
+        }
+
+        private void ModelOptionGeminiFlash_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ApplyModelSelection("gemini-3.5-flash");
         }
 
         private void ApplyModelSelection(string model)

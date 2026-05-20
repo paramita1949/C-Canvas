@@ -1,5 +1,19 @@
 # Changelog
 
+## 6.0.6.3 (2026-05-21)
+
+### Added
+
+- 新增 Gemini 平台接入：支持 `gemini-3.5-flash` 流式对话与经文候选工具调用。
+- 新增 Gemini 独立密钥配置项（`GeminiApiKey`）并接入 AI 平台配置持久化。
+
+### Changed
+
+- AI 平台配置窗口改造为 DeepSeek/Gemini 双平台切换：模型列表、密钥输入与状态提示按平台动态联动。
+- AI 助手面板模型下拉新增 `gemini-3.5-flash`，并在 Gemini 模型下隐藏余额状态显示。
+- AI 对话客户端统一按模型路由请求：Gemini 走 Google API SSE 流，DeepSeek 维持原有通道；缺失密钥提示统一为 `AI Key 未配置`。
+- AI 会话协调器并发与取消提示优化：ASR 请求并发阈值提升，取消状态文案调整为“AI请求超时或取消”。
+
 ## 6.0.6.2 (2026-05-19)
 
 ### Added

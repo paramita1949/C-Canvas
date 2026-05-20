@@ -288,11 +288,23 @@
                                 </Border>
                                 <Border x:Name="ModelOptionPro"
                                         Padding="8,6"
+                                        Margin="0,0,0,2"
                                         Background="Transparent"
                                         CornerRadius="5"
                                         Cursor="Hand"
                                         MouseLeftButtonUp="ModelOptionPro_MouseLeftButtonUp">
                                     <TextBlock Text="deepseek-v4-pro"
+                                               Foreground="#EAF9FF"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                                <Border x:Name="ModelOptionGeminiFlash"
+                                        Padding="8,6"
+                                        Background="Transparent"
+                                        CornerRadius="5"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="ModelOptionGeminiFlash_MouseLeftButtonUp">
+                                    <TextBlock Text="gemini-3.5-flash"
                                                Foreground="#EAF9FF"
                                                FontSize="11"
                                                FontWeight="SemiBold"/>

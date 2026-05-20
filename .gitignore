@@ -126,6 +126,10 @@ Canvas/
 docs/
 *.md
 
+# Local generated agent artifacts
+.playwright-mcp/
+design-exports/tab-bible-remotion/
+
 # .NET Reactor configuration (local only)
 *.dotnet_reactor.targets
 

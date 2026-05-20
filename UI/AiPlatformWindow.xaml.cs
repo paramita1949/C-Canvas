@@ -8,7 +8,11 @@ namespace ImageColorChanger.UI
 {
     public partial class AiPlatformWindow : Window
     {
+        private const string DeepSeekProvider = "deepseek";
+        private const string GeminiProvider = "gemini";
         private readonly ConfigManager _configManager;
+        private string _selectedProvider = DeepSeekProvider;
+        private bool _isRefreshing;
 
         public event Action AiCaptionRequested;
         public event Action AsrEngineSettingsRequested;
@@ -22,16 +26,17 @@ namespace ImageColorChanger.UI
 
         public void RefreshFromConfig()
         {
-            DeepSeekApiKeyBox.Password = _configManager.DeepSeekApiKey ?? string.Empty;
-            SelectModel(_configManager.DeepSeekModel);
-            DeepSeekConfigStatusText.Text = string.IsNullOrWhiteSpace(_configManager.DeepSeekApiKey)
-                ? "DeepSeek API Key 未配置"
-                : $"当前模型：{_configManager.DeepSeekModel}";
+            _isRefreshing = true;
+            _selectedProvider = IsGeminiModel(_configManager.DeepSeekModel) ? GeminiProvider : DeepSeekProvider;
+            DeepSeekProviderButton.IsChecked = string.Equals(_selectedProvider, DeepSeekProvider, StringComparison.Ordinal);
+            GeminiProviderButton.IsChecked = string.Equals(_selectedProvider, GeminiProvider, StringComparison.Ordinal);
+            RefreshProviderFields();
+            _isRefreshing = false;
         }
 
         public void FocusDeepSeekConfig()
         {
-            DeepSeekApiKeyBox.Focus();
+            ApiKeyBox.Focus();
         }
 
         private void OpenAiCaptionButton_Click(object sender, RoutedEventArgs e)
@@ -41,11 +46,19 @@ namespace ImageColorChanger.UI
 
         private void SaveDeepSeekConfigButton_Click(object sender, RoutedEventArgs e)
         {
-            _configManager.DeepSeekApiKey = DeepSeekApiKeyBox.Password ?? string.Empty;
-            _configManager.DeepSeekModel = GetSelectedModel();
-            DeepSeekConfigStatusText.Text = string.IsNullOrWhiteSpace(_configManager.DeepSeekApiKey)
-                ? "DeepSeek API Key 已清空，AI字幕暂不能请求AI理解。"
-                : $"已保存，AI字幕将使用 {_configManager.DeepSeekModel}。";
+            string model = GetSelectedModel();
+            if (string.Equals(_selectedProvider, GeminiProvider, StringComparison.Ordinal))
+            {
+                _configManager.GeminiApiKey = ApiKeyBox.Password ?? string.Empty;
+                _configManager.DeepSeekModel = model;
+            }
+            else
+            {
+                _configManager.DeepSeekApiKey = ApiKeyBox.Password ?? string.Empty;
+                _configManager.DeepSeekModel = model;
+            }
+
+            RefreshProviderFields();
         }
 
         private void AsrEngineSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -55,16 +68,62 @@ namespace ImageColorChanger.UI
 
         private string GetSelectedModel()
         {
-            return (DeepSeekModelComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "deepseek-v4-flash";
+            return AiModelComboBox.SelectedItem?.ToString()
+                ?? (string.Equals(_selectedProvider, GeminiProvider, StringComparison.Ordinal) ? "gemini-3.5-flash" : "deepseek-v4-flash");
         }
 
         private void SelectModel(string model)
         {
-            string target = string.IsNullOrWhiteSpace(model) ? "deepseek-v4-flash" : model.Trim();
-            var item = DeepSeekModelComboBox.Items
-                .OfType<ComboBoxItem>()
-                .FirstOrDefault(candidate => string.Equals(candidate.Content?.ToString(), target, StringComparison.OrdinalIgnoreCase));
-            DeepSeekModelComboBox.SelectedItem = item ?? DeepSeekModelComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+            string fallback = string.Equals(_selectedProvider, GeminiProvider, StringComparison.Ordinal)
+                ? "gemini-3.5-flash"
+                : "deepseek-v4-flash";
+            string target = string.IsNullOrWhiteSpace(model) ? fallback : model.Trim();
+            var item = AiModelComboBox.Items
+                .OfType<string>()
+                .FirstOrDefault(candidate => string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase));
+            AiModelComboBox.SelectedItem = item ?? AiModelComboBox.Items.OfType<string>().FirstOrDefault();
+        }
+
+        private void ProviderButton_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_isRefreshing)
+            {
+                return;
+            }
+
+            _selectedProvider = sender == GeminiProviderButton ? GeminiProvider : DeepSeekProvider;
+            RefreshProviderFields();
+        }
+
+        private void RefreshProviderFields()
+        {
+            AiModelComboBox.Items.Clear();
+            if (string.Equals(_selectedProvider, GeminiProvider, StringComparison.Ordinal))
+            {
+                AiModelComboBox.Items.Add("gemini-3.5-flash");
+                KeyHintText.Text = "填写 Google AI Studio 的 API Key。";
+                ApiKeyBox.Password = _configManager.GeminiApiKey ?? string.Empty;
+                SelectModel(IsGeminiModel(_configManager.DeepSeekModel) ? _configManager.DeepSeekModel : "gemini-3.5-flash");
+                DeepSeekConfigStatusText.Text = string.IsNullOrWhiteSpace(_configManager.GeminiApiKey)
+                    ? "Gemini 密钥未配置"
+                    : $"当前平台：Gemini，模型：{GetSelectedModel()}";
+                return;
+            }
+
+            AiModelComboBox.Items.Add("deepseek-v4-flash");
+            AiModelComboBox.Items.Add("deepseek-v4-pro");
+            KeyHintText.Text = "填写 DeepSeek API Key。";
+            ApiKeyBox.Password = _configManager.DeepSeekApiKey ?? string.Empty;
+            SelectModel(IsGeminiModel(_configManager.DeepSeekModel) ? "deepseek-v4-flash" : _configManager.DeepSeekModel);
+            DeepSeekConfigStatusText.Text = string.IsNullOrWhiteSpace(_configManager.DeepSeekApiKey)
+                ? "DeepSeek 密钥未配置"
+                : $"当前平台：DeepSeek，模型：{GetSelectedModel()}";
+        }
+
+        private static bool IsGeminiModel(string model)
+        {
+            return !string.IsNullOrWhiteSpace(model) &&
+                   model.Trim().StartsWith("gemini-", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

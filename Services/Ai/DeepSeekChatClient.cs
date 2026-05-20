@@ -41,13 +41,22 @@ namespace ImageColorChanger.Services.Ai
             Action<string> onContentDelta,
             CancellationToken cancellationToken)
         {
-            string apiKey = (_config.DeepSeekApiKey ?? string.Empty).Trim();
+            string model = _config.DeepSeekModel;
+            string apiKey = IsGeminiModel(model)
+                ? (_config.GeminiApiKey ?? string.Empty).Trim()
+                : (_config.DeepSeekApiKey ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                throw new InvalidOperationException("DeepSeek API Key 未配置");
+                throw new InvalidOperationException("AI Key 未配置");
             }
 
-            var payload = BuildPayload(request);
+            if (IsGeminiModel(model))
+            {
+                return await StreamGeminiChatAsync(request, onContentDelta, cancellationToken, apiKey, model)
+                    .ConfigureAwait(false);
+            }
+
+            var payload = BuildDeepSeekPayload(request);
             string json = JsonSerializer.Serialize(payload, _jsonOptions);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"{_config.DeepSeekBaseUrl}/chat/completions");
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -70,10 +79,18 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
         {
+            if (IsGeminiModel(_config.DeepSeekModel))
+            {
+                return new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = false
+                };
+            }
+
             string apiKey = (_config.DeepSeekApiKey ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                throw new InvalidOperationException("DeepSeek API Key 未配置");
+                throw new InvalidOperationException("AI Key 未配置");
             }
 
             using var message = new HttpRequestMessage(HttpMethod.Get, $"{_config.DeepSeekBaseUrl}/user/balance");
@@ -94,7 +111,7 @@ namespace ImageColorChanger.Services.Ai
             return ParseBalanceSnapshot(body);
         }
 
-        private object BuildPayload(AiChatRequest request)
+        private object BuildDeepSeekPayload(AiChatRequest request)
         {
             var messages = (request?.Messages ?? Array.Empty<AiConversationMessage>())
                 .Where(m => !string.IsNullOrWhiteSpace(m?.Content))
@@ -157,6 +174,224 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return payload;
+        }
+
+        private object BuildGeminiPayload(AiChatRequest request)
+        {
+            var sourceMessages = (request?.Messages ?? Array.Empty<AiConversationMessage>())
+                .Where(m => !string.IsNullOrWhiteSpace(m?.Content))
+                .ToList();
+
+            string systemInstruction = sourceMessages
+                .Where(m => string.Equals(m.Role, "system", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Content.Trim())
+                .FirstOrDefault();
+
+            var contents = sourceMessages
+                .Where(m => !string.Equals(m.Role, "system", StringComparison.OrdinalIgnoreCase))
+                .Select(m => new Dictionary<string, object>
+                {
+                    ["role"] = string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user",
+                    ["parts"] = new object[]
+                    {
+                        new Dictionary<string, object> { ["text"] = m.Content }
+                    }
+                })
+                .ToList();
+
+            if (contents.Count == 0)
+            {
+                contents.Add(new Dictionary<string, object>
+                {
+                    ["role"] = "user",
+                    ["parts"] = new object[]
+                    {
+                        new Dictionary<string, object> { ["text"] = "请继续。"}
+                    }
+                });
+            }
+
+            var payload = new Dictionary<string, object>
+            {
+                ["contents"] = contents,
+                ["generationConfig"] = new Dictionary<string, object>
+                {
+                    ["temperature"] = 0.2
+                }
+            };
+
+            if (!string.IsNullOrWhiteSpace(systemInstruction))
+            {
+                payload["system_instruction"] = new Dictionary<string, object>
+                {
+                    ["parts"] = new object[]
+                    {
+                        new Dictionary<string, object> { ["text"] = systemInstruction }
+                    }
+                };
+            }
+
+            if (request?.EnableScriptureTool == true)
+            {
+                payload["tools"] = new object[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["functionDeclarations"] = new object[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["name"] = "propose_scripture_candidate",
+                                ["description"] = "提出可能需要写入圣经历史记录的经文候选。本函数只提出候选，不执行写入。",
+                                ["parameters"] = new Dictionary<string, object>
+                                {
+                                    ["type"] = "object",
+                                    ["properties"] = new Dictionary<string, object>
+                                    {
+                                        ["bookName"] = new Dictionary<string, object> { ["type"] = "string" },
+                                        ["chapter"] = new Dictionary<string, object> { ["type"] = "integer" },
+                                        ["startVerse"] = new Dictionary<string, object> { ["type"] = "integer" },
+                                        ["endVerse"] = new Dictionary<string, object> { ["type"] = "integer" },
+                                        ["confidence"] = new Dictionary<string, object> { ["type"] = "number" },
+                                        ["reason"] = new Dictionary<string, object> { ["type"] = "string" },
+                                        ["evidenceText"] = new Dictionary<string, object> { ["type"] = "string" }
+                                    },
+                                    ["required"] = new[] { "bookName", "confidence", "reason", "evidenceText" }
+                                }
+                            }
+                        }
+                    }
+                };
+                payload["toolConfig"] = new Dictionary<string, object>
+                {
+                    ["functionCallingConfig"] = new Dictionary<string, object>
+                    {
+                        ["mode"] = "AUTO"
+                    }
+                };
+            }
+
+            return payload;
+        }
+
+        private async Task<AiChatStreamResult> StreamGeminiChatAsync(
+            AiChatRequest request,
+            Action<string> onContentDelta,
+            CancellationToken cancellationToken,
+            string apiKey,
+            string model)
+        {
+            var payload = BuildGeminiPayload(request);
+            string json = JsonSerializer.Serialize(payload, _jsonOptions);
+            string modelName = string.IsNullOrWhiteSpace(model) ? "gemini-3.5-flash" : model.Trim();
+            string endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:streamGenerateContent?alt=sse&key={Uri.EscapeDataString(apiKey)}";
+            using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            message.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.SendAsync(
+                message,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                throw new HttpRequestException(BuildGeminiErrorMessage(response.StatusCode, response.ReasonPhrase, body));
+            }
+
+            return await ReadGeminiStreamAsync(response, onContentDelta, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<AiChatStreamResult> ReadGeminiStreamAsync(
+            HttpResponseMessage response,
+            Action<string> onContentDelta,
+            CancellationToken cancellationToken)
+        {
+            var content = new StringBuilder();
+            var candidates = new List<AiScriptureCandidate>();
+
+            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            while (!reader.EndOfStream)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string line = await reader.ReadLineAsync().ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string data = line.Substring("data:".Length).Trim();
+                if (string.Equals(data, "[DONE]", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                using JsonDocument doc = JsonDocument.Parse(data);
+                if (!doc.RootElement.TryGetProperty("candidates", out var responseCandidates) ||
+                    responseCandidates.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var candidate in responseCandidates.EnumerateArray())
+                {
+                    if (!candidate.TryGetProperty("content", out var contentNode) ||
+                        !contentNode.TryGetProperty("parts", out var parts) ||
+                        parts.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var part in parts.EnumerateArray())
+                    {
+                        if (part.TryGetProperty("text", out var textNode) &&
+                            textNode.ValueKind == JsonValueKind.String)
+                        {
+                            string chunk = textNode.GetString() ?? string.Empty;
+                            if (!string.IsNullOrEmpty(chunk))
+                            {
+                                content.Append(chunk);
+                                onContentDelta?.Invoke(chunk);
+                            }
+                        }
+
+                        if (part.TryGetProperty("functionCall", out var functionCall) &&
+                            functionCall.ValueKind == JsonValueKind.Object &&
+                            functionCall.TryGetProperty("name", out var functionName) &&
+                            string.Equals(functionName.GetString(), "propose_scripture_candidate", StringComparison.Ordinal))
+                        {
+                            if (functionCall.TryGetProperty("args", out var args) &&
+                                args.ValueKind == JsonValueKind.Object)
+                            {
+                                try
+                                {
+                                    string argsJson = args.GetRawText();
+                                    var scriptureCandidate = JsonSerializer.Deserialize<AiScriptureCandidate>(argsJson, new JsonSerializerOptions
+                                    {
+                                        PropertyNameCaseInsensitive = true
+                                    });
+                                    if (scriptureCandidate != null)
+                                    {
+                                        candidates.Add(scriptureCandidate);
+                                    }
+                                }
+                                catch (JsonException)
+                                {
+                                    // ignore malformed candidate
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new AiChatStreamResult
+            {
+                Content = content.ToString(),
+                ScriptureCandidates = candidates
+            };
         }
 
         private async Task<AiChatStreamResult> ReadStreamAsync(
@@ -365,6 +600,26 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return $"DeepSeek 请求失败：{(int)statusCode} {reasonPhrase} {TrimForError(text)}";
+        }
+
+        private static string BuildGeminiErrorMessage(System.Net.HttpStatusCode statusCode, string reasonPhrase, string body)
+        {
+            string text = body ?? string.Empty;
+            if (statusCode == System.Net.HttpStatusCode.Unauthorized ||
+                statusCode == System.Net.HttpStatusCode.Forbidden ||
+                text.IndexOf("api key", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                text.IndexOf("permission", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "Gemini 认证失败：API Key 无效或权限不足。请打开 AI平台 重新填写密钥。";
+            }
+
+            return $"Gemini 请求失败：{(int)statusCode} {reasonPhrase} {TrimForError(text)}";
+        }
+
+        private static bool IsGeminiModel(string model)
+        {
+            return !string.IsNullOrWhiteSpace(model) &&
+                   model.Trim().StartsWith("gemini-", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose()

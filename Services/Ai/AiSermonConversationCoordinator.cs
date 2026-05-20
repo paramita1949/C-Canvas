@@ -22,7 +22,7 @@ namespace ImageColorChanger.Services.Ai
         private readonly AiSermonSummaryService _summaryService;
         private readonly AiRealtimeUnderstandingScheduler _asrScheduler;
         private readonly SemaphoreSlim _sendLock = new(1, 1);
-        private readonly SemaphoreSlim _asrSendGate = new(2, 2);
+        private readonly SemaphoreSlim _asrSendGate = new(3, 3);
         private readonly SemaphoreSlim _assistantRenderLock = new(1, 1);
         private readonly SemaphoreSlim _sessionInitLock = new(1, 1);
         private readonly List<AiConversationMessage> _visibleMessages = new();
@@ -417,6 +417,8 @@ namespace ImageColorChanger.Services.Ai
                 return;
             }
 
+            bool isAsr = string.Equals(name, "asr", StringComparison.Ordinal);
+
             var message = new AiConversationMessage
             {
                 Role = "user",
@@ -430,7 +432,6 @@ namespace ImageColorChanger.Services.Ai
             MessageAppended?.Invoke(message);
             await SaveHistoryMessageAsync(message).ConfigureAwait(false);
 
-            bool isAsr = string.Equals(name, "asr", StringComparison.Ordinal);
             if (isAsr && IsStaleAsrRequest(asrSeq))
             {
                 return;
@@ -530,7 +531,7 @@ namespace ImageColorChanger.Services.Ai
             }
             catch (OperationCanceledException)
             {
-                StatusChanged?.Invoke("AI请求已取消");
+                StatusChanged?.Invoke("AI请求超时或取消");
             }
             catch (Exception ex)
             {

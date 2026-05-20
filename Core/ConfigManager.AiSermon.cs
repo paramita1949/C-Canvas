@@ -37,6 +37,20 @@ namespace ImageColorChanger.Core
             }
         }
 
+        public string GeminiApiKey
+        {
+            get => _config.GeminiApiKey ?? string.Empty;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (!string.Equals(_config.GeminiApiKey, next, StringComparison.Ordinal))
+                {
+                    _config.GeminiApiKey = next;
+                    SaveConfig();
+                }
+            }
+        }
+
         public string DeepSeekBaseUrl
         {
             get => string.IsNullOrWhiteSpace(_config.DeepSeekBaseUrl)
@@ -247,6 +261,7 @@ namespace ImageColorChanger.Core
     {
         public bool AiSermonEnabled { get; set; } = true;
         public string DeepSeekApiKey { get; set; } = "";
+        public string GeminiApiKey { get; set; } = "";
         public string DeepSeekBaseUrl { get; set; } = "https://api.deepseek.com";
         public string DeepSeekModel { get; set; } = "deepseek-v4-flash";
         public bool AiSermonAutoWriteHistory { get; set; } = true;
