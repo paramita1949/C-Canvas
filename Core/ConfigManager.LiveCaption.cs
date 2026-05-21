@@ -142,6 +142,7 @@ namespace ImageColorChanger.Core
                 "baidu" => "baidu",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
+                "siliconflow" => "siliconflow",
                 // 迁移历史本地模式：统一切回云端豆包。
                 "funasr" => "doubao",
                 _ => "xfyun"
@@ -163,6 +164,7 @@ namespace ImageColorChanger.Core
             {
                 "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
+                "siliconflow" => "https://api.siliconflow.cn/v1/audio/transcriptions",
                 _ => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1"
             };
         }
@@ -715,6 +717,20 @@ namespace ImageColorChanger.Core
                 if (!string.Equals(_config.LiveCaptionXfyunApiSecret, next, StringComparison.Ordinal))
                 {
                     _config.LiveCaptionXfyunApiSecret = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string LiveCaptionSiliconFlowApiKey
+        {
+            get => _config.LiveCaptionSiliconFlowApiKey ?? string.Empty;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (!string.Equals(_config.LiveCaptionSiliconFlowApiKey, next, StringComparison.Ordinal))
+                {
+                    _config.LiveCaptionSiliconFlowApiKey = next;
                     SaveConfig();
                 }
             }
@@ -1346,6 +1362,7 @@ namespace ImageColorChanger.Core
         public string LiveCaptionXfyunAppId { get; set; } = "";
         public string LiveCaptionXfyunApiKey { get; set; } = "";
         public string LiveCaptionXfyunApiSecret { get; set; } = "";
+        public string LiveCaptionSiliconFlowApiKey { get; set; } = "";
         public string LiveCaptionDoubaoAppKey { get; set; } = "";
         public string LiveCaptionDoubaoAccessKey { get; set; } = "";
         public string LiveCaptionDoubaoResourceId { get; set; } = "volc.seedasr.sauc.duration";

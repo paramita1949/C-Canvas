@@ -15,7 +15,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
         [Fact]
         public void IsEnabledForEnvironment_RequiresExplicitOptIn()
         {
-            Assert.True(LiveCaptionDebugLogger.IsEnabledForEnvironment("1", debugBuild: true));
+            Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment("1", debugBuild: true));
             Assert.False(LiveCaptionDebugLogger.IsEnabledForEnvironment("1", debugBuild: false));
         }
     }

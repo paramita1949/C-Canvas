@@ -1,5 +1,20 @@
 # Changelog
 
+## 6.0.6.4 (2026-05-21)
+
+### Added
+
+- 新增实时字幕 `siliconflow` 平台接入，支持 `LiveCaptionSiliconFlowApiKey` 配置与短语识别转写链路。
+- 新增硅基流动平台模型预设与配置入口（`TeleAI/TeleSpeechASR`、`FunAudioLLM/SenseVoiceSmall`）。
+- 新增 OpenAI 兼容转写 URL 组合场景测试（`CliProxyApiClientOpenAiCompatUrlTests`）。
+
+### Changed
+
+- 实时字幕 provider 规范化与回退逻辑扩展：`siliconflow` 纳入配置解析、默认地址与凭据校验链路。
+- `CliProxyApiClient` 转写错误反馈增强：状态提示追加 endpoint/响应摘要，并补充调试日志输出。
+- `RealtimeCaptionEngine` 分段识别状态提示细化：新增首包发送提示、硅基流动处理中与返回结果提示。
+- `LiveCaptionDebugLogger` 调整为默认关闭调试开关，并补充本地日志文件落盘保护逻辑。
+
 ## 6.0.6.3 (2026-05-21)
 
 ### Added

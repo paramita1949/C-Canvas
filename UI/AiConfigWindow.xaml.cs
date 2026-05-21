@@ -380,6 +380,15 @@ namespace ImageColorChanger.UI
                     _configManager.LiveCaptionDoubaoHotwordOpenApiAk = (DoubaoHotwordAkTextBox.Text ?? string.Empty).Trim();
                     _configManager.LiveCaptionDoubaoHotwordOpenApiSk = (DoubaoHotwordSkTextBox.Text ?? string.Empty).Trim();
                     break;
+                case "siliconflow":
+                    if (string.IsNullOrWhiteSpace(v1))
+                    {
+                        System.Windows.MessageBox.Show("硅基流动需填写 API Key。", "AI配置", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        Credential1TextBox.Focus();
+                        return;
+                    }
+                    _configManager.LiveCaptionSiliconFlowApiKey = v1;
+                    break;
 
             }
 
@@ -492,6 +501,7 @@ namespace ImageColorChanger.UI
             {
                 "xfyun" => "wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1",
                 "doubao" => "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async",
+                "siliconflow" => "https://api.siliconflow.cn/v1/audio/transcriptions",
                 _ => "wss://vop.baidu.com/realtime_asr"
             };
         }
@@ -504,6 +514,7 @@ namespace ImageColorChanger.UI
                 {
                     "doubao" => "wss://openspeech.bytedance.com/api/v2/asr",
                     "xfyun" => "wss://iat.xf-yun.com/v1",
+                    "siliconflow" => "https://api.siliconflow.cn/v1/audio/transcriptions",
                     _ => "http://vop.baidu.com/server_api"
                 };
             }
@@ -527,6 +538,7 @@ namespace ImageColorChanger.UI
                 "baidu" => "baidu",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
+                "siliconflow" => "siliconflow",
                 "funasr" => "doubao",
                 _ => "xfyun"
             };
@@ -736,6 +748,21 @@ namespace ImageColorChanger.UI
                         Description = speechMode == SpeechMode.ShortPhrase
                             ? "短会话流式识别（约 60s），适合经文短语识别。"
                             : "实时语音转写大模型（rtasr_llm），支持中英+202方言免切。"
+                    }
+                },
+                "siliconflow" => new[]
+                {
+                    new ModelOption
+                    {
+                        Label = "硅基流动 TeleSpeechASR（推荐）",
+                        ModelId = "TeleAI/TeleSpeechASR",
+                        Description = "硅基流动免费模型，适合短语识别。"
+                    },
+                    new ModelOption
+                    {
+                        Label = "硅基流动 SenseVoiceSmall",
+                        ModelId = "FunAudioLLM/SenseVoiceSmall",
+                        Description = "硅基流动通用语音转写模型。"
                     }
                 },
                 _ => speechMode == SpeechMode.ShortPhrase
@@ -1682,6 +1709,18 @@ namespace ImageColorChanger.UI
                         ? "讯飞中英识别（短会话）：连接地址示例 wss://iat.xf-yun.com/v1（约60秒短语识别）。"
                         : "讯飞实时语音转写大模型：连接地址示例 wss://office-api-ast-dx.iflyaisol.com/ast/communicate/v1（支持中英+202方言免切）。"
                 },
+                "siliconflow" => new ProviderPreset
+                {
+                    Provider = "siliconflow",
+                    Label1 = "API Key",
+                    Label2 = string.Empty,
+                    Label3 = string.Empty,
+                    ShowCredential2 = false,
+                    ShowCredential3 = false,
+                    Hint = _speechMode == SpeechMode.ShortPhrase
+                        ? "硅基流动短语识别：连接地址 https://api.siliconflow.cn/v1/audio/transcriptions，模型默认 TeleAI/TeleSpeechASR（免费模型）。"
+                        : "硅基流动实时语音：采用分段实时转写（非WebSocket流），连接地址 https://api.siliconflow.cn/v1/audio/transcriptions，默认 TeleAI/TeleSpeechASR（免费模型）。"
+                },
                 _ => new ProviderPreset
                 {
                     Provider = "baidu",
@@ -1775,7 +1814,8 @@ namespace ImageColorChanger.UI
             {
                 new ProviderOption { Provider = "baidu", DisplayName = "百度语音" },
                 new ProviderOption { Provider = "xfyun", DisplayName = "飞讯语音" },
-                new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" }
+                new ProviderOption { Provider = "doubao", DisplayName = "豆包语音" },
+                new ProviderOption { Provider = "siliconflow", DisplayName = "硅基流动" }
             };
         }
 
@@ -1889,6 +1929,13 @@ namespace ImageColorChanger.UI
                     Credential1TextBox.Text = _configManager.LiveCaptionXfyunAppId;
                     Credential2TextBox.Text = _configManager.LiveCaptionXfyunApiKey;
                     Credential3TextBox.Text = _configManager.LiveCaptionXfyunApiSecret;
+                    DoubaoHotwordAkTextBox.Text = string.Empty;
+                    DoubaoHotwordSkTextBox.Text = string.Empty;
+                    break;
+                case "siliconflow":
+                    Credential1TextBox.Text = _configManager.LiveCaptionSiliconFlowApiKey;
+                    Credential2TextBox.Text = string.Empty;
+                    Credential3TextBox.Text = string.Empty;
                     DoubaoHotwordAkTextBox.Text = string.Empty;
                     DoubaoHotwordSkTextBox.Text = string.Empty;
                     break;

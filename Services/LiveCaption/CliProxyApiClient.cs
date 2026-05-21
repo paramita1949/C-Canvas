@@ -211,7 +211,9 @@ namespace ImageColorChanger.Services.LiveCaption
                 .TrimEnd('/');
             _funAsrWsUrl = ResolveFunAsrWsUrl(_baseUrl);
             _funAsrAllowInsecureTls = config?.LiveCaptionFunAsrAllowInsecureTls ?? true;
-            _apiKey = config?.LiveCaptionApiKey ?? string.Empty;
+            _apiKey = string.Equals(_provider, "siliconflow", StringComparison.OrdinalIgnoreCase)
+                ? (config?.LiveCaptionSiliconFlowApiKey ?? string.Empty)
+                : (config?.LiveCaptionApiKey ?? string.Empty);
             _asrModel = (useRealtimeSettings
                 ? config?.LiveCaptionRealtimeAsrModel
                 : config?.LiveCaptionAsrModel)
@@ -3061,7 +3063,8 @@ namespace ImageColorChanger.Services.LiveCaption
                     var payload = await response.Content.ReadFromJsonAsync<OpenAiTranscriptionResponse>(cancellationToken: cancellationToken);
                     if (payload == null || string.IsNullOrWhiteSpace(payload.Text))
                     {
-                        LastError = "转写响应为空";
+                        LastError = $"转写响应为空（{endpoint}）";
+                        LiveCaptionDebugLogger.Log($"OpenAiCompat: empty-response endpoint={endpoint}");
                         return string.Empty;
                     }
 
@@ -3069,9 +3072,23 @@ namespace ImageColorChanger.Services.LiveCaption
                     return payload.Text.Trim();
                 }
 
+                string raw = string.Empty;
+                try
+                {
+                    raw = await response.Content.ReadAsStringAsync(cancellationToken);
+                }
+                catch
+                {
+                    raw = string.Empty;
+                }
+
                 if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
                 {
-                    LastError = $"转写请求失败: HTTP {(int)response.StatusCode}";
+                    string brief = TrimForLog(raw);
+                    LastError = string.IsNullOrWhiteSpace(brief)
+                        ? $"转写请求失败: HTTP {(int)response.StatusCode}（{endpoint}）"
+                        : $"转写请求失败: HTTP {(int)response.StatusCode}（{endpoint}）{brief}";
+                    LiveCaptionDebugLogger.Log($"OpenAiCompat: failed code={(int)response.StatusCode} endpoint={endpoint} body={brief}");
                     return string.Empty;
                 }
             }
@@ -3564,6 +3581,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 "baidu" => "baidu",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
+                "siliconflow" => "siliconflow",
                 "funasr" => "doubao",
                 _ => "baidu"
             };
@@ -3594,6 +3612,22 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             return "ws://127.0.0.1:10096";
+        }
+
+        private static string TrimForLog(string value, int max = 280)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            string normalized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            if (normalized.Length <= max)
+            {
+                return normalized;
+            }
+
+            return normalized.Substring(0, max) + "...";
         }
 
         private void ApplyFunAsrTlsPolicy(ClientWebSocketOptions options, string url)
@@ -3650,6 +3684,10 @@ namespace ImageColorChanger.Services.LiveCaption
         {
             string normalizedPath = path.TrimStart('/');
             string baseUrl = _baseUrl.TrimEnd('/');
+            if (baseUrl.EndsWith("/" + normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return new[] { baseUrl };
+            }
             bool hasV1 = baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase);
             if (hasV1)
             {

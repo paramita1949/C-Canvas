@@ -21,6 +21,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 "baidu" => "百度",
                 "xfyun" => "飞讯语音",
                 "doubao" => "豆包",
+                "siliconflow" => "硅基流动",
                 "funasr" => "FunASR",
                 _ => "飞讯语音"
             };
@@ -34,6 +35,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 "baidu" => "baidu",
                 "xfyun" => "xfyun",
                 "doubao" => "doubao",
+                "siliconflow" => "siliconflow",
                 "funasr" => "funasr",
                 _ => "xfyun"
             };

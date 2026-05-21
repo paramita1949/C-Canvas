@@ -68,6 +68,7 @@ namespace ImageColorChanger.Services.LiveCaption
         private int _xfyunStallRecoverCount;
         private bool _realtimeSessionStartInFlight;
         private DateTime _realtimeConnectGraceUntilUtc = DateTime.MinValue;
+        private bool _segmentAsrFirstRequestAnnounced;
         private volatile bool _isDisposing;
         private volatile bool _isDisposed;
 
@@ -250,6 +251,7 @@ namespace ImageColorChanger.Services.LiveCaption
             _xfyunStallRecoverCount = 0;
             _realtimeSessionStartInFlight = false;
             _realtimeConnectGraceUntilUtc = DateTime.MinValue;
+            _segmentAsrFirstRequestAnnounced = false;
             lock (_bufferGate)
             {
                 _pcmBuffer.SetLength(0);
@@ -299,6 +301,14 @@ namespace ImageColorChanger.Services.LiveCaption
             }
             else
             {
+                string provider = _client.AsrProvider;
+                if (string.Equals(provider, "siliconflow", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusChanged?.Invoke(source == LiveCaptionAudioSource.SystemLoopback
+                        ? "实时字幕已启动（系统声卡-硅基流动分段）"
+                        : "实时字幕已启动（输入设备-硅基流动分段）");
+                    return;
+                }
                 StatusChanged?.Invoke(source == LiveCaptionAudioSource.SystemLoopback
                     ? "实时字幕已启动（系统声卡）"
                     : "实时字幕已启动（输入设备）");
@@ -656,13 +666,22 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 var normalizedPcm = ConvertToPcm16Mono16k(pcmChunk, _captureFormat);
                 var wav = BuildWav(normalizedPcm, new WaveFormat(16000, 16, 1));
+                if (!_segmentAsrFirstRequestAnnounced)
+                {
+                    _segmentAsrFirstRequestAnnounced = true;
+                    StatusChanged?.Invoke($"分段识别请求已发送（{_client.AsrProvider}/{_client.AsrModel}）");
+                }
+                else if (string.Equals(_client.AsrProvider, "siliconflow", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusChanged?.Invoke("硅基流动识别中...");
+                }
                 string rawText = await _client.TranscribeAudioAsync(wav, _cts.Token);
                 _chunkSentCount++;
                 if (string.IsNullOrWhiteSpace(rawText))
                 {
                     if (!string.IsNullOrWhiteSpace(_client.LastError))
                     {
-                        StatusChanged?.Invoke(_client.LastError);
+                        StatusChanged?.Invoke($"{_client.LastError}；URL={_client.LastTranscribeUrl}");
                     }
                     PublishDebugInfo("asr-empty", queuedBytes, pcmChunk.Length);
                     return;
@@ -670,6 +689,10 @@ namespace ImageColorChanger.Services.LiveCaption
 
                 string zhText = rawText;
                 _chunkTextCount++;
+                if (string.Equals(_client.AsrProvider, "siliconflow", StringComparison.OrdinalIgnoreCase))
+                {
+                    StatusChanged?.Invoke("硅基流动已返回结果");
+                }
 
                 if (string.Equals(_lastSubtitle, zhText, StringComparison.Ordinal))
                 {

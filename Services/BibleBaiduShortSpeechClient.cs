@@ -64,6 +64,7 @@ namespace ImageColorChanger.Services
             {
                 "doubao" => !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey) &&
                              !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey),
+                "siliconflow" => !string.IsNullOrWhiteSpace(_config.LiveCaptionSiliconFlowApiKey),
                 "xfyun" => !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunAppId) &&
                            !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiKey) &&
                            !string.IsNullOrWhiteSpace(_config.LiveCaptionXfyunApiSecret),
@@ -87,6 +88,13 @@ namespace ImageColorChanger.Services
                     if (string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey))
                     {
                         missing.Add("Token");
+                    }
+                }
+                else if (string.Equals(provider, "siliconflow", StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(_config.LiveCaptionSiliconFlowApiKey))
+                    {
+                        missing.Add("API Key");
                     }
                 }
                 else if (string.Equals(provider, "xfyun", StringComparison.Ordinal))
@@ -134,9 +142,63 @@ namespace ImageColorChanger.Services
             return provider switch
             {
                 "doubao" => await TranscribeWithDoubaoAsync(wavBytes, cancellationToken),
+                "siliconflow" => await TranscribeWithSiliconFlowAsync(wavBytes, cancellationToken),
                 "xfyun" => await TranscribeWithXfyunAsync(wavBytes, cancellationToken),
                 _ => await TranscribeWithBaiduAsync(wavBytes, cancellationToken)
             };
+        }
+
+        private async Task<string> TranscribeWithSiliconFlowAsync(byte[] wavBytes, CancellationToken cancellationToken)
+        {
+            string apiKey = (_config.LiveCaptionSiliconFlowApiKey ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(apiKey) || wavBytes == null || wavBytes.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string url = (_config.LiveCaptionShortProxyBaseUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                url = "https://api.siliconflow.cn/v1/audio/transcriptions";
+            }
+
+            string model = (_config.LiveCaptionShortAsrModel ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(model))
+            {
+                model = "TeleAI/TeleSpeechASR";
+            }
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            using var form = new MultipartFormDataContent();
+            form.Add(new StringContent(model), "model");
+            form.Add(new ByteArrayContent(wavBytes), "file", "audio.wav");
+            req.Content = form;
+
+            using var resp = await _httpClient.SendAsync(req, cancellationToken);
+            string json = await resp.Content.ReadAsStringAsync(cancellationToken);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Debug.WriteLine($"[BibleVoice][SiliconFlow] short-speech http-failed: status={(int)resp.StatusCode} {resp.ReasonPhrase}; raw={TrimForLog(json)}");
+                return string.Empty;
+            }
+
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("text", out JsonElement textElement))
+                {
+                    string text = (textElement.GetString() ?? string.Empty).Trim();
+                    Debug.WriteLine($"[BibleVoice][SiliconFlow] short-speech success: recognized={text}");
+                    return text;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BibleVoice][SiliconFlow] short-speech parse-failed: {ex.Message}; raw={TrimForLog(json)}");
+            }
+
+            return string.Empty;
         }
 
         private async Task<string> TranscribeWithBaiduAsync(byte[] wavBytes, CancellationToken cancellationToken)
@@ -919,8 +981,27 @@ namespace ImageColorChanger.Services
                 "doubao" => "doubao",
                 "funasr" => "doubao",
                 "xfyun" => "xfyun",
+                "siliconflow" => "siliconflow",
                 _ => "xfyun"
             };
+
+            if (string.Equals(configured, "siliconflow", StringComparison.Ordinal))
+            {
+                if (HasSiliconFlowCredentials())
+                {
+                    return "siliconflow";
+                }
+
+                if (HasXfyunCredentials())
+                {
+                    return "xfyun";
+                }
+
+                if (HasBaiduCredentials())
+                {
+                    return "baidu";
+                }
+            }
 
             if (string.Equals(configured, "xfyun", StringComparison.Ordinal))
             {
@@ -972,6 +1053,11 @@ namespace ImageColorChanger.Services
         {
             return !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAppKey)
                 && !string.IsNullOrWhiteSpace(_config.LiveCaptionDoubaoAccessKey);
+        }
+
+        private bool HasSiliconFlowCredentials()
+        {
+            return !string.IsNullOrWhiteSpace(_config.LiveCaptionSiliconFlowApiKey);
         }
 
         private static string ResolveXfyunShortSpeechWsUrl(string configuredUrl)

@@ -1,21 +1,18 @@
-using System.Diagnostics;
 using System;
+using System.Diagnostics;
+using System.IO;
 
 namespace ImageColorChanger.Services.LiveCaption
 {
     internal static class LiveCaptionDebugLogger
     {
-        internal static readonly bool Enabled = IsEnabledForEnvironment(
-            Environment.GetEnvironmentVariable("CANVAS_LIVECAPTION_DEBUG"),
-#if DEBUG
-            debugBuild: true);
-#else
-            debugBuild: false);
-#endif
+        internal static readonly bool Enabled = false;
 
         internal static bool IsEnabledForEnvironment(string value, bool debugBuild)
         {
-            return debugBuild && string.Equals(value, "1", StringComparison.Ordinal);
+            _ = value;
+            _ = debugBuild;
+            return false;
         }
 
         public static void Log(string message)
@@ -31,18 +28,31 @@ namespace ImageColorChanger.Services.LiveCaption
             }
 
             string ts = DateTime.Now.ToString("HH:mm:ss.fff");
-            Debug.WriteLine($"[LiveCaption][{ts}] {message}");
+            string line = $"[LiveCaption][{ts}] {message}";
+            Debug.WriteLine(line);
+            TryAppendLogFile(line);
+        }
+
+        private static void TryAppendLogFile(string line)
+        {
+            try
+            {
+                string baseDir = AppContext.BaseDirectory;
+                string logDir = Path.Combine(baseDir, "logs");
+                Directory.CreateDirectory(logDir);
+                string logFile = Path.Combine(logDir, "livecaption-debug.log");
+                File.AppendAllText(logFile, line + Environment.NewLine);
+            }
+            catch
+            {
+                // Never let debug logging break recognition pipeline.
+            }
         }
 
         private static bool ShouldLogMessage(string message)
         {
-            // 仅保留识别文本 + 经文命中/入槽结果，屏蔽发送帧/重连/诊断噪声。
-            return message.Contains("RealtimeVerse: ASR文本", StringComparison.Ordinal)
-                || message.Contains("RealtimeVerse: ✅", StringComparison.Ordinal)
-                || message.Contains("✅ 插入历史", StringComparison.Ordinal)
-                || message.Contains("[RL] ✅ triggered", StringComparison.Ordinal)
-                || message.Contains("short-speech success: recognized=", StringComparison.Ordinal)
-                || message.Contains("Transcribe result:", StringComparison.Ordinal);
+            _ = message;
+            return true;
         }
     }
 }
