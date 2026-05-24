@@ -1,5 +1,17 @@
 # Changelog
 
+## 6.0.6.6 (2026-05-24)
+
+### Added
+
+- 新增 `ProjectionLayoutPolicy` 相关测试覆盖（`ProjectionLayoutPolicyTests`），补充主图布局策略回归校验。
+
+### Changed
+
+- 主图普通模式布局策略调整为固定左上起点，避免跨设备出现初始显示偏移。
+- 图片加载时的缩放重置逻辑统一到 `ResetNormalImageZoomState`，同步复位缩放变换与拖拽状态，减少残留交互状态导致的显示异常。
+- 缩放模块补充拖拽释放与光标状态复位，提升切图/重载后的交互稳定性。
+
 ## 6.0.6.5 (2026-05-24)
 
 ### Added

@@ -37,11 +37,7 @@ namespace ImageColorChanger.UI
 
                 if (!preserveZoom)
                 {
-                    _currentZoom = 1.0;
-                    if (_imageProcessor != null)
-                    {
-                        _imageProcessor.ZoomRatio = 1.0;
-                    }
+                    ResetNormalImageZoomState();
                 }
 
                 _imageProcessor.IsInverted = _isColorEffectEnabled;

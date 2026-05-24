@@ -143,6 +143,26 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void ResetNormalImageZoomState()
+        {
+            _currentZoom = 1.0;
+
+            if (_imageProcessor != null)
+            {
+                _imageProcessor.ZoomRatio = 1.0;
+            }
+
+            ImageScaleTransform.ScaleX = 1.0;
+            ImageScaleTransform.ScaleY = 1.0;
+
+            if (_isDragging)
+            {
+                _isDragging = false;
+                ImageDisplay.Cursor = System.Windows.Input.Cursors.Hand;
+                ImageDisplay.ReleaseMouseCapture();
+            }
+        }
+
         private int GetCurrentOriginalTopActualScalePercent()
         {
             int rounded = (int)Math.Round(_currentZoom * 100.0);
