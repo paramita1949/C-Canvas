@@ -1,5 +1,20 @@
 # Changelog
 
+## 6.0.6.5 (2026-05-24)
+
+### Added
+
+- 新增 NDI 空闲帧通道选择器与测试覆盖（`NdiIdleFrameChannelSelector`、`NdiIdleFrameChannelSelectorTests`），统一控制刷新时的通道下发。
+- 新增合成播放渲染快照诊断日志（viewport/extent/字体参数）与对应测试覆盖，便于定位主屏与投影滚动差异。
+
+### Changed
+
+- NDI 刷新菜单逻辑重构：由逐通道硬编码改为统一选择器策略，减少分支重复并确保通道行为一致。
+- 合成播放帧采样诊断增强：新增 `syncDrift` 指标，补充主屏/投影比例偏移对比与滚动快照上下文。
+- 投影滚动快照结构扩展：补齐 `Viewport/Extent` 尺寸信息，为 16:9 与 4:3 场景差异排查提供完整采样面。
+- AI 讲章候选经文落库策略微调：`project_context` 请求路径支持强制写入候选，避免被自动写历史开关误拦截。
+- `.gitignore` 放开 `AGENTS.md`，支持仓库内保留与提交项目级代理说明。
+
 ## 6.0.6.4 (2026-05-21)
 
 ### Added

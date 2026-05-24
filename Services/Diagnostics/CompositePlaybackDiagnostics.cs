@@ -81,12 +81,39 @@ namespace ImageColorChanger.Services.Diagnostics
                 $"speed={F2(speedRatio)} mainOffset={F2(mainScrollTop)} projectionOffset={F2(projectionScrollTop)}");
         }
 
+        public static string BuildRenderSnapshotLine(
+            Guid sessionId,
+            double mainViewportWidth,
+            double mainViewportHeight,
+            double mainExtentWidth,
+            double mainExtentHeight,
+            double mainScrollableHeight,
+            double projectionViewportWidth,
+            double projectionViewportHeight,
+            double projectionExtentWidth,
+            double projectionExtentHeight,
+            double projectionScrollableHeight,
+            string bibleFontFamily,
+            double bibleFontSize,
+            double bibleLineHeight)
+        {
+            return Format(
+                sessionId,
+                "render_snapshot",
+                $"mainViewport={F2(mainViewportWidth)}x{F2(mainViewportHeight)} " +
+                $"mainExtent={F2(mainExtentWidth)}x{F2(mainExtentHeight)} mainScrollable={F2(mainScrollableHeight)} " +
+                $"projectionViewport={F2(projectionViewportWidth)}x{F2(projectionViewportHeight)} " +
+                $"projectionExtent={F2(projectionExtentWidth)}x{F2(projectionExtentHeight)} projectionScrollable={F2(projectionScrollableHeight)} " +
+                $"bibleFontFamily=\"{Escape(bibleFontFamily)}\" bibleFontSize={F2(bibleFontSize)} bibleLineHeight={F2(bibleLineHeight)}");
+        }
+
         public static string BuildFrameSampleLine(
             Guid sessionId,
             long elapsedMs,
             int frameCount,
             int syncCount,
             double largestFrameGapMs,
+            double syncDrift,
             double mainFps,
             double projectionFps,
             double mainScrollTop,
@@ -98,7 +125,7 @@ namespace ImageColorChanger.Services.Diagnostics
                 sessionId,
                 "frame_sample",
                 $"elapsedMs={elapsedMs} frameCount={frameCount} syncCount={syncCount} " +
-                $"largestFrameGapMs={F2(largestFrameGapMs)} mainFps={F2(mainFps)} projectionFps={F2(projectionFps)} " +
+                $"largestFrameGapMs={F2(largestFrameGapMs)} syncDrift={F4(syncDrift)} mainFps={F2(mainFps)} projectionFps={F2(projectionFps)} " +
                 $"mainOffset={F2(mainScrollTop)} mainScrollable={F2(mainScrollableHeight)} " +
                 $"projectionOffset={F2(projectionScrollTop)} projectionScrollable={F2(projectionScrollableHeight)}");
         }
@@ -143,6 +170,11 @@ namespace ImageColorChanger.Services.Diagnostics
         private static string F2(double value)
         {
             return value.ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        private static string F4(double value)
+        {
+            return value.ToString("0.0000", CultureInfo.InvariantCulture);
         }
     }
 }

@@ -125,6 +125,7 @@ Desktop.ini
 Canvas/
 docs/
 *.md
+!AGENTS.md
 
 # Local generated agent artifacts
 .playwright-mcp/

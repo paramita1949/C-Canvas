@@ -79,6 +79,7 @@ namespace Canvas.TextEditor.Tests.Diagnostics
                 frameCount: 120,
                 syncCount: 118,
                 largestFrameGapMs: 35.75,
+                syncDrift: 0.0123,
                 mainFps: 119.5,
                 projectionFps: 117.25,
                 mainScrollTop: 500,
@@ -92,10 +93,41 @@ namespace Canvas.TextEditor.Tests.Diagnostics
             Assert.Contains("frameCount=120", line);
             Assert.Contains("syncCount=118", line);
             Assert.Contains("largestFrameGapMs=35.75", line);
+            Assert.Contains("syncDrift=0.0123", line);
             Assert.Contains("mainFps=119.50", line);
             Assert.Contains("projectionFps=117.25", line);
             Assert.Contains("mainOffset=500.00", line);
             Assert.Contains("projectionOffset=460.00", line);
+        }
+
+        [Fact]
+        public void BuildRenderSnapshotLine_IncludesViewportExtentAndFontSettings()
+        {
+            var sessionId = Guid.Parse("12345678-aaaa-bbbb-cccc-1234567890ab");
+
+            string line = CompositePlaybackDiagnostics.BuildRenderSnapshotLine(
+                sessionId,
+                mainViewportWidth: 1200,
+                mainViewportHeight: 800,
+                mainExtentWidth: 1200,
+                mainExtentHeight: 2600,
+                mainScrollableHeight: 1800,
+                projectionViewportWidth: 1280,
+                projectionViewportHeight: 720,
+                projectionExtentWidth: 1280,
+                projectionExtentHeight: 3200,
+                projectionScrollableHeight: 2480,
+                bibleFontFamily: "DengXian",
+                bibleFontSize: 46,
+                bibleLineHeight: 15);
+
+            Assert.Contains("event=render_snapshot", line);
+            Assert.Contains("mainViewport=1200.00x800.00", line);
+            Assert.Contains("projectionViewport=1280.00x720.00", line);
+            Assert.Contains("projectionExtent=1280.00x3200.00", line);
+            Assert.Contains("bibleFontFamily=\"DengXian\"", line);
+            Assert.Contains("bibleFontSize=46.00", line);
+            Assert.Contains("bibleLineHeight=15.00", line);
         }
 
         public void Dispose()

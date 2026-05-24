@@ -502,13 +502,19 @@ namespace ImageColorChanger.Services.Ai
                         await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
                     }
 
-                    await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
+                    await HandleCandidatesAsync(
+                        result.ScriptureCandidates,
+                        cancellationToken,
+                        forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
                 }
                 else if (!receivedAnyDelta)
                 {
                     StatusChanged?.Invoke("已收到反馈，本次无摘要。");
-                    await HandleCandidatesAsync(result.ScriptureCandidates, cancellationToken).ConfigureAwait(false);
+                    await HandleCandidatesAsync(
+                        result.ScriptureCandidates,
+                        cancellationToken,
+                        forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
                 }
 
@@ -622,9 +628,10 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task HandleCandidatesAsync(
             IReadOnlyList<AiScriptureCandidate> candidates,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool forceWrite = false)
         {
-            if (!_config.AiSermonAutoWriteHistory || candidates == null || candidates.Count == 0)
+            if ((!_config.AiSermonAutoWriteHistory && !forceWrite) || candidates == null || candidates.Count == 0)
             {
                 return;
             }

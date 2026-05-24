@@ -562,25 +562,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            bool projectionChannelEnabled =
-                _ndiRouter.IsChannelEnabled(NdiChannel.Slide);
-            if (projectionChannelEnabled)
+            foreach (NdiChannel channel in NdiIdleFrameChannelSelector.SelectChannels(
+                         slideEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Slide),
+                         transparentEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Transparent),
+                         captionEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Caption),
+                         videoEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Video),
+                         watermarkEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Watermark)))
             {
-                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Slide);
-                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Transparent);
+                _ndiTransportCoordinator.PushTransparentIdleFrame(channel);
             }
-
-            if (_ndiRouter.IsChannelEnabled(NdiChannel.Caption))
-            {
-                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Caption);
-            }
-
-            if (_ndiRouter.IsChannelEnabled(NdiChannel.Video))
-            {
-                _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Video);
-            }
-
-            _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Watermark);
 
             ShowStatus("NDI已刷新");
         }

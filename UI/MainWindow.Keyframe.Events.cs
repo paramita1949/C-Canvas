@@ -57,6 +57,22 @@ namespace ImageColorChanger.UI
                 projectionSnapshot.VerticalOffset,
                 projectionSnapshot.ScrollableHeight,
                 monitorSummary));
+
+            CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildRenderSnapshotLine(
+                _compositeDiagnosticsSessionId,
+                ImageScrollViewer?.ViewportWidth ?? 0,
+                ImageScrollViewer?.ViewportHeight ?? 0,
+                ImageScrollViewer?.ExtentWidth ?? 0,
+                ImageScrollViewer?.ExtentHeight ?? 0,
+                ImageScrollViewer?.ScrollableHeight ?? 0,
+                projectionSnapshot.ViewportWidth,
+                projectionSnapshot.ViewportHeight,
+                projectionSnapshot.ExtentWidth,
+                projectionSnapshot.ExtentHeight,
+                projectionSnapshot.ScrollableHeight,
+                _configManager?.BibleFontFamily ?? string.Empty,
+                _configManager?.BibleFontSize ?? 0,
+                _configManager?.BibleLineHeight ?? 0));
         }
 
         private void LogCompositeScrollRequestDiagnostics(Services.Implementations.CompositeScrollEventArgs e, double mainOffset)
@@ -120,18 +136,24 @@ namespace ImageColorChanger.UI
             }
 
             var projectionSnapshot = _projectionManager?.GetProjectionScrollSnapshot() ?? new ProjectionScrollSnapshot(0, 0);
+            double mainScrollable = ImageScrollViewer?.ScrollableHeight ?? 0;
+            double projectionScrollable = projectionSnapshot.ScrollableHeight;
+            double mainRatio = mainScrollable > 0 ? (ImageScrollViewer?.VerticalOffset ?? 0) / mainScrollable : 0;
+            double projectionRatio = projectionScrollable > 0 ? projectionSnapshot.VerticalOffset / projectionScrollable : 0;
+            double syncDrift = projectionRatio - mainRatio;
             CompositePlaybackDiagnostics.Log(CompositePlaybackDiagnostics.BuildFrameSampleLine(
                 _compositeDiagnosticsSessionId,
                 _compositeDiagnosticsStopwatch.ElapsedMilliseconds,
                 _compositeDiagnosticsFrameCount,
                 _compositeDiagnosticsSyncCount,
                 _compositeDiagnosticsLargestFrameGapMs,
+                syncDrift,
                 _fpsMonitor?.GetMainFps() ?? 0,
                 _fpsMonitor?.GetProjectionFps() ?? 0,
                 ImageScrollViewer?.VerticalOffset ?? 0,
-                ImageScrollViewer?.ScrollableHeight ?? 0,
+                mainScrollable,
                 projectionSnapshot.VerticalOffset,
-                projectionSnapshot.ScrollableHeight));
+                projectionScrollable));
         }
 
         private void EndCompositeDiagnosticsSession(string reason)

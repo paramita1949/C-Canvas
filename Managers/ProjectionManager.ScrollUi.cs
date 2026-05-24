@@ -8,14 +8,28 @@ namespace ImageColorChanger.Managers
 {
     public readonly struct ProjectionScrollSnapshot
     {
-        public ProjectionScrollSnapshot(double verticalOffset, double scrollableHeight)
+        public ProjectionScrollSnapshot(
+            double verticalOffset,
+            double scrollableHeight,
+            double viewportWidth = 0,
+            double viewportHeight = 0,
+            double extentWidth = 0,
+            double extentHeight = 0)
         {
             VerticalOffset = verticalOffset;
             ScrollableHeight = scrollableHeight;
+            ViewportWidth = viewportWidth;
+            ViewportHeight = viewportHeight;
+            ExtentWidth = extentWidth;
+            ExtentHeight = extentHeight;
         }
 
         public double VerticalOffset { get; }
         public double ScrollableHeight { get; }
+        public double ViewportWidth { get; }
+        public double ViewportHeight { get; }
+        public double ExtentWidth { get; }
+        public double ExtentHeight { get; }
     }
 
     /// <summary>
@@ -117,7 +131,11 @@ namespace ImageColorChanger.Managers
             {
                 return RunOnMainDispatcher(() => new ProjectionScrollSnapshot(
                     _projectionScrollViewer?.VerticalOffset ?? 0,
-                    _projectionScrollViewer?.ScrollableHeight ?? 0));
+                    _projectionScrollViewer?.ScrollableHeight ?? 0,
+                    _projectionScrollViewer?.ViewportWidth ?? 0,
+                    _projectionScrollViewer?.ViewportHeight ?? 0,
+                    _projectionScrollViewer?.ExtentWidth ?? 0,
+                    _projectionScrollViewer?.ExtentHeight ?? 0));
             }
             catch
             {
