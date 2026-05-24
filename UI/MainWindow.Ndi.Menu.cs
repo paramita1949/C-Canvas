@@ -75,6 +75,7 @@ namespace ImageColorChanger.UI
                     return new NdiControlCenterWindow.State
                     {
                         MasterEnabled = _configManager?.ProjectionNdiEnabled == true,
+                        AutoStartEnabled = _configManager?.ProjectionNdiAutoStartEnabled == true,
                         ProjectionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Slide) == true,
                         TransparentEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Transparent) == true,
                         CaptionEnabled = _ndiRouter?.IsChannelEnabled(Services.Ndi.NdiChannel.Caption) == true,
@@ -94,6 +95,16 @@ namespace ImageColorChanger.UI
                     };
                 },
                 setMaster: enabled => SetNdiMasterEnabled(enabled),
+                setAutoStart: enabled =>
+                {
+                    if (_configManager == null)
+                    {
+                        return;
+                    }
+
+                    _configManager.ProjectionNdiAutoStartEnabled = enabled;
+                    ShowStatus(enabled ? "NDI自动启动已开启" : "NDI自动启动已关闭");
+                },
                 setProjection: enabled =>
                 {
                     _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Slide, enabled);
@@ -375,6 +386,21 @@ namespace ImageColorChanger.UI
             ApplyNdiAudioConfiguration();
             StartNdiDiscoveryTimer(resetWindow: true);
             ShowStatus("NDI已开启，等待客户端连接");
+        }
+
+        private void ApplyNdiAutoStartIfNeeded()
+        {
+            if (_configManager?.ProjectionNdiAutoStartEnabled != true)
+            {
+                return;
+            }
+
+            if (_configManager.ProjectionNdiEnabled)
+            {
+                return;
+            }
+
+            SetNdiMasterEnabled(true);
         }
 
         private void ApplyNdiAudioConfiguration()

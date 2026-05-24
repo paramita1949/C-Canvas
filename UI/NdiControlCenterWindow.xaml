@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         Title="NDI网络流控制台"
-        Height="580"
+        Height="610"
         Width="860"
-        MinHeight="580"
+        MinHeight="610"
         MinWidth="860"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
@@ -352,6 +352,22 @@
                                 <TextBlock Text="总控" FontSize="11.5" Foreground="#64748B"/>
                             </StackPanel>
                             <primitives:ToggleButton x:Name="MasterToggle" Grid.Column="2" Style="{StaticResource SwitchStyle}" Click="MasterToggle_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource OptionRowStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="↻" FontSize="17" VerticalAlignment="Center" Foreground="#2563EB"/>
+                            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                <TextBlock Text="自动" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                <TextBlock Text="启动时开启" FontSize="11.5" Foreground="#64748B"/>
+                            </StackPanel>
+                            <primitives:ToggleButton x:Name="AutoStartToggle" Grid.Column="2" Style="{StaticResource SwitchStyle}" Click="AutoStartToggle_Click"/>
                         </Grid>
                     </Border>
 

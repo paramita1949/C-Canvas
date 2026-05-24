@@ -121,6 +121,8 @@ namespace ImageColorChanger.UI
                 sw.Restart();
                 InitializeShortcutManagers();
                 StartupPerfLogger.Mark("MainWindow.InitializeUI.DeferredInit.ShortcutManagers.Initialized", $"ElapsedMs={sw.ElapsedMilliseconds}");
+
+                ApplyNdiAutoStartIfNeeded();
             }));
         }
 

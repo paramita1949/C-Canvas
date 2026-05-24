@@ -1576,6 +1576,11 @@ namespace ImageColorChanger.Core
         public bool ProjectionNdiEnabled { get; set; } = false;
 
         /// <summary>
+        /// 程序启动时是否自动开启 NDI 网络流（默认关闭）
+        /// </summary>
+        public bool ProjectionNdiAutoStartEnabled { get; set; } = false;
+
+        /// <summary>
         /// 全投影 NDI 发送端名称
         /// </summary>
         public string ProjectionNdiSenderName { get; set; } = "YongMu-NDI";
@@ -1915,6 +1920,22 @@ namespace ImageColorChanger.Core
                 if (_config.ProjectionNdiEnabled != value)
                 {
                     _config.ProjectionNdiEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 程序启动时是否自动开启 NDI 网络流
+        /// </summary>
+        public bool ProjectionNdiAutoStartEnabled
+        {
+            get => _config.ProjectionNdiAutoStartEnabled;
+            set
+            {
+                if (_config.ProjectionNdiAutoStartEnabled != value)
+                {
+                    _config.ProjectionNdiAutoStartEnabled = value;
                     SaveConfig();
                 }
             }

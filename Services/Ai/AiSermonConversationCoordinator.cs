@@ -499,6 +499,10 @@ namespace ImageColorChanger.Services.Ai
                         }
                         await SaveHistoryMessageAsync(assistantMessage).ConfigureAwait(false);
                     }
+                    else
+                    {
+                        await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
+                    }
 
                     await HandleCandidatesAsync(
                         result.ScriptureCandidates,

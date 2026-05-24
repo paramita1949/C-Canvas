@@ -37,8 +37,8 @@ namespace ImageColorChanger.UI
                 }
 
                 _configManager = _mainWindowServices.GetRequired<ConfigManager>();
-                // NDI 总开关为会话级：每次启动默认关闭，需手动开启。
-                // 具体功能开关（歌词/字幕/幻灯片/圣经/图片等）保持持久化。
+                // NDI 总开关为运行态：启动时先归零；“自动”策略开启时由加载完成后的启动流程打开。
+                // 具体功能开关（投影/透明/字幕/水印/音频等）保持持久化。
                 _configManager.ProjectionNdiEnabled = false;
                 _ndiTransportCoordinator = _mainWindowServices.GetRequired<INdiTransportCoordinator>();
                 _ndiRouter = _mainWindowServices.GetRequired<INdiRouter>();

@@ -13,6 +13,7 @@ namespace ImageColorChanger.UI
         public sealed class State
         {
             public bool MasterEnabled { get; set; }
+            public bool AutoStartEnabled { get; set; }
             public bool ProjectionEnabled { get; set; }
             public bool TransparentEnabled { get; set; }
             public bool CaptionEnabled { get; set; }
@@ -40,6 +41,7 @@ namespace ImageColorChanger.UI
 
         private readonly Func<State> _loadState;
         private readonly Action<bool> _setMaster;
+        private readonly Action<bool> _setAutoStart;
         private readonly Action<bool> _setProjection;
         private readonly Action<bool> _setTransparent;
         private readonly Action<bool> _setCaption;
@@ -63,6 +65,7 @@ namespace ImageColorChanger.UI
         public NdiControlCenterWindow(
             Func<State> loadState,
             Action<bool> setMaster,
+            Action<bool> setAutoStart,
             Action<bool> setProjection,
             Action<bool> setTransparent,
             Action<bool> setCaption,
@@ -81,6 +84,7 @@ namespace ImageColorChanger.UI
         {
             _loadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
             _setMaster = setMaster ?? throw new ArgumentNullException(nameof(setMaster));
+            _setAutoStart = setAutoStart ?? throw new ArgumentNullException(nameof(setAutoStart));
             _setProjection = setProjection ?? throw new ArgumentNullException(nameof(setProjection));
             _setTransparent = setTransparent ?? throw new ArgumentNullException(nameof(setTransparent));
             _setCaption = setCaption ?? throw new ArgumentNullException(nameof(setCaption));
@@ -125,6 +129,12 @@ namespace ImageColorChanger.UI
         private void MasterToggle_Click(object sender, RoutedEventArgs e)
         {
             _setMaster(MasterToggle.IsChecked == true);
+            RefreshUi();
+        }
+
+        private void AutoStartToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _setAutoStart(AutoStartToggle.IsChecked == true);
             RefreshUi();
         }
 
@@ -336,6 +346,7 @@ namespace ImageColorChanger.UI
             State state = _loadState();
             _syncingUi = true;
             MasterToggle.IsChecked = state.MasterEnabled;
+            AutoStartToggle.IsChecked = state.AutoStartEnabled;
             SlideToggle.IsChecked = state.ProjectionEnabled;
             CaptionToggle.IsChecked = state.CaptionEnabled;
             TransparentToggle.IsChecked = state.TransparentEnabled;

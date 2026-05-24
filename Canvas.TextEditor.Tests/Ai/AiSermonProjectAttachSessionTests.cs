@@ -289,6 +289,48 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
+        public async Task SendAsrTurnAsync_ConciseMode_EmitsBriefFeedbackToPanel()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-concise-feedback-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new RecordingChatClient(),
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+                var deltas = new List<string>();
+                coordinator.AssistantDeltaReceived += deltas.Add;
+
+                await coordinator.StartProjectAsync(7);
+                deltas.Clear();
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-concise-feedback",
+                    Text = "我们继续看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                Assert.Contains("已理解", string.Concat(deltas), StringComparison.Ordinal);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
         public async Task StartProjectAsync_WhenBalanceBelowMinimum_DoesNotSendAiRequest()
         {
             string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-low-balance-{Guid.NewGuid():N}.db");

@@ -19,10 +19,35 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
             Assert.True(config.LyricsNdiPreferAlpha);
 
             Assert.False(config.ProjectionNdiEnabled);
+            Assert.False(config.ProjectionNdiAutoStartEnabled);
             Assert.Equal("YongMu-NDI", config.ProjectionNdiSenderName);
             Assert.True(config.ProjectionNdiLyricsTransparentEnabled);
             Assert.True(config.ProjectionNdiBibleTransparentEnabled);
             Assert.Equal(43.0, config.ProjectionNdiIdleFrameWatermarkOpacity);
+        }
+
+        [Fact]
+        public void ConfigManager_ProjectionNdiAutoStartEnabled_Persists()
+        {
+            string tempFile = Path.Combine(Path.GetTempPath(), $"canvas_config_{Guid.NewGuid():N}.json");
+            try
+            {
+                var manager = new ConfigManager(tempFile);
+
+                Assert.False(manager.ProjectionNdiAutoStartEnabled);
+
+                manager.ProjectionNdiAutoStartEnabled = true;
+                var reloaded = new ConfigManager(tempFile);
+
+                Assert.True(reloaded.ProjectionNdiAutoStartEnabled);
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
         }
 
         [Fact]
