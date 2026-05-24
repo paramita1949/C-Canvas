@@ -83,5 +83,25 @@ namespace Canvas.TextEditor.Tests.Ai
             Assert.DoesNotContain("高频章节", second, StringComparison.Ordinal);
             Assert.DoesNotContain("预测提示", second, StringComparison.Ordinal);
         }
+
+        [Fact]
+        public void BuildSpeakerStyleSummary_PreservesAccentCorrectionSignals()
+        {
+            var service = new AiSermonSummaryService();
+            var snapshot = new AiAsrSemanticWindowSnapshot(
+                4,
+                Array.Empty<AiAsrTurnEnvelope>(),
+                "这个发音听起来像有含福音三章十六节",
+                DateTimeOffset.Now);
+
+            string summary = service.BuildSpeakerStyleSummary(
+                "",
+                "这位讲员讲普通话但带口音，ASR可能把“约翰福音”误识别成“有含福音”，下次需要按同音近音先纠错。",
+                snapshot);
+
+            Assert.Contains("口音纠错", summary, StringComparison.Ordinal);
+            Assert.Contains("约翰福音", summary, StringComparison.Ordinal);
+            Assert.Contains("有含福音", summary, StringComparison.Ordinal);
+        }
     }
 }

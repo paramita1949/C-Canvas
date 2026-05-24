@@ -718,7 +718,7 @@ namespace ImageColorChanger.Services.Ai
             if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
             {
                 return
-                    "传道人长期总结（用于理解该传道人的讲道方法、风格、内容偏向和表达偏好）：\n" +
+                    "传道人长期总结（用于理解该传道人的讲道方法、风格、内容偏向、表达偏好和口音纠错线索）：\n" +
                     session.SpeakerStyleSummary;
             }
 

@@ -292,7 +292,7 @@ namespace ImageColorChanger.UI
                             ShowToast(FormatBibleReferenceToastText(
                                 result.Reference.BookId, result.Reference.Chapter, startVs, endVs));
                             AddPinyinHistoryToEmptySlot(
-                                result.Reference.BookId, result.Reference.Chapter, startVs, endVs);
+                                result.Reference.BookId, result.Reference.Chapter, startVs, endVs, focusHistorySlot: true);
                         }
 
                         ShowShortPhraseFeedback(result);
@@ -981,7 +981,7 @@ namespace ImageColorChanger.UI
                     LiveCaptionDebugLogger.Log(
                         $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 直接解析 book={directRef.BookId} ch={directRef.Chapter} vs={directRef.StartVerse}~{endVs} | src='{TrimForLog(text)}' matched='{TrimForLog(matchedCandidate)}'");
                     ShowToast(FormatBibleReferenceToastText(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs));
-                    AddPinyinHistoryToEmptySlot(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs);
+                    AddPinyinHistoryToEmptySlot(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs, focusHistorySlot: true);
                     return;
                 }
 
@@ -1016,7 +1016,8 @@ namespace ImageColorChanger.UI
                         contextualRef.BookId,
                         contextualRef.Chapter,
                         Math.Max(1, contextualRef.StartVerse),
-                        contextualEnd);
+                        contextualEnd,
+                        focusHistorySlot: true);
                     return;
                 }
 
@@ -1038,7 +1039,7 @@ namespace ImageColorChanger.UI
                 _ = Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
-                    AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd);
+                    AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd, focusHistorySlot: true);
                 }));
             }
             catch (Exception ex)

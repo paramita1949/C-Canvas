@@ -222,5 +222,37 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
 
             Assert.Equal(expected, actual);
         }
+
+        [Theory]
+        [InlineData(0, 30, 36, 180, 0)]
+        [InlineData(29, 30, 36, 180, 972)]
+        [InlineData(14, 30, 36, 180, 432)]
+        public void ResolveHistorySlotFocusOffset_CentersFarSlots(
+            int targetIndex,
+            int slotCount,
+            double itemHeight,
+            double viewportHeight,
+            double expected)
+        {
+            double actual = BibleUiBehaviorResolver.ResolveHistorySlotFocusOffset(
+                targetIndex,
+                slotCount,
+                itemHeight,
+                viewportHeight);
+
+            Assert.Equal(expected, actual, precision: 3);
+        }
+
+        [Fact]
+        public void ResolveHistorySlotFocusOffset_UsesSafeItemHeightWhenInvalid()
+        {
+            double actual = BibleUiBehaviorResolver.ResolveHistorySlotFocusOffset(
+                targetIndex: 29,
+                slotCount: 30,
+                itemHeight: 0,
+                viewportHeight: 180);
+
+            Assert.True(actual >= 900);
+        }
     }
 }

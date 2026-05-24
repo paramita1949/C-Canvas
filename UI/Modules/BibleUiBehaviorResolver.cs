@@ -192,5 +192,23 @@ namespace ImageColorChanger.UI.Modules
             // 输入结束节过程中（如 12 -> 1 -> 17）避免回落成单节闪烁，保持到章末预览。
             return verseCount;
         }
+
+        public static double ResolveHistorySlotFocusOffset(
+            int targetIndex,
+            int slotCount,
+            double itemHeight,
+            double viewportHeight)
+        {
+            if (targetIndex <= 0 || slotCount <= 0)
+            {
+                return 0;
+            }
+
+            double safeItemHeight = itemHeight > 1 ? itemHeight : 36;
+            double safeViewportHeight = viewportHeight > 1 ? viewportHeight : safeItemHeight * 5;
+            int clampedIndex = Math.Clamp(targetIndex, 0, Math.Max(0, slotCount - 1));
+            double centeredOffset = clampedIndex * safeItemHeight - Math.Max(0, safeViewportHeight - safeItemHeight) / 2;
+            return Math.Max(0, centeredOffset);
+        }
     }
 }

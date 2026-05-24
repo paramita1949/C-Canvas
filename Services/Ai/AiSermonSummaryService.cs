@@ -17,6 +17,10 @@ namespace ImageColorChanger.Services.Ai
             "经历", "见证", "故事", "生活", "场景", "家庭", "关系", "服事", "信心", "悔改", "苦难",
             "逐节", "串联", "主题", "结论"
         };
+        private static readonly string[] AccentCorrectionKeywords =
+        {
+            "口音", "方言", "发音", "同音", "近音", "连读", "误识别", "纠错", "听成"
+        };
 
         public string BuildSessionSummary(
             string existingSummary,
@@ -109,6 +113,19 @@ namespace ImageColorChanger.Services.Ai
         private static string BuildStyleLine(string understanding, string asr)
         {
             var source = $"{understanding}\n{asr}";
+            if (AccentCorrectionKeywords.Any(keyword => source.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                string accentSignal = NormalizeSentence(understanding, 130);
+                if (string.IsNullOrWhiteSpace(accentSignal))
+                {
+                    accentSignal = NormalizeSentence(asr, 100);
+                }
+
+                return string.IsNullOrWhiteSpace(accentSignal)
+                    ? string.Empty
+                    : $"风格特征：口音纠错线索：{accentSignal}";
+            }
+
             var hits = StyleKeywords
                 .Where(keyword => source.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
                 .Distinct(StringComparer.Ordinal)
@@ -140,6 +157,7 @@ namespace ImageColorChanger.Services.Ai
             builder.AppendLine("- " + BuildStylePreference(styleEvidence));
             builder.AppendLine("- " + BuildContentPreference(scriptureEvidence, styleEvidence));
             builder.AppendLine("- " + BuildScriptureUsageSummary(scriptureEvidence, styleEvidence));
+            builder.AppendLine("- " + BuildAccentCorrectionSummary(styleEvidence));
 
             foreach (string line in scriptureEvidence)
             {
@@ -205,6 +223,28 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return $"讲章风格：常见{string.Join("、", keywords)}。";
+        }
+
+        private static string BuildAccentCorrectionSummary(IReadOnlyList<string> evidence)
+        {
+            if (evidence == null || evidence.Count == 0)
+            {
+                return "口音纠错：正在累积普通话口音、同音近音和ASR误识别线索。";
+            }
+
+            string latestSignal = evidence
+                .LastOrDefault(line => AccentCorrectionKeywords.Any(keyword => line.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+            if (string.IsNullOrWhiteSpace(latestSignal))
+            {
+                return "口音纠错：暂未形成稳定线索。";
+            }
+
+            string signal = latestSignal
+                .Replace("风格特征：", string.Empty, StringComparison.Ordinal)
+                .Replace("口音纠错线索：", string.Empty, StringComparison.Ordinal)
+                .Trim()
+                .TrimEnd('。');
+            return $"口音纠错：{Trim(signal, 140)}。";
         }
 
         private static string BuildExpressionSummary(IReadOnlyList<string> evidence)

@@ -16,6 +16,7 @@ using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Interfaces;
 using ImageColorChanger.UI.Controls;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
@@ -962,7 +963,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 添加到历史记录（第一章全部经文）
-                        AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, endVerse);
+                        AddPinyinHistoryToEmptySlot(result.BookId.Value, 1, 1, endVerse, focusHistorySlot: true);
                     }
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.Chapter && 
@@ -990,7 +991,7 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 添加到历史记录（该章全部经文）
-                        AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, endVerse);
+                        AddPinyinHistoryToEmptySlot(result.BookId.Value, result.Chapter.Value, 1, endVerse, focusHistorySlot: true);
                     }
                 }
                 else if (result.Type == ImageColorChanger.Services.LocationType.VerseRange && 
@@ -1021,7 +1022,8 @@ namespace ImageColorChanger.UI
                             result.BookId.Value,
                             result.Chapter.Value,
                             result.StartVerse.Value,
-                            result.EndVerse.Value);
+                            result.EndVerse.Value,
+                            focusHistorySlot: true);
                     }
                 }
 
@@ -1299,8 +1301,13 @@ namespace ImageColorChanger.UI
                         int index = _historySlots.IndexOf(slot);
                         if (index >= 0)
                         {
-                            double estimatedItemHeight = Math.Max(1, BibleHistoryList.ActualHeight / Math.Max(1, _historySlots.Count));
-                            BibleHistoryScrollViewer.ScrollToVerticalOffset(index * estimatedItemHeight);
+                            double itemHeight = ResolveBibleHistoryItemHeight();
+                            double targetOffset = BibleUiBehaviorResolver.ResolveHistorySlotFocusOffset(
+                                index,
+                                _historySlots.Count,
+                                itemHeight,
+                                BibleHistoryScrollViewer.ViewportHeight);
+                            BibleHistoryScrollViewer.ScrollToVerticalOffset(targetOffset);
                         }
                     }
                 }
@@ -1309,6 +1316,25 @@ namespace ImageColorChanger.UI
                     LogBibleQuickLocateDebug("FocusBibleHistorySlot", $"exception: {ex.Message}");
                 }
             }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        private double ResolveBibleHistoryItemHeight()
+        {
+            if (BibleHistoryList?.ItemContainerGenerator == null || _historySlots == null)
+            {
+                return 36;
+            }
+
+            foreach (var item in _historySlots)
+            {
+                if (BibleHistoryList.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement container &&
+                    container.ActualHeight > 1)
+                {
+                    return container.ActualHeight;
+                }
+            }
+
+            return 36;
         }
 
         private bool HasBibleHistorySlotContent()

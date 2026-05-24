@@ -218,7 +218,8 @@ namespace ImageColorChanger.UI
                 finalReference.BookId,
                 finalReference.Chapter,
                 finalReference.StartVerse,
-                finalReference.EndVerse);
+                finalReference.EndVerse,
+                focusHistorySlot: true);
             LogBibleAiVoice($"History slot updated. book={reference.BookId}, chapter={reference.Chapter}, start={reference.StartVerse}, end={endVerse}");
 
             ShowStatus($"已识别并加入历史槽：{recognized}");
