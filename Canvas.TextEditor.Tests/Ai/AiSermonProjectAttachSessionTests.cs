@@ -160,6 +160,52 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
+        public async Task SendAsrTurnAsync_BuildsScriptureHistoryPriorityPrompt()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-asr-history-priority-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new RecordingChatClient();
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-scripture-priority",
+                    Text = "我们继续看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                var asrMessage = Assert.Single(chat.Requests.Last().Messages, message => message.Name == "asr");
+                Assert.Contains("经文历史写入优先", asrMessage.Content, StringComparison.Ordinal);
+                Assert.Contains("不要输出讲章摘要", asrMessage.Content, StringComparison.Ordinal);
+                Assert.DoesNotContain("本次输出按简洁模式", asrMessage.Content, StringComparison.Ordinal);
+
+                var assistantMessages = await context.AiConversationRecords
+                    .Where(message => message.Role == "assistant")
+                    .ToListAsync();
+                Assert.Empty(assistantMessages);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
         public async Task SendAsrTurnAsync_DetailedMode_EmitsPromptPreviewForInspection()
         {
             string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-detailed-prompt-{Guid.NewGuid():N}.db");

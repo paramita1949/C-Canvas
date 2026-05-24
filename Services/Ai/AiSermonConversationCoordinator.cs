@@ -373,14 +373,12 @@ namespace ImageColorChanger.Services.Ai
                 ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
                   BuildDialectPromptHint() +
-                  BuildCurrentOutputHint() +
-                  "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
+                  BuildAsrScriptureHistoryPriorityHint() +
                   $"raw_asr_window：\n{snapshot.WindowText}"
                 : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
                   "请结合今日幻灯片上下文、传道人长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
                   BuildDialectPromptHint() +
-                  BuildCurrentOutputHint() +
-                  "如果有明确或合理推测的经文候选，请通过工具提出候选；证据不足则只说明可能方向。\n\n" +
+                  BuildAsrScriptureHistoryPriorityHint() +
                   $"raw_asr_window_version：{snapshot.Version}\n" +
                   $"raw_asr_window：\n{snapshot.WindowText}";
             await SendVisibleUserMessageAsync("asr", prompt, cancellationToken, asrSummarySnapshot: snapshot).ConfigureAwait(false);
@@ -471,7 +469,7 @@ namespace ImageColorChanger.Services.Ai
                         {
                             if (!receivedAnyDelta)
                             {
-                                StatusChanged?.Invoke("已收到反馈，正在生成摘要…");
+                                StatusChanged?.Invoke(isAsr ? "已收到反馈，正在检查经文候选…" : "已收到反馈，正在生成摘要…");
                                 receivedAnyDelta = true;
                             }
                         }
@@ -485,28 +483,29 @@ namespace ImageColorChanger.Services.Ai
 
                 if (!string.IsNullOrWhiteSpace(result.Content))
                 {
-                    AiConversationMessage assistantMessage;
-                    lock (_stateLock)
+                    if (!isAsr)
                     {
-                        assistantMessage = new AiConversationMessage
+                        AiConversationMessage assistantMessage;
+                        lock (_stateLock)
                         {
-                            Role = "assistant",
-                            Content = result.Content
-                        };
-                        _visibleMessages.Add(assistantMessage);
-                    }
-                    await SaveHistoryMessageAsync(assistantMessage).ConfigureAwait(false);
-
-                    if (isAsr)
-                    {
-                        await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
+                            assistantMessage = new AiConversationMessage
+                            {
+                                Role = "assistant",
+                                Content = result.Content
+                            };
+                            _visibleMessages.Add(assistantMessage);
+                        }
+                        await SaveHistoryMessageAsync(assistantMessage).ConfigureAwait(false);
                     }
 
                     await HandleCandidatesAsync(
                         result.ScriptureCandidates,
                         cancellationToken,
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
-                    await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
+                    if (!isAsr)
+                    {
+                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
+                    }
                 }
                 else if (!receivedAnyDelta)
                 {
@@ -515,7 +514,10 @@ namespace ImageColorChanger.Services.Ai
                         result.ScriptureCandidates,
                         cancellationToken,
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
-                    await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
+                    if (!isAsr)
+                    {
+                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
+                    }
                 }
 
                 if (receivedAnyDelta)
@@ -786,6 +788,14 @@ namespace ImageColorChanger.Services.Ai
             return string.Equals(_session?.OutputMode, "detailed", StringComparison.OrdinalIgnoreCase)
                 ? "本次输出按详细模式：必须说明判断依据、历史线索影响、不确定点和候选经文理由。"
                 : "本次输出按简洁模式：只给1-2句当前理解，避免长篇解释。";
+        }
+
+        private static string BuildAsrScriptureHistoryPriorityHint()
+        {
+            return
+                "本次是后台实时 ASR 经文识别，经文历史写入优先。" +
+                "如果有明确或合理推测的经文候选，优先调用 propose_scripture_candidate。" +
+                "不要输出讲章摘要、解释过程或长段反馈；没有经文候选时正文保持极短。\n\n";
         }
 
         private static string BuildDialectSystemHint(IReadOnlyCollection<string> activeDialectTags)
