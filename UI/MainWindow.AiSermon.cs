@@ -144,6 +144,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerRenameRequested += (oldName, newName) => _ = RenameAiSpeakerAsync(oldName, newName);
+            _aiAssistantPanelWindow.EndSessionRequested += EndAiSermonSessionFromPanelAsync;
             _aiAssistantPanelWindow.OutputModeChanged += mode =>
             {
                 _aiSermonOutputMode = string.Equals(mode, "detailed", StringComparison.OrdinalIgnoreCase)
@@ -367,12 +368,34 @@ namespace ImageColorChanger.UI
                         candidate.BookId,
                         candidate.Chapter,
                         candidate.StartVerse,
+                        candidate.EndVerse,
+                        focusHistorySlot: true);
+                    string msg = FormatBibleReferenceToastText(
+                        candidate.BookId,
+                        candidate.Chapter,
+                        candidate.StartVerse,
                         candidate.EndVerse);
-                    string msg = $"AI已加入历史记录：{candidate.BookName}{candidate.Chapter}章{candidate.StartVerse}节";
                     _aiAssistantPanelWindow?.AppendStatus(msg);
                     ShowStatus(msg);
+                    ShowToast(msg);
                 }));
             };
+        }
+
+        private async Task EndAiSermonSessionFromPanelAsync()
+        {
+            if (_aiSermonCoordinator == null)
+            {
+                ShowStatus("AI本场未开始");
+                return;
+            }
+
+            SetAiSermonReceiveAsr(false);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await _aiSermonCoordinator.FinalizeActiveSessionAsync(cts.Token);
+            await RefreshAiHistoryInPanelAsync();
+            _aiAssistantPanelWindow?.AppendStatus("AI本场已结束，消耗已写入历史。");
+            ShowStatus("AI本场已结束，消耗已写入历史。");
         }
 
         private async Task ApplyAiSpeakerAsync(string speaker)

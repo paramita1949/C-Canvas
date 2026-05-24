@@ -22,13 +22,14 @@ namespace ImageColorChanger.Services.Ai
         private readonly AiSermonSummaryService _summaryService;
         private readonly AiRealtimeUnderstandingScheduler _asrScheduler;
         private readonly SemaphoreSlim _sendLock = new(1, 1);
-        private readonly SemaphoreSlim _asrSendGate = new(3, 3);
+        private readonly SemaphoreSlim _asrSendGate = new(MaxConcurrentAsrSends, MaxConcurrentAsrSends);
         private readonly SemaphoreSlim _assistantRenderLock = new(1, 1);
         private readonly SemaphoreSlim _sessionInitLock = new(1, 1);
         private readonly List<AiConversationMessage> _visibleMessages = new();
         private readonly List<string> _historicalSignals = new();
         private readonly object _stateLock = new();
         private long _latestAsrSequence;
+        private const int MaxConcurrentAsrSends = 3;
         private const int MaxHistoricalSignalCount = 800;
         private const int MaxHistoricalSignalLineLength = 180;
         private const int MaxAsrPendingWindow = 2;
@@ -98,10 +99,11 @@ namespace ImageColorChanger.Services.Ai
             {
                 await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 sendLockHeld = true;
-                await _asrSendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-                asrLocksHeld++;
-                await _asrSendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-                asrLocksHeld++;
+                for (int i = 0; i < MaxConcurrentAsrSends; i++)
+                {
+                    await _asrSendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    asrLocksHeld++;
+                }
 
                 await RefreshBalanceStatusAsync(setBaseline: false, cancellationToken).ConfigureAwait(false);
                 await PersistSessionSettlementAsync(markEnded: true).ConfigureAwait(false);
@@ -698,7 +700,7 @@ namespace ImageColorChanger.Services.Ai
             {
                 return
                     "输出模式：详细。\n" +
-                    "请按 4 段输出：1) 当前理解；2) 判断依据（ASR、幻灯片、传道人画像、历史线索分别说明）；3) 可能经文与候选理由；4) 不确定点。\n" +
+                    "请按 4 段输出：1) 当前理解；2) 判断依据（ASR、幻灯片、传道人总结、历史线索分别说明）；3) 可能经文与候选理由；4) 不确定点。\n" +
                     "详细模式允许解释推理路径，但不要编造经文，不要声称已写入历史槽。";
             }
 
@@ -712,7 +714,7 @@ namespace ImageColorChanger.Services.Ai
             if (!string.IsNullOrWhiteSpace(session.SpeakerStyleSummary))
             {
                 return
-                    "传道人长期画像摘要（用于预测该传道人下一步可能引用的经文范围、常见章节、讲道习惯和表达偏好）：\n" +
+                    "传道人长期总结（用于理解该传道人的讲道方法、风格、内容偏向和表达偏好）：\n" +
                     session.SpeakerStyleSummary;
             }
 

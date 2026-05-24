@@ -1,4 +1,5 @@
 using ImageColorChanger.UI;
+using ImageColorChanger.Services.Ai;
 using System.Text.RegularExpressions;
 
 namespace ImageColorChanger.CanvasTextEditor.Tests.UI
@@ -50,6 +51,20 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         public void BuildAsrConnectionStatus_RequiresAiReceiveAndRealtimeEngine(bool aiReceiveAsr, bool realtimeConnected, string expected)
         {
             Assert.Equal(expected, AiAssistantPanelWindow.BuildAsrConnectionStatus(aiReceiveAsr, realtimeConnected));
+        }
+
+        [Fact]
+        public void BuildSessionSettlementText_ShowsOnlyCostAndEndTime()
+        {
+            string text = AiAssistantPanelWindow.BuildSessionSettlementTextForTest(new AiSermonSessionHistory
+            {
+                LastBalance = 99.25m,
+                SessionCost = 0.75m,
+                EndedAt = new System.DateTime(2026, 5, 24, 20, 30, 0)
+            });
+
+            Assert.Equal("消耗 0.75 · 结束 20:30", text);
+            Assert.DoesNotContain("余额", text);
         }
 
         [Theory]

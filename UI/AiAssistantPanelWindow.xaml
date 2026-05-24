@@ -320,6 +320,11 @@
                             ToolTip="折叠/展开"
                             Style="{StaticResource HudIconButtonStyle}"
                             Click="CollapseButton_Click"/>
+                    <Button Content="结"
+                            ToolTip="结束本场并结算消耗"
+                            Style="{StaticResource HudIconButtonStyle}"
+                            Margin="6,0,0,0"
+                            Click="EndSessionButton_Click"/>
                     <Button Content="清"
                             ToolTip="清空实时信息流"
                             Style="{StaticResource HudIconButtonStyle}"

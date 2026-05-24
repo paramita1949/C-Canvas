@@ -13,7 +13,9 @@ namespace ImageColorChanger.Services.Ai
         private static readonly string[] StyleKeywords =
         {
             "结构", "层次", "递进", "主线", "对比", "比喻", "例子", "重复", "强调",
-            "呼召", "应用", "落地", "祷告", "行动", "互动", "提问", "安慰", "劝勉", "提醒"
+            "呼召", "应用", "落地", "祷告", "行动", "互动", "提问", "安慰", "劝勉", "提醒",
+            "经历", "见证", "故事", "生活", "场景", "家庭", "关系", "服事", "信心", "悔改", "苦难",
+            "逐节", "串联", "主题", "结论"
         };
 
         public string BuildSessionSummary(
@@ -132,10 +134,12 @@ namespace ImageColorChanger.Services.Ai
             IReadOnlyList<string> styleEvidence)
         {
             var builder = new StringBuilder();
-            builder.AppendLine("传道人画像：");
-            builder.AppendLine("- " + BuildScripturePreference(scriptureEvidence));
+            builder.AppendLine("传道人总结：");
+            builder.AppendLine("- " + BuildMethodSummary(styleEvidence));
+            builder.AppendLine("- " + BuildExpressionSummary(styleEvidence));
             builder.AppendLine("- " + BuildStylePreference(styleEvidence));
-            builder.AppendLine("- " + BuildPredictionHint(scriptureEvidence, styleEvidence));
+            builder.AppendLine("- " + BuildContentPreference(scriptureEvidence, styleEvidence));
+            builder.AppendLine("- " + BuildScriptureUsageSummary(scriptureEvidence, styleEvidence));
 
             foreach (string line in scriptureEvidence)
             {
@@ -150,41 +154,34 @@ namespace ImageColorChanger.Services.Ai
             return builder.ToString().Trim();
         }
 
-        private static string BuildScripturePreference(IReadOnlyList<string> evidence)
+        private static string BuildMethodSummary(IReadOnlyList<string> evidence)
         {
             if (evidence == null || evidence.Count == 0)
             {
-                return "经文倾向：暂未形成稳定偏好。";
+                return "讲道方法：正在累积讲道方法线索。";
             }
 
-            var parsed = evidence
-                .Select(ParseScriptureEvidence)
-                .Where(item => item != null)
+            var methods = new[]
+                {
+                    ("结构", "结构推进"),
+                    ("层次", "分层展开"),
+                    ("递进", "递进铺陈"),
+                    ("对比", "对比说明"),
+                    ("例子", "例证解释"),
+                    ("比喻", "比喻解释"),
+                    ("提问", "提问引导"),
+                    ("应用", "应用落地"),
+                    ("行动", "行动回应")
+                }
+                .Where(pair => evidence.Any(line => line.Contains(pair.Item1, StringComparison.Ordinal)))
+                .Select(pair => pair.Item2)
+                .Distinct(StringComparer.Ordinal)
+                .Take(4)
                 .ToList();
-            if (parsed.Count == 0)
-            {
-                return "经文倾向：已有经文线索，但尚不足以判断新约/旧约偏好。";
-            }
 
-            string testament = parsed
-                .GroupBy(item => item.Testament)
-                .OrderByDescending(group => group.Count())
-                .ThenBy(group => group.Key)
-                .First().Key;
-            string book = parsed
-                .GroupBy(item => item.Book)
-                .OrderByDescending(group => group.Count())
-                .ThenBy(group => group.Key)
-                .First().Key;
-            string chapter = parsed
-                .Where(item => item.Chapter > 0)
-                .GroupBy(item => $"{item.Book}{item.Chapter}章")
-                .OrderByDescending(group => group.Count())
-                .ThenBy(group => group.Key)
-                .Select(group => group.Key)
-                .FirstOrDefault() ?? "暂无稳定章节";
-
-            return $"经文倾向：更常触及{testament}；高频书卷：{book}；高频章节：{chapter}。";
+            return methods.Count == 0
+                ? "讲道方法：需要继续累积结构、例证、互动和应用线索。"
+                : $"讲道方法：常用{string.Join("、", methods)}。";
         }
 
         private static string BuildStylePreference(IReadOnlyList<string> evidence)
@@ -210,17 +207,92 @@ namespace ImageColorChanger.Services.Ai
             return $"讲章风格：常见{string.Join("、", keywords)}。";
         }
 
-        private static string BuildPredictionHint(
+        private static string BuildExpressionSummary(IReadOnlyList<string> evidence)
+        {
+            if (evidence == null || evidence.Count == 0)
+            {
+                return "表达手法：正在累积表达手法线索。";
+            }
+
+            var expressions = new[]
+                {
+                    ("例子", "常用例子"),
+                    ("经历", "个人经历"),
+                    ("见证", "见证故事"),
+                    ("故事", "故事叙述"),
+                    ("生活", "生活场景"),
+                    ("场景", "现场场景"),
+                    ("比喻", "比喻类比"),
+                    ("重复", "反复强调"),
+                    ("强调", "重点强调"),
+                    ("提问", "现场提问"),
+                    ("互动", "互动引导")
+                }
+                .Where(pair => evidence.Any(line => line.Contains(pair.Item1, StringComparison.Ordinal)))
+                .Select(pair => pair.Item2)
+                .Distinct(StringComparer.Ordinal)
+                .Take(4)
+                .ToList();
+
+            return expressions.Count == 0
+                ? "表达手法：需要继续累积例子、经历、见证、比喻和互动线索。"
+                : $"表达手法：常见{string.Join("、", expressions)}。";
+        }
+
+        private static string BuildContentPreference(
             IReadOnlyList<string> scriptureEvidence,
             IReadOnlyList<string> styleEvidence)
         {
-            string scripture = BuildScripturePreference(scriptureEvidence)
-                .Replace("经文倾向：", string.Empty)
-                .TrimEnd('。');
-            string style = BuildStylePreference(styleEvidence)
-                .Replace("讲章风格：", string.Empty)
-                .TrimEnd('。');
-            return $"预测提示：触发该传道人时，优先结合{scripture}，并留意其{style}的表达习惯。";
+            var contentTags = StyleKeywords
+                .Where(keyword => styleEvidence != null && styleEvidence.Any(line => line.Contains(keyword, StringComparison.Ordinal)))
+                .Where(keyword => keyword is "呼召" or "应用" or "落地" or "行动" or "安慰" or "劝勉" or "提醒" or "祷告" or "家庭" or "关系" or "服事" or "信心" or "悔改" or "苦难")
+                .Distinct(StringComparer.Ordinal)
+                .Take(4)
+                .ToList();
+
+            if (contentTags.Count > 0)
+            {
+                return $"内容偏向：更常落在{string.Join("、", contentTags)}。";
+            }
+
+            if (scriptureEvidence != null && scriptureEvidence.Count > 0)
+            {
+                return "内容偏向：会结合已确认经文推进主题，但暂不总结高频经文。";
+            }
+
+            return "内容偏向：正在累积主题、应用和牧养重点。";
+        }
+
+        private static string BuildScriptureUsageSummary(
+            IReadOnlyList<string> scriptureEvidence,
+            IReadOnlyList<string> styleEvidence)
+        {
+            var usages = new[]
+                {
+                    ("逐节", "逐节讲解"),
+                    ("串联", "串联多处经文"),
+                    ("主题", "先讲主题再带经文"),
+                    ("结论", "用经文作结论"),
+                    ("结构", "用经文组织结构"),
+                    ("应用", "经文后接应用")
+                }
+                .Where(pair => styleEvidence != null && styleEvidence.Any(line => line.Contains(pair.Item1, StringComparison.Ordinal)))
+                .Select(pair => pair.Item2)
+                .Distinct(StringComparer.Ordinal)
+                .Take(3)
+                .ToList();
+
+            if (usages.Count > 0)
+            {
+                return $"经文使用方式：常见{string.Join("、", usages)}。";
+            }
+
+            if (scriptureEvidence != null && scriptureEvidence.Count > 0)
+            {
+                return "经文使用方式：已有确认经文线索，正在累积使用方式。";
+            }
+
+            return "经文使用方式：正在累积线索。";
         }
 
         private static string BuildScriptureEvidenceLine(AiScriptureCandidate candidate)
@@ -267,24 +339,6 @@ namespace ImageColorChanger.Services.Ai
                 .ToList();
         }
 
-        private static ScriptureEvidence ParseScriptureEvidence(string line)
-        {
-            string value = (line ?? string.Empty).Trim();
-            if (!value.StartsWith("经文证据：", StringComparison.Ordinal))
-            {
-                return null;
-            }
-
-            string[] parts = value.Substring("经文证据：".Length).Split('|');
-            if (parts.Length < 4)
-            {
-                return null;
-            }
-
-            int.TryParse(parts[2], out int chapter);
-            return new ScriptureEvidence(parts[0], parts[1], chapter);
-        }
-
         private static string NormalizeSentence(string value, int maxLength)
         {
             string text = (value ?? string.Empty).Trim();
@@ -313,7 +367,5 @@ namespace ImageColorChanger.Services.Ai
 
             return value.Substring(Math.Max(0, value.Length - maxLength));
         }
-
-        private sealed record ScriptureEvidence(string Testament, string Book, int Chapter);
     }
 }

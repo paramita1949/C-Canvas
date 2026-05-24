@@ -50,7 +50,7 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
-        public void BuildSpeakerStyleSummary_AddsScripturePreferenceForPrediction()
+        public void BuildSpeakerStyleSummary_UsesPreacherSummaryWithoutHighFrequencyScripture()
         {
             var service = new AiSermonSummaryService();
             var romanCandidate = new AiScriptureCandidate
@@ -73,12 +73,15 @@ namespace Canvas.TextEditor.Tests.Ai
             string first = service.BuildSpeakerStyleSummary("", "", null, romanCandidate);
             string second = service.BuildSpeakerStyleSummary(first, "", null, johnCandidate);
 
-            Assert.Contains("传道人画像", second, StringComparison.Ordinal);
-            Assert.Contains("经文倾向", second, StringComparison.Ordinal);
-            Assert.Contains("新约", second, StringComparison.Ordinal);
-            Assert.Contains("高频书卷", second, StringComparison.Ordinal);
-            Assert.Contains("高频章节", second, StringComparison.Ordinal);
-            Assert.Contains("预测提示", second, StringComparison.Ordinal);
+            Assert.Contains("传道人总结", second, StringComparison.Ordinal);
+            Assert.Contains("讲道方法", second, StringComparison.Ordinal);
+            Assert.Contains("表达手法", second, StringComparison.Ordinal);
+            Assert.Contains("内容偏向", second, StringComparison.Ordinal);
+            Assert.Contains("经文使用方式", second, StringComparison.Ordinal);
+            Assert.DoesNotContain("传道人画像", second, StringComparison.Ordinal);
+            Assert.DoesNotContain("高频书卷", second, StringComparison.Ordinal);
+            Assert.DoesNotContain("高频章节", second, StringComparison.Ordinal);
+            Assert.DoesNotContain("预测提示", second, StringComparison.Ordinal);
         }
     }
 }

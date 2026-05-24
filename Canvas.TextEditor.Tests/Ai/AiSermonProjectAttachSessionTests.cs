@@ -358,6 +358,57 @@ namespace Canvas.TextEditor.Tests.Ai
             }
         }
 
+        [Fact]
+        public async Task FinalizeActiveSessionAsync_WaitsForRunningAsrBeforeSettlement()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-finalize-running-asr-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new BlockingAsrChatClient(100m, 99.80m, 99.20m);
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+                await coordinator.StartProjectAsync(7);
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-running-finalize",
+                    Text = "我们继续看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await chat.WaitForAsrStartedAsync();
+
+                var finalizeTask = coordinator.FinalizeActiveSessionAsync(CancellationToken.None);
+                await Task.Delay(100);
+
+                Assert.False(finalizeTask.IsCompleted);
+
+                chat.ReleaseAsr();
+                await finalizeTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+                var session = await context.AiSermonSessions.SingleAsync();
+                Assert.Equal(100m, session.StartBalance);
+                Assert.Equal(99.20m, session.LastBalance);
+                Assert.Equal(0.80m, session.SessionCost);
+                Assert.NotNull(session.EndedAt);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
         private sealed class RecordingChatClient : IDeepSeekChatClient
         {
             public List<AiChatRequest> Requests { get; } = new();
@@ -472,6 +523,55 @@ namespace Canvas.TextEditor.Tests.Ai
                     Currency = "CNY",
                     TotalBalance = balance
                 });
+            }
+        }
+
+        private sealed class BlockingAsrChatClient : IDeepSeekChatClient
+        {
+            private readonly Queue<decimal> _balances;
+            private readonly TaskCompletionSource _asrStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource _releaseAsr = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public BlockingAsrChatClient(params decimal[] balances)
+            {
+                _balances = new Queue<decimal>(balances);
+            }
+
+            public async Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                bool isAsr = request.Messages.Any(message => string.Equals(message.Name, "asr", StringComparison.Ordinal));
+                if (isAsr)
+                {
+                    _asrStarted.TrySetResult();
+                    await _releaseAsr.Task.WaitAsync(cancellationToken);
+                }
+
+                onContentDelta?.Invoke("已理解");
+                return new AiChatStreamResult { Content = "已理解" };
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                decimal balance = _balances.Count > 0 ? _balances.Dequeue() : 99.20m;
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = balance
+                });
+            }
+
+            public Task WaitForAsrStartedAsync()
+            {
+                return _asrStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            public void ReleaseAsr()
+            {
+                _releaseAsr.TrySetResult();
             }
         }
 

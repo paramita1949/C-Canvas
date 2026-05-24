@@ -1055,7 +1055,12 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 拼音定位专用：优先添加到空槽位，满了才覆盖选中的槽位
         /// </summary>
-        private void AddPinyinHistoryToEmptySlot(int bookId, int chapter, int startVerse, int endVerse)
+        private BibleHistoryItem AddPinyinHistoryToEmptySlot(
+            int bookId,
+            int chapter,
+            int startVerse,
+            int endVerse,
+            bool focusHistorySlot = false)
         {
             try
             {
@@ -1106,7 +1111,12 @@ namespace ImageColorChanger.UI
                 if (existingSlot != null)
                 {
                     LogBibleQuickLocateDebug("AddPinyinHistory", $"duplicate-exists slot={existingSlot.Index}, text={displayText}");
-                    return;
+                    if (focusHistorySlot)
+                    {
+                        FocusBibleHistorySlot(existingSlot);
+                    }
+
+                    return existingSlot;
                 }
 
                 var sameChapterSlots = _historySlots
@@ -1145,32 +1155,45 @@ namespace ImageColorChanger.UI
                         "AddPinyinHistory:Upgrade",
                         $"slot={upgradeTarget.Index}, text={displayText}");
                     BibleHistoryList?.Items.Refresh();
-                    return;
+                    if (focusHistorySlot)
+                    {
+                        FocusBibleHistorySlot(upgradeTarget);
+                    }
+
+                    return upgradeTarget;
                 }
 
                 // 防降级策略：已有更具体经文时，忽略更粗粒度结果，避免从 5:4 回退到 5章。
-                bool shouldSkipDowngrade = sameChapterSlots
+                var downgradeTarget = sameChapterSlots
                     .Select(s =>
                     {
                         int existingStart = Math.Max(1, s.StartVerse);
                         int existingEnd = NormalizeVerseRangeEnd(existingStart, s.EndVerse);
                         return new
                         {
+                            Slot = s,
                             ExistingStart = existingStart,
                             ExistingEnd = existingEnd,
                             ExistingSpan = GetVerseSpanLength(existingStart, existingEnd)
                         };
                     })
-                    .Any(x =>
+                    .Where(x =>
                         RangeContains(normalizedStartVerse, normalizedEndVerse, x.ExistingStart, x.ExistingEnd) &&
-                        x.ExistingSpan < GetVerseSpanLength(normalizedStartVerse, normalizedEndVerse));
+                        x.ExistingSpan < GetVerseSpanLength(normalizedStartVerse, normalizedEndVerse))
+                    .OrderBy(x => x.ExistingSpan)
+                    .FirstOrDefault();
 
-                if (shouldSkipDowngrade)
+                if (downgradeTarget != null)
                 {
                     LogBibleQuickLocateDebug(
                         "AddPinyinHistory:SkipDowngrade",
                         $"text={displayText}");
-                    return;
+                    if (focusHistorySlot)
+                    {
+                        FocusBibleHistorySlot(downgradeTarget.Slot);
+                    }
+
+                    return downgradeTarget.Slot;
                 }
 
                 BibleHistoryItem targetSlot = null;
@@ -1219,11 +1242,73 @@ namespace ImageColorChanger.UI
 
                 // 刷新列表显示
                 BibleHistoryList?.Items.Refresh();
+                if (focusHistorySlot && targetSlot != null)
+                {
+                    FocusBibleHistorySlot(targetSlot);
+                }
+
+                return targetSlot;
             }
             catch (Exception ex)
             {
                 LogBibleQuickLocateDebug("AddPinyinHistory", $"exception: {ex.Message}");
+                return null;
             }
+        }
+
+        private void FocusBibleHistorySlot(BibleHistoryItem slot)
+        {
+            if (slot == null || BibleHistoryList == null)
+            {
+                return;
+            }
+
+            BibleHistoryList.Items.Refresh();
+            BibleHistoryList.SelectedItem = slot;
+            BibleHistoryList.ScrollIntoView(slot);
+            BibleHistoryList.UpdateLayout();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    BibleHistoryList.ScrollIntoView(slot);
+                    BibleHistoryList.UpdateLayout();
+
+                    if (BibleHistoryScrollViewer == null || _historySlots == null || _historySlots.Count == 0)
+                    {
+                        return;
+                    }
+
+                    if (BibleHistoryList.ItemContainerGenerator.ContainerFromItem(slot) is FrameworkElement container)
+                    {
+                        var top = container.TransformToAncestor(BibleHistoryScrollViewer).Transform(new System.Windows.Point(0, 0)).Y;
+                        var bottom = top + container.ActualHeight;
+                        if (top < 0)
+                        {
+                            BibleHistoryScrollViewer.ScrollToVerticalOffset(BibleHistoryScrollViewer.VerticalOffset + top);
+                        }
+                        else if (bottom > BibleHistoryScrollViewer.ViewportHeight)
+                        {
+                            BibleHistoryScrollViewer.ScrollToVerticalOffset(
+                                BibleHistoryScrollViewer.VerticalOffset + bottom - BibleHistoryScrollViewer.ViewportHeight);
+                        }
+                    }
+                    else
+                    {
+                        int index = _historySlots.IndexOf(slot);
+                        if (index >= 0)
+                        {
+                            double estimatedItemHeight = Math.Max(1, BibleHistoryList.ActualHeight / Math.Max(1, _historySlots.Count));
+                            BibleHistoryScrollViewer.ScrollToVerticalOffset(index * estimatedItemHeight);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogBibleQuickLocateDebug("FocusBibleHistorySlot", $"exception: {ex.Message}");
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private bool HasBibleHistorySlotContent()

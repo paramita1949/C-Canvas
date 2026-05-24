@@ -44,6 +44,7 @@ namespace ImageColorChanger.UI
         public event Action<string> OutputModeChanged;
         public event Action<string> ModelChanged;
         public event Action<bool, IReadOnlyList<string>> DialectSchemeChanged;
+        public event Func<Task> EndSessionRequested;
         public event Action HistoryRequested;
         public event Action<int> HistorySessionDeleteRequested;
         public event Action<int> HistoryMessageDeleteRequested;
@@ -526,7 +527,7 @@ namespace ImageColorChanger.UI
                 };
                 summaryBorder.Child = new TextBlock
                 {
-                    Text = "总摘要：" + TrimForPanel(group.StyleSummary, 280),
+                    Text = TrimForPanel(group.StyleSummary, 280),
                     Foreground = CreateBrush("#A9C8DD"),
                     FontSize = 11,
                     LineHeight = 17,
@@ -636,6 +637,11 @@ namespace ImageColorChanger.UI
             return root;
         }
 
+        public static string BuildSessionSettlementTextForTest(AiSermonSessionHistory session)
+        {
+            return BuildSessionSettlementText(session);
+        }
+
         private static string BuildSessionSettlementText(AiSermonSessionHistory session)
         {
             if (session == null)
@@ -644,11 +650,6 @@ namespace ImageColorChanger.UI
             }
 
             var parts = new List<string>();
-            if (session.LastBalance.HasValue)
-            {
-                parts.Add("余额 " + session.LastBalance.Value.ToString("0.00", CultureInfo.InvariantCulture));
-            }
-
             if (session.SessionCost.HasValue)
             {
                 parts.Add("消耗 " + session.SessionCost.Value.ToString("0.00", CultureInfo.InvariantCulture));
@@ -744,9 +745,34 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private async void EndSessionButton_Click(object sender, RoutedEventArgs e)
         {
+            await RequestEndSessionAsync();
+        }
+
+        private async void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RequestEndSessionAsync();
             Close();
+        }
+
+        private async Task RequestEndSessionAsync()
+        {
+            var handler = EndSessionRequested;
+            if (handler == null)
+            {
+                return;
+            }
+
+            try
+            {
+                StatusText.Text = "正在结束本场…";
+                await handler.Invoke();
+            }
+            catch (Exception ex)
+            {
+                AppendStatus($"结束本场失败：{ex.Message}");
+            }
         }
 
         private void ModelMenuButton_Click(object sender, RoutedEventArgs e)
