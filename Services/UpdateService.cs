@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -113,6 +114,8 @@ namespace ImageColorChanger.Services
 
         static UpdateService()
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
             // 强制启用 TLS 1.2 和 TLS 1.3（兼容 Cloudflare SSL）
             System.Net.ServicePointManager.SecurityProtocol =
                 System.Net.SecurityProtocolType.Tls12 |
@@ -1219,11 +1222,40 @@ exit
                     return null;
                 }
 
-                return await response.Content.ReadAsStringAsync(cts.Token);
+                var bytes = await response.Content.ReadAsByteArrayAsync(cts.Token);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    return string.Empty;
+                }
+
+                return DecodeTextPayload(bytes);
             }
             catch
             {
                 return null;
+            }
+        }
+
+        private static string DecodeTextPayload(byte[] bytes)
+        {
+            var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            try
+            {
+                return utf8.GetString(bytes);
+            }
+            catch (DecoderFallbackException)
+            {
+                // Fall through to GB18030 for legacy ANSI/GBK mirror content.
+            }
+
+            try
+            {
+                var gb18030 = Encoding.GetEncoding("GB18030");
+                return gb18030.GetString(bytes);
+            }
+            catch
+            {
+                return Encoding.UTF8.GetString(bytes);
             }
         }
     }
