@@ -576,6 +576,13 @@ jobs:
         body: |
           ## 🎉 咏慕投影 ${{ steps.get_version.outputs.full_version }}
 
+          ### Build Information
+          - `Version`: ${{ steps.get_version.outputs.app_version }}
+          - `Commit`: ${{ github.sha }}
+          - `Branch`: ${{ github.ref_name }}
+          - `Workflow Run`: ${{ github.run_number }}
+          - `Built At (UTC)`: ${{ github.run_started_at }}
+
           ### 📦 下载说明
 
           本次发布提供四种文件，请根据需要选择：
