@@ -128,6 +128,7 @@ docs/
 !AGENTS.md
 
 # Local generated agent artifacts
+.codegraph/
 .playwright-mcp/
 design-exports/tab-bible-remotion/
 

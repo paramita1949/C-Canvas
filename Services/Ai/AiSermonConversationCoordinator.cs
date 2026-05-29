@@ -372,18 +372,14 @@ namespace ImageColorChanger.Services.Ai
             }
 
             string prompt = _session == null
-                ? "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
-                  "请先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
-                  BuildDialectPromptHint() +
-                  BuildAsrScriptureHistoryPriorityHint() +
-                  $"raw_asr_window：\n{snapshot.WindowText}"
-                : "下面是一段实时 ASR 原文。ASR 可能来自任意语音识别平台，文本可能包含方言、口音、现场噪音、断句和同音误识别。" +
-                  "请结合今日幻灯片上下文、传道人长期风格、本场摘要、全历史线索、最近对话和最近 ASR，先纠错理解为可能的普通话语义，再判断当前传道人可能在讲什么。" +
-                  BuildDialectPromptHint() +
-                  BuildAsrScriptureHistoryPriorityHint() +
-                  $"raw_asr_window_version：{snapshot.Version}\n" +
-                  $"raw_asr_window：\n{snapshot.WindowText}";
-            await SendVisibleUserMessageAsync("asr", prompt, cancellationToken, asrSummarySnapshot: snapshot).ConfigureAwait(false);
+                ? BuildLeanAsrPrompt(snapshot, includeVersion: false)
+                : BuildLeanAsrPrompt(snapshot, includeVersion: true);
+            await SendVisibleUserMessageAsync(
+                "asr",
+                prompt,
+                cancellationToken,
+                asrSeq: snapshot.Version,
+                asrSummarySnapshot: snapshot).ConfigureAwait(false);
         }
 
         private async Task SendVisibleUserMessageAsync(
@@ -683,7 +679,20 @@ namespace ImageColorChanger.Services.Ai
                 "不确定时必须说明不确定，不要强行猜测具体章节。\n" +
                 "如果只是普通讲道内容，没有足够证据，不要调用工具。\n" +
                 "允许合理推测候选：当上下文与历史线索能支持时，可以提交 confidence >= 0.55 的候选。\n" +
+                "后台实时 ASR 经文识别时，经文历史写入优先；如果有明确或合理推测的经文候选，优先调用 propose_scripture_candidate。\n" +
+                "ASR 请求的正文反馈保持极短，不输出讲章摘要、调试信息或长解释。\n" +
                 BuildDialectSystemHint(activeDialectTags);
+        }
+
+        private static string BuildLeanAsrPrompt(AiAsrSemanticWindowSnapshot snapshot, bool includeVersion)
+        {
+            string text = snapshot?.WindowText ?? string.Empty;
+            if (!includeVersion)
+            {
+                return $"raw_asr_window:\n{text}";
+            }
+
+            return $"raw_asr_window_version:{snapshot.Version}\nraw_asr_window:\n{text}";
         }
 
         private static string BuildStableProjectContext(AiSermonSessionState session)

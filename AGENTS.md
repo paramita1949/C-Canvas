@@ -52,6 +52,22 @@ When a request matches the condition, the agent MUST additionally load and follo
 ## Repository Skill Entry (Mandatory)
 For any user request in this repository, the agent MUST load and follow BOTH global and repository skills before analysis, planning, coding, or clarifying questions.
 
+## CodeGraph Usage (Mandatory When Available)
+For coding, debugging, refactoring, review, or impact-analysis requests in this repository, the agent MUST use CodeGraph before broad file scanning when the CodeGraph MCP tools are available.
+
+Required pattern:
+1. Run CodeGraph context/query/callers/callees/impact first to identify relevant files, symbols, entry points, and impacted surfaces.
+2. Then read only the directly relevant source files to verify details before editing.
+3. If CodeGraph MCP tools are not exposed in the current session, use the CLI fallback from `d:/img/Canvas`:
+   - `codegraph status`
+   - `codegraph context "<task>"`
+   - `codegraph query "<symbol-or-feature>"`
+   - `codegraph callers "<symbol>"`
+   - `codegraph callees "<symbol>"`
+   - `codegraph impact "<symbol>"`
+4. If the index is stale, run `codegraph sync` before relying on CodeGraph results.
+5. Do not replace source reads with CodeGraph output for final implementation decisions; use CodeGraph to narrow the search and source files as final truth.
+
 ## Always-Load Skills Per Turn (Lean)
 ### Keep always-on (high value / low waste)
 - skill: `project-context`

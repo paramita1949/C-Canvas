@@ -160,7 +160,93 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
-        public async Task SendAsrTurnAsync_BuildsScriptureHistoryPriorityPrompt()
+        public async Task SendAsrTurnAsync_BuildsLeanAsrMessageAndKeepsPriorityInStableSystemPrompt()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-lean-asr-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new RecordingChatClient();
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-lean",
+                    Text = "我们来看约翰福音三章十六节",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                var request = chat.Requests.Last();
+                var asr = request.Messages.Last(message => string.Equals(message.Name, "asr", StringComparison.Ordinal));
+                var system = request.Messages.First(message => string.Equals(message.Role, "system", StringComparison.Ordinal));
+
+                Assert.Contains("raw_asr_window", asr.Content, StringComparison.Ordinal);
+                Assert.DoesNotContain("下面是一段实时 ASR 原文", asr.Content, StringComparison.Ordinal);
+                Assert.DoesNotContain("请结合今日幻灯片上下文", asr.Content, StringComparison.Ordinal);
+                Assert.Contains("经文历史写入优先", system.Content, StringComparison.Ordinal);
+                Assert.Contains("propose_scripture_candidate", system.Content, StringComparison.Ordinal);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task SendAsrTurnAsync_WhenNewerAsrArrivesBeforeSend_SkipsStaleWindow()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-stale-asr-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new FirstBalanceBlockingChatClient();
+                var scheduler = new AiRealtimeUnderstandingScheduler(new AiAsrSemanticWindow(maxTurnCount: 10));
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+                await coordinator.SendAsrTurnAsync(CreateAsrTurn("第一句旧内容", 0));
+                await chat.WaitForFirstBalanceAsync();
+
+                await coordinator.SendAsrTurnAsync(CreateAsrTurn("第二句中间内容", 1));
+                await coordinator.SendAsrTurnAsync(CreateAsrTurn("第三句最新内容", 2));
+
+                chat.ReleaseFirstBalance();
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                Assert.Single(chat.Requests);
+                var asr = chat.Requests[0].Messages.Last(message => string.Equals(message.Name, "asr", StringComparison.Ordinal));
+                Assert.Contains("第三句最新内容", asr.Content, StringComparison.Ordinal);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task SendAsrTurnAsync_KeepsScriptureHistoryPriorityInStableSystemPrompt()
         {
             string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-asr-history-priority-{Guid.NewGuid():N}.db");
             try
@@ -189,9 +275,12 @@ namespace Canvas.TextEditor.Tests.Ai
                 });
                 await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
 
-                var asrMessage = Assert.Single(chat.Requests.Last().Messages, message => message.Name == "asr");
-                Assert.Contains("经文历史写入优先", asrMessage.Content, StringComparison.Ordinal);
-                Assert.Contains("不要输出讲章摘要", asrMessage.Content, StringComparison.Ordinal);
+                var request = chat.Requests.Last();
+                var asrMessage = Assert.Single(request.Messages, message => message.Name == "asr");
+                var systemMessage = Assert.Single(request.Messages, message => message.Role == "system");
+                Assert.Contains("经文历史写入优先", systemMessage.Content, StringComparison.Ordinal);
+                Assert.Contains("不输出讲章摘要", systemMessage.Content, StringComparison.Ordinal);
+                Assert.DoesNotContain("经文历史写入优先", asrMessage.Content, StringComparison.Ordinal);
                 Assert.DoesNotContain("本次输出按简洁模式", asrMessage.Content, StringComparison.Ordinal);
 
                 var assistantMessages = await context.AiConversationRecords
@@ -615,6 +704,62 @@ namespace Canvas.TextEditor.Tests.Ai
             {
                 _releaseAsr.TrySetResult();
             }
+        }
+
+        private sealed class FirstBalanceBlockingChatClient : IDeepSeekChatClient
+        {
+            private readonly TaskCompletionSource _firstBalanceStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource _releaseFirstBalance = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int _balanceCalls;
+
+            public List<AiChatRequest> Requests { get; } = new();
+
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                Requests.Add(request);
+                onContentDelta?.Invoke("已理解");
+                return Task.FromResult(new AiChatStreamResult { Content = "已理解" });
+            }
+
+            public async Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                if (Interlocked.Increment(ref _balanceCalls) == 1)
+                {
+                    _firstBalanceStarted.TrySetResult();
+                    await _releaseFirstBalance.Task.WaitAsync(cancellationToken);
+                }
+
+                return new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                };
+            }
+
+            public Task WaitForFirstBalanceAsync()
+            {
+                return _firstBalanceStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            public void ReleaseFirstBalance()
+            {
+                _releaseFirstBalance.TrySetResult();
+            }
+        }
+
+        private static AiAsrTurnEnvelope CreateAsrTurn(string text, int seconds)
+        {
+            return new AiAsrTurnEnvelope
+            {
+                TurnId = $"asr-{seconds}",
+                Text = text,
+                CapturedAt = new DateTimeOffset(2026, 5, 29, 10, 0, seconds, TimeSpan.FromHours(8)),
+                IsFinal = true
+            };
         }
 
         private sealed class FakeTextProjectService : ITextProjectService
