@@ -247,13 +247,13 @@ jobs:
       shell: pwsh
       run: |
         $buildInfo = @"
-Build Information
-Version: ${{ steps.get_version.outputs.app_version }}
-Commit: $(git rev-parse HEAD)
-Branch: ${{ github.ref_name }}
-Workflow Run: ${{ github.run_number }}
-Built At (UTC): $(Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
-"@
+        Build Information
+        Version: ${{ steps.get_version.outputs.app_version }}
+        Commit: $(git rev-parse HEAD)
+        Branch: ${{ github.ref_name }}
+        Workflow Run: ${{ github.run_number }}
+        Built At (UTC): $(Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
+        "@
         Set-Content -Path "publish\BuildInfo.txt" -Value $buildInfo -Encoding UTF8
         echo "✅ 已生成 publish\BuildInfo.txt"
     
