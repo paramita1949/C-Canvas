@@ -242,6 +242,20 @@ jobs:
           echo "=== data目录内容 ==="
           Get-ChildItem "publish\data" -Recurse -Name | ForEach-Object { echo "  - $_" }
         }
+
+    - name: 生成构建信息
+      shell: pwsh
+      run: |
+        $buildInfo = @"
+Build Information
+Version: ${{ steps.get_version.outputs.app_version }}
+Commit: $(git rev-parse HEAD)
+Branch: ${{ github.ref_name }}
+Workflow Run: ${{ github.run_number }}
+Built At (UTC): $(Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
+"@
+        Set-Content -Path "publish\BuildInfo.txt" -Value $buildInfo -Encoding UTF8
+        echo "✅ 已生成 publish\BuildInfo.txt"
     
     - name: 创建发布包
       shell: pwsh
@@ -281,7 +295,8 @@ jobs:
           "CanvasCast.exe",
           "CanvasCast.dll",
           "CanvasCast.deps.json",
-          "CanvasCast.runtimeconfig.json"
+          "CanvasCast.runtimeconfig.json",
+          "BuildInfo.txt"
         )
         $optionalFiles = @(
           "config.json",
@@ -582,6 +597,7 @@ jobs:
 
           > **提示**:
           > - `Canvas-Update.zip`、`Resources.zip` 与 `Added-Files.zip` 为独立文件
+          > - `BuildInfo.txt` 已包含在完整包和更新包中，可直接查看本次构建信息
           > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，请下载并解压 `Resources.zip` 后替换 `Resources.pak`
           > - 如果主程序有更新，需要替换 `CanvasCast.exe`
@@ -605,6 +621,14 @@ jobs:
         echo "- **构建标签**: ${{ steps.get_version.outputs.tag }}" >> $env:GITHUB_STEP_SUMMARY
         echo "- **平台**: Windows x64" >> $env:GITHUB_STEP_SUMMARY
         echo "- **.NET**: ${{ env.DOTNET_VERSION }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "### Build Information" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.get_version.outputs.app_version }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **Commit**: $(git rev-parse HEAD)" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **Workflow Run**: ${{ github.run_number }}" >> $env:GITHUB_STEP_SUMMARY
+        echo "- **Built At (UTC)**: $(Get-Date -AsUTC -Format 'yyyy-MM-ddTHH:mm:ssZ')" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "### 📦 发布包" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
