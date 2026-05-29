@@ -109,11 +109,11 @@ jobs:
             echo "警告: 无法获取提交哈希，tag 将不包含哈希"
           }
 
-          if ($shortSha) {
-            $tag = "$tagBase-$shortSha"
-          } else {
-            $tag = $tagBase
-          }
+        if ($shortSha) {
+          $tag = "$tagBase-$shortSha"
+        } else {
+          $tag = $tagBase
+        }
           
           echo "未检测到外部 tag，自动生成 tag: $tag"
         }
@@ -124,17 +124,20 @@ jobs:
         } else {
           $displayTag = "(Build $runNumber)"
         }
+        $builtAtUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $fullVersion = "$appVersion $displayTag"
 
         echo "app_version=$appVersion" >> $env:GITHUB_OUTPUT
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
         echo "full_version=$fullVersion" >> $env:GITHUB_OUTPUT
         echo "display_tag=$displayTag" >> $env:GITHUB_OUTPUT
+        echo "built_at_utc=$builtAtUtc" >> $env:GITHUB_OUTPUT
         echo ""
         echo "=== 版本信息 ==="
         echo "应用版本: $appVersion"
         echo "构建标签: $tag"
         echo "显示标签: $displayTag"
+        echo "构建时间(UTC): $builtAtUtc"
         echo "完整版本: $fullVersion"
     
     - name: 验证构建产物
@@ -581,7 +584,7 @@ jobs:
           - `Commit`: ${{ github.sha }}
           - `Branch`: ${{ github.ref_name }}
           - `Workflow Run`: ${{ github.run_number }}
-          - `Built At (UTC)`: ${{ github.run_started_at }}
+          - `Built At (UTC)`: ${{ steps.get_version.outputs.built_at_utc }}
 
           ### 📦 下载说明
 
