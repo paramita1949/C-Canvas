@@ -52,14 +52,14 @@ namespace ImageColorChanger.Services
                     {
                         using (var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20)))
                         {
-                            return await _httpClient.GetAsync(apiUrl + "/api/auth/verify", cts.Token);
+                            return await _httpClient.GetAsync(apiUrl + REACHABILITY_ENDPOINT, cts.Token);
                         }
                     }, timeoutSeconds: 20);
 
-                    if (response != null && response.IsSuccessStatusCode)
+                    if (response != null)
                     {
 #if DEBUG
-                        System.Diagnostics.Trace.WriteLine($" [投影权限] 服务器正常但未登录，试用投影");
+                        System.Diagnostics.Trace.WriteLine($" [投影权限] Supabase认证服务可达但未登录，要求登录");
 #endif
                         return (false, "检测到网络连接，请先登录后使用投影功能");
                     }

@@ -99,7 +99,7 @@ namespace ImageColorChanger.Services
                 var requestData = new { username = username, email = email };
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var response = await PostJsonWithFailoverAsync(
-                    "/api/user/send-verification-code",
+                    SEND_VERIFICATION_CODE_ENDPOINT,
                     jsonContent,
                     timeoutSeconds: 20,
                     allowFailoverOnFailure: false);
@@ -163,7 +163,7 @@ namespace ImageColorChanger.Services
                 var requestData = new { email = email, code = code, new_password = newPassword };
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var response = await PostJsonWithFailoverAsync(
-                    "/api/user/reset-password",
+                    RESET_PASSWORD_ENDPOINT,
                     jsonContent,
                     timeoutSeconds: 20,
                     allowFailoverOnFailure: false);
@@ -240,7 +240,7 @@ namespace ImageColorChanger.Services
 
                 var jsonContent = JsonSerializer.Serialize(requestData);
                 var response = await PostJsonWithFailoverAsync(
-                    "/api/user/register",
+                    REGISTER_ENDPOINT,
                     jsonContent,
                     timeoutSeconds: 20,
                     allowFailoverOnFailure: false);

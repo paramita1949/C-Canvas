@@ -22,21 +22,16 @@ namespace ImageColorChanger.Services
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-        // 多个验证API地址（按优先级排序 - 优先使用域名，IP地址作为最后备用）
-        private static readonly string[] API_BASE_URLS = new[]
-        {
-            "https://wx.019890311.xyz",
-            "https://xian.edu.kg",
-            "https://jiucai.org.cn",
-            "https://www.xian.edu.kg",
-            "https://ym.jiucai.org.cn",
-            "http://106.14.145.43:23412",
-            "http://139.159.157.28:45851"
-        };
+        private static readonly string[] API_BASE_URLS = AuthEndpointCatalog.ApiBaseUrls;
 
-        private const string VERIFY_ENDPOINT = "/api/auth/verify";
-        private const string HEARTBEAT_ENDPOINT = "/api/auth/heartbeat";
-        private const string NOTICE_ACK_ENDPOINT = "/api/auth/notice-ack";
+        private const string VERIFY_ENDPOINT = AuthEndpointCatalog.VerifyEndpoint;
+        private const string HEARTBEAT_ENDPOINT = AuthEndpointCatalog.HeartbeatEndpoint;
+        private const string NOTICE_ACK_ENDPOINT = AuthEndpointCatalog.NoticeAckEndpoint;
+        private const string SEND_VERIFICATION_CODE_ENDPOINT = AuthEndpointCatalog.SendVerificationCodeEndpoint;
+        private const string RESET_PASSWORD_ENDPOINT = AuthEndpointCatalog.ResetPasswordEndpoint;
+        private const string REGISTER_ENDPOINT = AuthEndpointCatalog.RegisterEndpoint;
+        private const string RESET_DEVICES_ENDPOINT = AuthEndpointCatalog.ResetDevicesEndpoint;
+        private const string REACHABILITY_ENDPOINT = AuthEndpointCatalog.ReachabilityEndpoint;
 
         private const string AUTH_DATA_DIR_NAME = "CanvasCast";
         private const string AUTH_DATA_FILE_NAME = ".auth";

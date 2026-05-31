@@ -38,7 +38,7 @@ namespace ImageColorChanger.Services
                         System.Diagnostics.Trace.WriteLine($" [解绑设备] 开始重置设备: {_username}");
                     }
                     System.Diagnostics.Trace.WriteLine($" [解绑设备] 当前解绑次数: {_resetDeviceCount}");
-                    System.Diagnostics.Trace.WriteLine($" [解绑设备] 请求URL: {_authApiClient.CurrentApiBaseUrl}/api/user/reset-devices");
+                    System.Diagnostics.Trace.WriteLine($" [解绑设备] 请求URL: {_authApiClient.CurrentApiBaseUrl}{RESET_DEVICES_ENDPOINT}");
 #endif
 
                     var hardwareId = _authDeviceFingerprint.GetHardwareId();
@@ -60,7 +60,7 @@ namespace ImageColorChanger.Services
                         var requestContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                         using (var unbindClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
                         {
-                            return await unbindClient.PostAsync(apiUrl + "/api/user/reset-devices", requestContent);
+                            return await unbindClient.PostAsync(apiUrl + RESET_DEVICES_ENDPOINT, requestContent);
                         }
                     }, timeoutSeconds: 30);
 
