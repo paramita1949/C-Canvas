@@ -250,20 +250,6 @@ jobs:
           Get-ChildItem "publish\data" -Recurse -Name | ForEach-Object { echo "  - $_" }
         }
 
-    - name: 生成构建信息
-      shell: pwsh
-      run: |
-        $buildInfo = @"
-        Build Information
-        Version: ${{ steps.get_version.outputs.app_version }}
-        Commit: $(git rev-parse HEAD)
-        Branch: ${{ github.ref_name }}
-        Workflow Run: ${{ github.run_number }}
-        Built At (UTC): $(Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
-        "@
-        Set-Content -Path "publish\BuildInfo.txt" -Value $buildInfo -Encoding UTF8
-        echo "✅ 已生成 publish\BuildInfo.txt"
-    
     - name: 创建发布包
       shell: pwsh
       run: |
@@ -317,15 +303,6 @@ jobs:
           echo "✅ 已添加 CanvasCast.dll ($([math]::Round($dllSize, 2)) MB)"
         } else {
           echo "❌ 错误: CanvasCast.dll 不存在"
-          exit 1
-        }
-
-        $buildInfoFile = "publish\BuildInfo.txt"
-        if (Test-Path $buildInfoFile) {
-          Copy-Item $buildInfoFile $updateDir\
-          echo "✅ 已添加 BuildInfo.txt"
-        } else {
-          echo "❌ 错误: BuildInfo.txt 不存在"
           exit 1
         }
 

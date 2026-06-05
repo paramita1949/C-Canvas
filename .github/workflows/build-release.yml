@@ -253,20 +253,6 @@ jobs:
           Get-ChildItem "publish\data" -Recurse -Name | ForEach-Object { echo "  - $_" }
         }
 
-    - name: 生成构建信息
-      shell: pwsh
-      run: |
-        $buildInfo = @"
-        Build Information
-        Version: ${{ steps.get_version.outputs.app_version }}
-        Commit: $(git rev-parse HEAD)
-        Branch: ${{ github.ref_name }}
-        Workflow Run: ${{ github.run_number }}
-        Built At (UTC): $(Get-Date -AsUTC -Format "yyyy-MM-ddTHH:mm:ssZ")
-        "@
-        Set-Content -Path "publish\BuildInfo.txt" -Value $buildInfo -Encoding UTF8
-        echo "✅ 已生成 publish\BuildInfo.txt"
-    
     - name: 创建发布包
       shell: pwsh
       run: |
@@ -305,8 +291,7 @@ jobs:
           "CanvasCast.exe",
           "CanvasCast.dll",
           "CanvasCast.deps.json",
-          "CanvasCast.runtimeconfig.json",
-          "BuildInfo.txt"
+          "CanvasCast.runtimeconfig.json"
         )
         $optionalFiles = @(
           "config.json",
@@ -614,7 +599,7 @@ jobs:
 
           > **提示**:
           > - `Canvas-Update.zip`、`Resources.zip` 与 `Added-Files.zip` 为独立文件
-          > - `BuildInfo.txt` 已包含在完整包和更新包中，可直接查看本次构建信息
+          > - GitHub Release 中已包含本次构建信息，便于查看版本、提交和构建时间
           > - 如果只是代码逻辑更新，只需替换 `CanvasCast.dll`
           > - 如果包含资源更新，请下载并解压 `Resources.zip` 后替换 `Resources.pak`
           > - 如果主程序有更新，需要替换 `CanvasCast.exe`
