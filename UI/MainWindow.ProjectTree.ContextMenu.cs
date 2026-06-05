@@ -102,6 +102,7 @@ namespace ImageColorChanger.UI
                 filesMenu.FontSize = 14;
 
                 var newLibraryItem = CreateIconMenuItem("新建歌词库", "IconLucideBookPlus", () => CreateLyricsLibrary());
+                ApplyPremiumMenuItemState(newLibraryItem, Services.Licensing.PremiumFeature.Lyrics);
                 filesMenu.Items.Add(newLibraryItem);
 
                 filesMenu.IsOpen = true;
@@ -124,14 +125,17 @@ namespace ImageColorChanger.UI
                 string projectName = await GenerateDefaultProjectNameAsync();
                 await CreateTextProjectAsync(projectName);
             });
+            ApplyPremiumMenuItemState(newProjectItem, Services.Licensing.PremiumFeature.Slides);
             contextMenu.Items.Add(newProjectItem);
             contextMenu.Items.Add(new Separator());
 
             var exportAllItem = CreateIconMenuItem("导出全项目", "IconLucideUpload", async () => await ExportAllProjectsAsync());
+            ApplyPremiumMenuItemState(exportAllItem, Services.Licensing.PremiumFeature.Slides);
             contextMenu.Items.Add(exportAllItem);
             contextMenu.Items.Add(new Separator());
 
             var importSlideProjectItem = CreateIconMenuItem("导入幻灯片", "IconLucideDownload", async () => await ImportSlideProjectsAsync());
+            ApplyPremiumMenuItemState(importSlideProjectItem, Services.Licensing.PremiumFeature.Slides);
             contextMenu.Items.Add(importSlideProjectItem);
 
             contextMenu.IsOpen = true;
@@ -348,14 +352,21 @@ namespace ImageColorChanger.UI
 
             var createSplitMenuItem = CreateIconMenuItem("创建分割图", "IconLucideLayoutGrid", async () =>
             {
+                if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.SplitImage))
+                {
+                    return;
+                }
+
                 await CreateSplitSlideInPraiseProjectFromFile(item.Id);
             });
+            ApplyPremiumMenuItemState(createSplitMenuItem, Services.Licensing.PremiumFeature.SplitImage);
             contextMenu.Items.Add(createSplitMenuItem);
 
             var addToSlideMenuItem = CreateIconMenuItem("添加到幻灯片", "IconLucideFileText", async () =>
             {
                 await AddSingleSlideToPraiseProjectFromFile(item.Id);
             });
+            ApplyPremiumMenuItemState(addToSlideMenuItem, Services.Licensing.PremiumFeature.Slides);
             contextMenu.Items.Add(addToSlideMenuItem);
 
             contextMenu.Items.Add(new Separator());
@@ -369,13 +380,25 @@ namespace ImageColorChanger.UI
             contextMenu.MinWidth = 188;
             contextMenu.FontSize = 14;
 
-            contextMenu.Items.Add(CreateIconMenuItem("AI解读", "IconLucideSparkles", async () => await AnalyzeTextProjectWithAiAsync(item, startAsr: false)));
+            var aiAnalyzeItem = CreateIconMenuItem("AI解读", "IconLucideSparkles", async () => await AnalyzeTextProjectWithAiAsync(item, startAsr: false));
+            ApplyPremiumMenuItemState(aiAnalyzeItem, Services.Licensing.PremiumFeature.AiPanel);
+            contextMenu.Items.Add(aiAnalyzeItem);
             contextMenu.Items.Add(new Separator());
 
-            contextMenu.Items.Add(CreateIconMenuItem("重命名", "IconLucidePencil", () => RenameTextProjectAsync(item)));
-            contextMenu.Items.Add(CreateIconMenuItem("删除", "IconLucideX", async () => await DeleteTextProjectAsync(item)));
-            contextMenu.Items.Add(CreateIconMenuItem("复制", "IconLucideCopy2", async () => await CopyTextProjectAsync(item)));
-            contextMenu.Items.Add(CreateIconMenuItem("导出", "IconLucideUpload", async () => await ExportTextProjectAsync(item)));
+            var renameItem = CreateIconMenuItem("重命名", "IconLucidePencil", () => RenameTextProjectAsync(item));
+            var deleteItem = CreateIconMenuItem("删除", "IconLucideX", async () => await DeleteTextProjectAsync(item));
+            var copyItem = CreateIconMenuItem("复制", "IconLucideCopy2", async () => await CopyTextProjectAsync(item));
+            var exportItem = CreateIconMenuItem("导出", "IconLucideUpload", async () => await ExportTextProjectAsync(item));
+
+            ApplyPremiumMenuItemState(renameItem, Services.Licensing.PremiumFeature.Slides);
+            ApplyPremiumMenuItemState(deleteItem, Services.Licensing.PremiumFeature.Slides);
+            ApplyPremiumMenuItemState(copyItem, Services.Licensing.PremiumFeature.Slides);
+            ApplyPremiumMenuItemState(exportItem, Services.Licensing.PremiumFeature.Slides);
+
+            contextMenu.Items.Add(renameItem);
+            contextMenu.Items.Add(deleteItem);
+            contextMenu.Items.Add(copyItem);
+            contextMenu.Items.Add(exportItem);
         }
 
         private MenuItem CreateIconSubMenuItem(string text, string iconResourceKey)

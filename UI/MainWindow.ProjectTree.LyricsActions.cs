@@ -25,6 +25,7 @@ namespace ImageColorChanger.UI
 
             var createGroupItem = new MenuItem { Header = "新建歌词库" };
             createGroupItem.Click += (s, args) => CreateLyricsLibrary();
+            ApplyPremiumMenuItemState(createGroupItem, Services.Licensing.PremiumFeature.Lyrics);
             contextMenu.Items.Add(createGroupItem);
 
             if (IsLyricsTransferFeatureEnabled)
@@ -50,6 +51,7 @@ namespace ImageColorChanger.UI
 
             var createSongItem = new MenuItem { Header = " 新建歌词" };
             createSongItem.Click += (s, args) => CreateLyricsSong(groupItem.Id);
+            ApplyPremiumMenuItemState(createSongItem, Services.Licensing.PremiumFeature.Lyrics);
             contextMenu.Items.Add(createSongItem);
 
             contextMenu.Items.Add(new Separator());
@@ -179,6 +181,11 @@ namespace ImageColorChanger.UI
 
         private void CreateLyricsGroup()
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+            {
+                return;
+            }
+
             if (_dbContext == null)
             {
                 return;
@@ -324,6 +331,11 @@ namespace ImageColorChanger.UI
 
         private void CreateLyricsSong(int groupId)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+            {
+                return;
+            }
+
             if (_dbContext == null)
             {
                 return;

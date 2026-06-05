@@ -34,6 +34,13 @@ namespace ImageColorChanger.UI
             void RefreshUi()
             {
                 quickEnableItem.IsChecked = _configManager?.ProjectionNdiEnabled == true;
+                bool ndiAllowed = TryGetPremiumFeatureUiState(Services.Licensing.PremiumFeature.Ndi, out string deniedToolTip);
+                ndiMenu.IsEnabled = ndiAllowed;
+                ndiMenu.ToolTip = ndiAllowed ? null : deniedToolTip;
+                openControlCenterItem.IsEnabled = ndiAllowed;
+                openControlCenterItem.ToolTip = ndiAllowed ? null : deniedToolTip;
+                quickEnableItem.IsEnabled = ndiAllowed;
+                quickEnableItem.ToolTip = ndiAllowed ? null : deniedToolTip;
                 UpdateNdiRuntimeStatusItem(runtimeStatusItem);
             }
 
@@ -42,6 +49,12 @@ namespace ImageColorChanger.UI
             {
                 if (_configManager == null)
                 {
+                    return;
+                }
+
+                if (quickEnableItem.IsChecked && !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
+                {
+                    quickEnableItem.IsChecked = false;
                     return;
                 }
 
@@ -62,6 +75,11 @@ namespace ImageColorChanger.UI
         private void ShowNdiControlCenterDialog()
         {
             if (_configManager == null)
+            {
+                return;
+            }
+
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
             {
                 return;
             }
@@ -347,6 +365,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (enabled && !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
+            {
+                _configManager.ProjectionNdiEnabled = false;
+                ApplyNdiAudioConfiguration();
+                return;
+            }
+
             _configManager.ProjectionNdiEnabled = enabled;
             if (!enabled)
             {
@@ -400,7 +425,10 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            SetNdiMasterEnabled(true);
+            if (TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
+            {
+                SetNdiMasterEnabled(true);
+            }
         }
 
         private void ApplyNdiAudioConfiguration()

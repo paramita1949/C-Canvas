@@ -39,6 +39,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.SplitImage))
+                {
+                    return;
+                }
+
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 // 1. 查找相似图片
                 bool foundSimilar = _originalManager.FindSimilarImages(fileId);
                 if (!foundSimilar)
@@ -117,6 +127,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.SplitImage))
+                {
+                    return;
+                }
+
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 // 1. 获取相似图片列表
                 var similarImages = _originalManager.GetSimilarImages();
                 int count = similarImages.Count;
@@ -187,6 +207,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return null;
+                }
+
                 if (_textProjectService == null)
                 {
                     _textProjectService = _mainWindowServices.GetRequired<ITextProjectService>();
@@ -232,6 +257,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return null;
+                }
+
                 var regionDataList = new List<SplitRegionData>();
                 for (int i = 0; i < similarImages.Count; i++)
                 {
@@ -292,6 +322,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 var mediaFile = DatabaseManagerService.GetMediaFileById(fileId);
                 if (mediaFile == null)
                 {
@@ -401,6 +436,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return null;
+                }
+
                 // 1. 获取项目中的幻灯片数量，用于计算SortOrder
                 var slideCount = await _textProjectService.GetSlideCountAsync(projectId);
 
@@ -448,6 +488,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 ResetViewStateForTextEditor();
                 _currentTextProject = project;
                 ShowTextEditor();

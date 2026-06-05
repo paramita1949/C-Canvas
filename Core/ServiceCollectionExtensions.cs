@@ -7,6 +7,7 @@ using ImageColorChanger.Managers;
 using ImageColorChanger.Managers.Keyframes;
 using ImageColorChanger.Services;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.Services.Licensing;
 using ImageColorChanger.Services.Lyrics.Output;
 using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Ndi.Audio;
@@ -131,7 +132,16 @@ namespace ImageColorChanger.Core
             services.AddSingleton<Services.Ai.AiSermonSummaryService>();
             services.AddScoped<Services.Ai.AiRealtimeUnderstandingScheduler>();
             services.AddScoped<Services.Ai.IDeepSeekChatClient, Services.Ai.DeepSeekChatClient>();
-            services.AddScoped<Services.Ai.AiSermonConversationCoordinator>();
+            services.AddScoped<Services.Ai.AiSermonConversationCoordinator>(sp =>
+                new Services.Ai.AiSermonConversationCoordinator(
+                    sp.GetRequiredService<Services.Ai.AiSermonContextBuilder>(),
+                    sp.GetRequiredService<Services.Ai.IDeepSeekChatClient>(),
+                    sp.GetRequiredService<Services.Interfaces.IBibleService>(),
+                    sp.GetRequiredService<ConfigManager>(),
+                    sp.GetRequiredService<Services.Ai.AiSermonHistoryStore>(),
+                    sp.GetRequiredService<Services.Ai.AiSermonSummaryService>(),
+                    sp.GetRequiredService<Services.Ai.AiRealtimeUnderstandingScheduler>(),
+                    sp.GetRequiredService<IFeatureGate>()));
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionComposer, Services.TextEditor.Rendering.TextEditorProjectionComposer>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorProjectionRenderStateService, Services.TextEditor.Rendering.TextEditorProjectionRenderStateService>();
             services.AddSingleton<Services.TextEditor.Rendering.ITextEditorRenderSafetyService, Services.TextEditor.Rendering.TextEditorRenderSafetyService>();
@@ -139,6 +149,9 @@ namespace ImageColorChanger.Core
 
             // 认证服务（仅暴露接口，避免上层依赖具体实现）
             services.AddSingleton<IAuthService>(_ => AuthService.Instance);
+            services.AddSingleton<ILicenseStore, ProtectedLicenseStore>();
+            services.AddSingleton<ISignedLicenseVerifier, SignedLicenseVerifier>();
+            services.AddSingleton<IFeatureGate, FeatureGate>();
 
             // 认证门面（窗口层使用，避免直接依赖 AuthService.Instance）
             services.AddSingleton<IAuthFacade>(sp => new AuthServiceFacade(sp.GetRequiredService<IAuthService>()));

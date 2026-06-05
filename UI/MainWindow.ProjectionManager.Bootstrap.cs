@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using ImageColorChanger.Core;
 using ImageColorChanger.Managers;
-using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
 {
@@ -19,7 +18,6 @@ namespace ImageColorChanger.UI
             public required ImageProcessor ImageProcessor { get; init; }
             public required GPUContext GpuContext { get; init; }
             public required System.Windows.Controls.ComboBox ScreenComboBox { get; init; }
-            public required IProjectionAuthPolicy AuthPolicy { get; init; }
             public required IProjectionUiNotifier UiNotifier { get; init; }
             public required IProjectionHost Host { get; init; }
             public required IProjectionWindowFactory WindowFactory { get; init; }
@@ -35,7 +33,6 @@ namespace ImageColorChanger.UI
                 ImageProcessor = _imageProcessor ?? throw new InvalidOperationException("ImageProcessor 未初始化"),
                 GpuContext = _gpuContext ?? throw new InvalidOperationException("GPUContext 未初始化"),
                 ScreenComboBox = ScreenSelector,
-                AuthPolicy = new AuthServiceProjectionAuthPolicy(_authService),
                 UiNotifier = new WpfProjectionUiNotifier(),
                 Host = new DelegateProjectionHost(
                     () => IsInLyricsMode,
@@ -57,7 +54,6 @@ namespace ImageColorChanger.UI
                 options.ImageProcessor,
                 options.GpuContext,
                 options.ScreenComboBox,
-                options.AuthPolicy,
                 options.UiNotifier,
                 options.Host,
                 options.WindowFactory,

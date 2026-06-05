@@ -1303,6 +1303,11 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //            Debug.WriteLine("[歌词] 进入歌词模式");
 //#endif
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+            {
+                return;
+            }
+
             _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
             _lyricsTextWatermarkFontSize = ResolveLyricsTextWatermarkFontSize();
             _lyricsTextWatermarkColorHex = ResolveLyricsTextWatermarkColorHex();

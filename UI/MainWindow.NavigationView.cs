@@ -760,6 +760,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowProjects_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentViewMode == NavigationViewMode.Projects && !_isBibleMode) return;
 
             bool wasInBibleMode = _isBibleMode;
@@ -857,6 +862,7 @@ namespace ImageColorChanger.UI
             BtnShowProjects.Background = _currentViewMode == NavigationViewMode.Projects ? activeBackground : inactiveBackground;
             BtnShowProjects.Foreground = _currentViewMode == NavigationViewMode.Projects ? activeForeground : inactiveForeground;
             BtnShowProjects.BorderBrush = _currentViewMode == NavigationViewMode.Projects ? activeBorder : inactiveBorder;
+            ApplyPremiumButtonState(BtnShowProjects, Services.Licensing.PremiumFeature.Slides, "幻灯片");
 
             BtnShowBible.Background = _currentViewMode == NavigationViewMode.Bible ? activeBackground : inactiveBackground;
             BtnShowBible.Foreground = _currentViewMode == NavigationViewMode.Bible ? activeForeground : inactiveForeground;
@@ -878,6 +884,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.Slides))
+                {
+                    return;
+                }
+
                 var textProjectService = _mainWindowServices?.GetRequired<ITextProjectService>();
                 if (textProjectService == null)
                 {
@@ -1036,6 +1047,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 var textProjectService = _mainWindowServices?.GetRequired<ITextProjectService>();
                 if (textProjectService == null)
                 {
@@ -1071,6 +1087,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 if (_currentTextProject == null)
                 {
                     await LoadFirstProjectAsync(preferBlankSlide: true);
@@ -1087,6 +1108,11 @@ namespace ImageColorChanger.UI
 
         private async Task SelectOrCreateBlankSlideInCurrentProjectAsync()
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentTextProject == null)
             {
                 return;

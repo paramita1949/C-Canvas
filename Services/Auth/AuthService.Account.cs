@@ -315,6 +315,7 @@ namespace ImageColorChanger.Services
 
             StopHeartbeat();
             DeleteAuthData();
+            _licenseStore.Clear();
 
             AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs
             {

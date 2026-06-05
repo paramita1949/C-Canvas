@@ -413,6 +413,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 // 重置状态：关闭原图模式
                 ResetViewStateForTextEditor();
                 
@@ -477,6 +482,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 // 重置状态：关闭原图模式
                 ResetViewStateForTextEditor();
                 
@@ -550,6 +560,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ShowTextEditor()
         {
+            if (!TryRequireSlidesFeature())
+            {
+                TextEditorPanel.Visibility = Visibility.Collapsed;
+                return;
+            }
+
             //System.Diagnostics.Debug.WriteLine(" [ShowTextEditor] 开始显示文本编辑器");
 
             ImageScrollViewer.Visibility = Visibility.Collapsed;

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using ImageColorChanger.Services.Auth;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.Services.Licensing;
 
 namespace ImageColorChanger.Services
 {
@@ -77,6 +78,7 @@ namespace ImageColorChanger.Services
         private readonly AuthTrialProjectionToken _authTrialProjectionToken = new AuthTrialProjectionToken();
         private readonly AuthTrialProjectionPolicy _authTrialProjectionPolicy = new AuthTrialProjectionPolicy();
         private readonly AuthProjectionAccessPolicy _authProjectionAccessPolicy = new AuthProjectionAccessPolicy();
+        private readonly ILicenseStore _licenseStore = new ProtectedLicenseStore();
 
         private static AuthService _instance;
         private static readonly object _lock = new object();

@@ -161,6 +161,18 @@ namespace ImageColorChanger.UI
             subtitleConfigItem.Click += (s, args) => OpenAiConfigFile();
             aiItem.Items.Add(subtitleConfigItem);
 
+            aiItem.SubmenuOpened += (_, _) =>
+            {
+                ApplyAiPlatformMenuState(aiItem);
+                ApplyPremiumMenuItemState(aiPanelItem, Services.Licensing.PremiumFeature.AiPanel);
+                ApplyPremiumMenuItemState(panelConfigItem, Services.Licensing.PremiumFeature.AiPanel);
+                ApplyPremiumMenuItemState(aiCaptionItem, Services.Licensing.PremiumFeature.LiveCaption);
+            };
+            ApplyAiPlatformMenuState(aiItem);
+            ApplyPremiumMenuItemState(aiPanelItem, Services.Licensing.PremiumFeature.AiPanel);
+            ApplyPremiumMenuItemState(panelConfigItem, Services.Licensing.PremiumFeature.AiPanel);
+            ApplyPremiumMenuItemState(aiCaptionItem, Services.Licensing.PremiumFeature.LiveCaption);
+
             contextMenu.Items.Add(aiItem);
 
             contextMenu.Items.Add(new Separator());
@@ -470,6 +482,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 var slideImportManager = _mainWindowServices.GetRequired<SlideImportManager>();
                 if (slideImportManager == null)
                 {

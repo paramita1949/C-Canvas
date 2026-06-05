@@ -289,6 +289,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task SaveVideoBackgroundSettingsAsync()
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentSlide == null)
                 return;
                 

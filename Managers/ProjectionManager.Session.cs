@@ -21,7 +21,7 @@ namespace ImageColorChanger.Managers
                 }
 
                 RunOnMainDispatcher(() => OpenProjectionOnUiThread(screen));
-                StartProjectionAuthWatch();
+                StartProjectionHealthWatch();
 #if DEBUG
                 System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => true (source=OpenProjection)");
 #endif
@@ -173,15 +173,9 @@ namespace ImageColorChanger.Managers
             _syncEnabled = true;
         }
 
-        private void StartProjectionAuthWatch()
+        private void StartProjectionHealthWatch()
         {
-            if (!_authPolicy.IsAuthenticated)
-            {
-                StartProjectionTimer();
-                return;
-            }
-
-            CheckAuthenticationPeriodically();
+            // 基础投影不能依赖账号、网络或试用计时器。付费能力由 Services.Licensing.IFeatureGate 控制。
         }
 
         /// <summary>

@@ -35,6 +35,11 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+            {
+                return;
+            }
+
             Action caretRestore = () => { };
             try
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.Licensing;
 using ImageColorChanger.Services.Ndi.Audio;
 using ImageColorChanger.Services.Projection.Output;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ namespace ImageColorChanger.Services.Ndi
     {
         private readonly ConfigManager _configManager;
         private readonly IServiceProvider _services;
+        private readonly IFeatureGate _featureGate;
         private readonly object _sync = new();
         private readonly Dictionary<NdiChannel, ProjectionNdiOutputManager> _channelManagers = new();
         private readonly Dictionary<NdiChannel, long> _lastIdleFrameLogTicks = new();
@@ -23,10 +25,12 @@ namespace ImageColorChanger.Services.Ndi
 
         public NdiTransportCoordinator(
             ConfigManager configManager,
-            IServiceProvider services)
+            IServiceProvider services,
+            IFeatureGate featureGate)
         {
             _configManager = configManager;
             _services = services;
+            _featureGate = featureGate;
         }
 
         public NdiChannelOutputConfig GetChannelConfig(NdiChannel channel)
@@ -58,6 +62,11 @@ namespace ImageColorChanger.Services.Ndi
 
         public bool PublishFrame(NdiChannel channel, SKBitmap frame, ProjectionNdiContentType contentType, SKColor? transparencyKeyColor = null)
         {
+            if (!CanUseNdi())
+            {
+                return false;
+            }
+
             var manager = GetOrCreateManager(channel);
             bool sent = manager?.PublishFrame(frame, contentType, transparencyKeyColor) == true;
             if (!sent)
@@ -69,6 +78,11 @@ namespace ImageColorChanger.Services.Ndi
 
         public bool PublishFrameDirect(NdiChannel channel, SKBitmap frame, bool transparent = false, SKColor? transparencyKeyColor = null)
         {
+            if (!CanUseNdi())
+            {
+                return false;
+            }
+
             var manager = GetOrCreateManager(channel);
             bool sent = manager?.PublishFrameDirect(frame, transparent, transparencyKeyColor) == true;
             if (!sent)
@@ -81,6 +95,11 @@ namespace ImageColorChanger.Services.Ndi
         public bool PublishAudio(ProjectionNdiAudioFrame audioFrame)
         {
             if (audioFrame == null)
+            {
+                return false;
+            }
+
+            if (!CanUseNdi())
             {
                 return false;
             }
@@ -105,6 +124,11 @@ namespace ImageColorChanger.Services.Ndi
 
         public void PushTransparentIdleFrame(NdiChannel channel, bool startSenderIfNeeded = true)
         {
+            if (!CanUseNdi())
+            {
+                return;
+            }
+
             var manager = GetOrCreateManager(channel);
             manager?.PushTransparentIdleFrame(startSenderIfNeeded);
             LogIdleFrameIfDue(channel);
@@ -147,6 +171,11 @@ namespace ImageColorChanger.Services.Ndi
 
         private ProjectionNdiOutputManager GetOrCreateManager(NdiChannel channel)
         {
+            if (!CanUseNdi())
+            {
+                return null;
+            }
+
             lock (_sync)
             {
                 if (_channelManagers.TryGetValue(channel, out var existing))
@@ -213,6 +242,11 @@ namespace ImageColorChanger.Services.Ndi
                 NoopProjectionNdiSender => new NoopProjectionNdiSender(),
                 _ => new NativeProjectionNdiSender()
             };
+        }
+
+        private bool CanUseNdi()
+        {
+            return _featureGate?.Check(PremiumFeature.Ndi).IsAllowed == true;
         }
 
         private string ResolveSenderName(NdiChannel channel)

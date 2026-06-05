@@ -121,6 +121,10 @@ namespace ImageColorChanger.UI
                 Header = _isLyricsMode ? "退出歌词" : "进入歌词",
                 IsCheckable = false
             };
+            if (!_isLyricsMode)
+            {
+                ApplyPremiumMenuItemState(lyricsMenuItem, Services.Licensing.PremiumFeature.Lyrics);
+            }
             
             lyricsMenuItem.Click += (s, args) =>
             {
@@ -130,6 +134,11 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
+                    if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+                    {
+                        return;
+                    }
+
                     EnterLyricsMode();
                 }
             };

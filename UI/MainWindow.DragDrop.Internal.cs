@@ -1110,6 +1110,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 if (_textProjectService == null || _dbContext == null)
                     return;
 

@@ -228,6 +228,11 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
+                {
+                    return;
+                }
+
                 await AutoExitTextEditorIfNeededAsync();
                 SetLyricsEntryBySong(lyricsProjectId);
 

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.Services.Licensing;
 
 namespace ImageColorChanger.Services.Ai
 {
@@ -18,6 +19,7 @@ namespace ImageColorChanger.Services.Ai
         private readonly IDeepSeekChatClient _chatClient;
         private readonly IBibleService _bibleService;
         private readonly ConfigManager _config;
+        private readonly IFeatureGate _featureGate;
         private readonly AiSermonHistoryStore _historyStore;
         private readonly AiSermonSummaryService _summaryService;
         private readonly AiRealtimeUnderstandingScheduler _asrScheduler;
@@ -57,12 +59,14 @@ namespace ImageColorChanger.Services.Ai
             ConfigManager config,
             AiSermonHistoryStore historyStore,
             AiSermonSummaryService summaryService,
-            AiRealtimeUnderstandingScheduler asrScheduler)
+            AiRealtimeUnderstandingScheduler asrScheduler,
+            IFeatureGate featureGate = null)
         {
             _contextBuilder = contextBuilder ?? throw new ArgumentNullException(nameof(contextBuilder));
             _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
             _bibleService = bibleService ?? throw new ArgumentNullException(nameof(bibleService));
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _featureGate = featureGate ?? AllowAllFeatureGate.Instance;
             _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
             _summaryService = summaryService ?? throw new ArgumentNullException(nameof(summaryService));
             _asrScheduler = asrScheduler ?? throw new ArgumentNullException(nameof(asrScheduler));
@@ -141,6 +145,11 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task StartProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
+            if (!CanUseAiPanel())
+            {
+                return;
+            }
+
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
             bool createdNewSession = false;
 
@@ -345,11 +354,21 @@ namespace ImageColorChanger.Services.Ai
 
         public Task SendUserMessageAsync(string text, CancellationToken cancellationToken = default)
         {
+            if (!CanUseAiPanel())
+            {
+                return Task.CompletedTask;
+            }
+
             return SendVisibleUserMessageAsync("user", text, cancellationToken);
         }
 
         public Task SendAsrTurnAsync(AiAsrTurnEnvelope turn, CancellationToken cancellationToken = default)
         {
+            if (!CanUseAiPanel())
+            {
+                return Task.CompletedTask;
+            }
+
             if (turn == null || string.IsNullOrWhiteSpace(turn.Text))
             {
                 return Task.CompletedTask;
@@ -389,6 +408,11 @@ namespace ImageColorChanger.Services.Ai
             long asrSeq = 0,
             AiAsrSemanticWindowSnapshot asrSummarySnapshot = null)
         {
+            if (!CanUseAiPanel())
+            {
+                return;
+            }
+
             if (!_config.AiSermonEnabled)
             {
                 StatusChanged?.Invoke("AI讲章理解未启用");
@@ -682,6 +706,43 @@ namespace ImageColorChanger.Services.Ai
                 "后台实时 ASR 经文识别时，经文历史写入优先；如果有明确或合理推测的经文候选，优先调用 propose_scripture_candidate。\n" +
                 "ASR 请求的正文反馈保持极短，不输出讲章摘要、调试信息或长解释。\n" +
                 BuildDialectSystemHint(activeDialectTags);
+        }
+
+        private bool CanUseAiPanel()
+        {
+            var result = _featureGate.Require(PremiumFeature.AiPanel);
+            if (result.IsAllowed)
+            {
+                return true;
+            }
+
+            StatusChanged?.Invoke(result.UserMessage);
+            return false;
+        }
+
+        private sealed class AllowAllFeatureGate : IFeatureGate
+        {
+            public static readonly AllowAllFeatureGate Instance = new();
+
+            private AllowAllFeatureGate()
+            {
+            }
+
+            public FeatureGateResult Check(PremiumFeature feature)
+            {
+                return new FeatureGateResult(true, string.Empty, "allowed", string.Empty, null, false);
+            }
+
+            public FeatureGateResult Require(PremiumFeature feature)
+            {
+                return Check(feature);
+            }
+
+            public Task<FeatureGateResult> CheckAsync(PremiumFeature feature, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return Task.FromResult(Check(feature));
+            }
         }
 
         private static string BuildLeanAsrPrompt(AiAsrSemanticWindowSnapshot snapshot, bool includeVersion)

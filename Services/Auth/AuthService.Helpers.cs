@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Globalization;
 using System.Threading.Tasks;
 using ImageColorChanger.Services.Auth;
+using ImageColorChanger.Services.Licensing;
 
 namespace ImageColorChanger.Services
 {
@@ -132,6 +133,7 @@ namespace ImageColorChanger.Services
 
             SetAuthenticatedIdentity(username, authResponse.Data?.Token);
             ApplyAuthData(authResponse.Data);
+            SaveSignedLicenseFromServer(authResponse.Data?.License, "login");
 
 #if DEBUG
             if (_expiresAt.HasValue)
@@ -260,6 +262,7 @@ namespace ImageColorChanger.Services
         {
             UpdateServerTimeBaseline(data?.ServerTimeString);
             ApplyAuthData(data);
+            SaveSignedLicenseFromServer(data?.License, source);
             TryShowHolidayBonusNotification(data?.HolidayBonus);
             TryShowClientNotices(data, source);
 
@@ -316,6 +319,41 @@ namespace ImageColorChanger.Services
             }
 
             _deviceInfo = MapDeviceInfo(authData.DeviceInfo);
+        }
+
+        private void SaveSignedLicenseFromServer(SignedLicenseEnvelope license, string source)
+        {
+            if (license == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(license.PayloadJson) ||
+                string.IsNullOrWhiteSpace(license.Signature) ||
+                string.IsNullOrWhiteSpace(license.KeyId) ||
+                string.IsNullOrWhiteSpace(license.Algorithm))
+            {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 忽略不完整授权: source={source}");
+#endif
+                return;
+            }
+
+            try
+            {
+                _licenseStore.Save(license);
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 已保存服务端签名授权: source={source}, key={license.KeyId}, alg={license.Algorithm}");
+#endif
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Trace.WriteLine($" [AuthService] 保存服务端签名授权失败: source={source}, error={ex.Message}");
+#else
+                _ = ex;
+#endif
+            }
         }
 
         private void UpdateShownClientNoticeKeys(List<string> shownClientNoticeKeys)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using ImageColorChanger.Services.Licensing;
 
 namespace ImageColorChanger.Services
 {
@@ -65,6 +66,9 @@ namespace ImageColorChanger.Services
 
         [JsonPropertyName("client_notices")]
         public List<ClientNoticeInfo> ClientNotices { get; set; }
+
+        [JsonPropertyName("license")]
+        public SignedLicenseEnvelope License { get; set; }
     }
 
     public class ClientNoticeInfo

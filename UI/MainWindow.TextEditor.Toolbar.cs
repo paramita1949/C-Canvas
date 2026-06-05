@@ -61,6 +61,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnAddText_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
             {
                 WpfMessageBox.Show("请先创建或打开一个项目！", "提示", 
@@ -174,6 +177,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task PasteTextBoxFromClipboardAsync(DraggableTextBox anchorTextBox = null)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentSlide == null)
                 return;
 
@@ -314,6 +320,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task DeleteTextBoxAsync(DraggableTextBox textBox)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (textBox == null)
                 return;
 
@@ -373,6 +382,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnBackgroundImage_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
             {
                 WpfMessageBox.Show("请先创建或选择一个文本项目", "提示",
@@ -1229,6 +1241,11 @@ namespace ImageColorChanger.UI
 
         private async Task<bool> SaveSlideOutputModeAsync(SlideOutputMode mode)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return false;
+            }
+
             if (_currentSlide == null)
             {
                 return false;
@@ -1311,6 +1328,9 @@ namespace ImageColorChanger.UI
 
         private async Task ApplySelectedSplitImageDisplayModeAsync(SplitImageDisplayMode mode)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_splitImageDisplayMode == mode)
                 return;
 
@@ -1402,6 +1422,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task SaveSplitStretchModeAsync()
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentSlide == null)
                 return;
                 
@@ -1435,6 +1458,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnSplitView_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
@@ -1473,6 +1499,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void SetSplitMode(Database.Models.Enums.ViewSplitMode mode)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentSlide == null)
                 return;
 
@@ -2093,6 +2122,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task SaveSplitConfigAsync()
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentSlide == null)
                 return;
                 

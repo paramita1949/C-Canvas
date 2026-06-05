@@ -100,7 +100,6 @@ namespace ImageColorChanger.Managers
         private VlcD3D11Renderer _projectionVlcRenderer;  // D3D11 渲染器
         private System.Windows.Controls.Image _projectionVideoImage;  // 显示视频的 Image 控件
         private VideoPlayerManager _videoPlayerManager;  // 视频播放管理器引用
-        private readonly IProjectionAuthPolicy _authPolicy;  // 投影授权策略
         private readonly IProjectionUiNotifier _uiNotifier;  // UI通知适配器
         private readonly IProjectionHost _host;  // 宿主能力适配器
         private readonly IProjectionWindowFactory _windowFactory;  // 投影窗口工厂
@@ -149,11 +148,8 @@ namespace ImageColorChanger.Managers
 #endif
         
         
-        //  投影时间限制（未登录状态）
-        private DateTime? _projectionStartTime;
+        //  投影健康计时器预留；基础投影已不再使用账号试用/过期限制。
         private System.Threading.Timer _projectionTimer;
-        private long _projectionStartTick; // 使用 TickCount64 防篡改
-        private string _localProjectionChecksum; // 本地校验和（额外防护层）
         private bool _isClosingProjectionWindow; // 防止窗口关闭事件重入
 
         private readonly struct ProjectionRenderContext
@@ -191,24 +187,6 @@ namespace ImageColorChanger.Managers
         private const int DefaultProjectionWidth = 1920;
         private const int DefaultProjectionHeight = 1080;
         
-        /// <summary>
-        /// 获取试用时长限制（随机30-60秒）
-        /// 随机化使得破解者无法预测具体时长
-        /// </summary>
-        private int GetTrialDurationSeconds()
-        {
-            // 基于硬件ID生成伪随机数，保证每台电脑相对固定，但不同电脑不同
-            var hardwareId = _authPolicy.GetIdentitySeed();
-            var hashCode = hardwareId.GetHashCode();
-            var seed = Math.Abs(hashCode);
-            var random = new Random(seed);
-            
-            // 30-60秒随机
-            int minSeconds = 30;
-            int maxSeconds = 60;
-            return random.Next(minSeconds, maxSeconds + 1);
-        }
-
         /// <summary>
         /// 是否正在投影
         /// </summary>
@@ -259,7 +237,6 @@ namespace ImageColorChanger.Managers
             ImageProcessor imageProcessor,
             GPUContext gpuContext,
             System.Windows.Controls.ComboBox screenComboBox,
-            IProjectionAuthPolicy authPolicy,
             IProjectionUiNotifier uiNotifier,
             IProjectionHost host,
             IProjectionWindowFactory windowFactory,
@@ -271,7 +248,6 @@ namespace ImageColorChanger.Managers
             _imageProcessor = imageProcessor;
             _gpuContext = gpuContext ?? throw new ArgumentNullException(nameof(gpuContext));
             _screenComboBox = screenComboBox;
-            _authPolicy = authPolicy ?? throw new ArgumentNullException(nameof(authPolicy));
             _uiNotifier = uiNotifier ?? throw new ArgumentNullException(nameof(uiNotifier));
             _host = host ?? throw new ArgumentNullException(nameof(host));
             _windowFactory = windowFactory ?? throw new ArgumentNullException(nameof(windowFactory));
@@ -339,88 +315,6 @@ namespace ImageColorChanger.Managers
                 }
                 else
                 {
-                    //  后台静默验证投影权限（仅在有网络时执行，不阻塞UI）
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            // 快速检测网络可用性（1秒超时）
-                            using (var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(1) })
-                            {
-                                try
-                                {
-                                    await client.GetAsync("https://www.baidu.com", System.Threading.CancellationToken.None);
-                                    
-                                    // 有网络，执行验证
-                                    //#if DEBUG
-                                    //System.Diagnostics.Debug.WriteLine($" [投影] 检测到网络连接，开始后台验证");
-                                    //#endif
-                                    
-                                    var (allowed, message) = await _authPolicy.VerifyProjectionPermissionAsync();
-                                    
-                                    //#if DEBUG
-                                    //System.Diagnostics.Debug.WriteLine($" [投影] 后台网络验证结果: {message}（allowed={allowed}）");
-                                    //#endif
-                                    
-                                    //  后台静默记录验证结果，不影响试用
-                                    // 验证目的：防止破解者绕过登录，但不阻止正常试用
-                                }
-                                catch (TaskCanceledException)
-                                {
-                                    // 超时或取消均视为“当前不可用网络探测”，非致命
-#if DEBUG
-                                    System.Diagnostics.Debug.WriteLine(" [投影] 网络探测超时/取消，跳过后台验证");
-#endif
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    // 防御性分支：与 TaskCanceledException 含义一致，统一降级处理
-#if DEBUG
-                                    System.Diagnostics.Debug.WriteLine(" [投影] 网络探测已取消，跳过后台验证");
-#endif
-                                }
-                                catch (System.Net.Http.HttpRequestException)
-                                {
-                                    // 无网络，跳过验证
-#if DEBUG
-                                    System.Diagnostics.Debug.WriteLine(" [投影] 无网络连接，跳过后台验证");
-#endif
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($" [投影] 后台验证异常: {ex.Message}");
-#else
-                            _ = ex; // 避免未使用变量警告
-#endif
-                        }
-                    });
-                    
-                    //  检查账号验证状态
-                    if (!_authPolicy.IsAuthenticated)
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine(" [投影] 未登录，将启用随机试用限制");
-                        //#endif
-                        
-                        // 未登录，静默启用随机试用限制（不弹窗）
-                        // 时长由 GetTrialDurationSeconds() 随机决定（30-60秒）
-                    }
-                    else if (!_authPolicy.CanUseProjection())
-                    {
-                        //#if DEBUG
-                        //System.Diagnostics.Debug.WriteLine(" [投影] 账号已过期");
-                        //#endif
-                        
-                        _uiNotifier.ShowMessage(
-                            "账号已过期",
-                            "您的账号已过期，无法使用投影功能。\n请联系管理员续费。",
-                            ProjectionUiMessageLevel.Warning);
-                        return false;
-                    }
-                    
                     // //System.Diagnostics.Debug.WriteLine("打开投影窗口");
                     return OpenProjection();
                 }

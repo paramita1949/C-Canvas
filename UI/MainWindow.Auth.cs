@@ -118,6 +118,8 @@ namespace ImageColorChanger.UI
                 BtnLogin.ToolTip = "登录账号";
             }
             
+            RefreshPremiumFeatureUi();
+
             // 窗口标题由 XAML 设置，无需在代码中修改
         }
 

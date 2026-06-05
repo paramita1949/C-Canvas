@@ -26,6 +26,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ImportSingleImageAsSlide()
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentSlide == null)
             {
                 WpfMessageBox.Show("请先选择一个幻灯片", "提示",
@@ -43,6 +48,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 var dialog = new WpfOpenFileDialog
                 {
                     Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
@@ -126,6 +136,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task ImportVideoAsSlideAsync()
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentSlide == null)
             {
                 WpfMessageBox.Show("请先选择一个幻灯片", "提示",
@@ -216,6 +231,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnLoadBackgroundImage_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
@@ -282,6 +300,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnSelectBackgroundColor_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
@@ -353,6 +374,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnClearBackground_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null || _currentSlide == null)
                 return;
 
@@ -470,6 +494,11 @@ namespace ImageColorChanger.UI
 
         private async Task ApplySlideBackgroundStyleAsync(BackgroundSettingsPanel.BackgroundStyleSelection selection)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentSlide == null || selection == null)
             {
                 return;
@@ -616,6 +645,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnSaveTextProject_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
                 return;
 

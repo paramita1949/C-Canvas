@@ -28,6 +28,11 @@ namespace ImageColorChanger.UI
 
         private async Task AnalyzeTextProjectWithAiAsync(ProjectTreeItem item, bool startAsr)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            {
+                return;
+            }
+
             if (item == null || (item.Type != TreeItemType.Project && item.Type != TreeItemType.TextProject))
             {
                 ShowStatus("请选择幻灯片项目");
@@ -56,6 +61,11 @@ namespace ImageColorChanger.UI
 
         private async Task SetTextProjectAsAiSermonContextAsync(ProjectTreeItem item)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            {
+                return;
+            }
+
             if (item == null)
             {
                 ShowStatus("请选择幻灯片项目");
@@ -100,6 +110,11 @@ namespace ImageColorChanger.UI
 
         private void OpenAiSubtitlePanel()
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            {
+                return;
+            }
+
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
@@ -220,6 +235,11 @@ namespace ImageColorChanger.UI
 
         internal bool ToggleAiAssistantPanelVisibilityByShortcut()
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            {
+                return true;
+            }
+
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);

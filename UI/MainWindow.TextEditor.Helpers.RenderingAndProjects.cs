@@ -180,6 +180,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void RenameTextProjectAsync(ProjectTreeItem item)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (item == null || item.Type != TreeItemType.TextProject)
             {
                 //System.Diagnostics.Debug.WriteLine($" 无法重命名: item null 或类型不匹配");
@@ -204,6 +209,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 //System.Diagnostics.Debug.WriteLine($"完成重命名: OriginalName={item.OriginalName}, CurrentName={item.Name}, NewName={newName}");
                 
                 // 如果取消或输入为空，恢复原始名称
@@ -268,6 +278,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 await EnsureCurrentProjectSavedBeforeExportAsync(item?.Id);
 
                 var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
@@ -295,6 +310,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task CopyTextProjectAsync(ProjectTreeItem item)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (item == null || item.Id <= 0)
             {
                 return;
@@ -438,6 +458,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 await EnsureCurrentProjectSavedBeforeExportAsync();
 
                 var slideExportManager = _mainWindowServices.GetRequired<SlideExportManager>();
@@ -462,6 +487,11 @@ namespace ImageColorChanger.UI
 
         private async Task EnsureCurrentProjectSavedBeforeExportAsync(int? exportProjectId = null)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_currentTextProject == null)
             {
                 return;
@@ -500,6 +530,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 var result = WpfMessageBox.Show(
                     $"确定要删除项目 '{item.Name}' 吗？\n所有文本元素和背景都将被删除。",
                     "确认删除",

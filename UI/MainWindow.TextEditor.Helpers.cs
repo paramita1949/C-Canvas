@@ -338,6 +338,11 @@ namespace ImageColorChanger.UI
 
         private async Task PersistTextElementsAsync(IEnumerable<DraggableTextBox> sourceTextBoxes = null)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                throw new UnauthorizedAccessException("幻灯片功能未授权");
+            }
+
             if (_textElementPersistenceService == null)
             {
                 throw new InvalidOperationException("文本持久化服务未初始化");
@@ -354,6 +359,17 @@ namespace ImageColorChanger.UI
             bool saveThumbnail = false,
             CancellationToken cancellationToken = default)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return TextEditorSaveResult.Failure(
+                    trigger,
+                    new UnauthorizedAccessException("幻灯片功能未授权"),
+                    textElementsSaved: false,
+                    additionalStateSaved: false,
+                    thumbnailSaved: false,
+                    thumbnailPath: null);
+            }
+
             var snapshots = CaptureTextBoxSnapshotsForSave(sourceTextBoxes);
 
             if (_textEditorSaveOrchestrator == null)

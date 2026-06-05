@@ -68,16 +68,52 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         }
 
         [Theory]
-        [InlineData(false, false, false, "字幕", "打开 AI字幕 (F4)", false)]
-        [InlineData(true, true, true, "字幕", "AI字幕运行中 (F4)", true)]
-        [InlineData(true, true, false, "字幕", "AI字幕运行中 (F4)", true)]
-        public void BuildAiCaptionButtonState_ReflectsRealtimeAndOverlayState(bool realtimeEnabled, bool engineRunning, bool overlayVisible, string text, string tooltip, bool active)
+        [InlineData(false, false, false, true, null, "字幕", "打开 AI字幕 (F4)", false, true)]
+        [InlineData(true, true, true, true, null, "字幕", "AI字幕运行中 (F4)", true, true)]
+        [InlineData(true, true, false, true, null, "字幕", "AI字幕运行中 (F4)", true, true)]
+        [InlineData(false, false, false, false, "功能未开通", "字幕", "功能未开通", false, false)]
+        public void BuildAiCaptionButtonState_ReflectsRealtimeAndAuthorizationState(
+            bool realtimeEnabled,
+            bool engineRunning,
+            bool overlayVisible,
+            bool featureAllowed,
+            string deniedTooltip,
+            string text,
+            string tooltip,
+            bool active,
+            bool enabled)
         {
-            var state = MainWindow.BuildAiCaptionButtonStateForTest(realtimeEnabled, engineRunning, overlayVisible);
+            var state = MainWindow.BuildAiCaptionButtonStateForTest(
+                realtimeEnabled,
+                engineRunning,
+                overlayVisible,
+                featureAllowed,
+                deniedTooltip);
 
             Assert.Equal(text, state.Text);
             Assert.Equal(tooltip, state.ToolTip);
             Assert.Equal(active, state.IsActive);
+            Assert.Equal(enabled, state.IsEnabled);
+        }
+
+        [Theory]
+        [InlineData(false, false, false)]
+        [InlineData(true, false, true)]
+        [InlineData(false, true, true)]
+        [InlineData(true, true, true)]
+        public void BuildAiPlatformMenuState_IsEnabledWhenAnyAiEntryIsAvailable(
+            bool aiPanelAllowed,
+            bool aiCaptionAllowed,
+            bool expectedEnabled)
+        {
+            var state = MainWindow.BuildAiPlatformMenuStateForTest(
+                aiPanelAllowed,
+                "AI面板不可用",
+                aiCaptionAllowed,
+                "AI字幕不可用");
+
+            Assert.Equal(expectedEnabled, state.IsEnabled);
+            Assert.Equal(expectedEnabled ? null : "功能未开通", state.ToolTip);
         }
 
         [Fact]

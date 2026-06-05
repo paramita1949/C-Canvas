@@ -524,6 +524,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task<bool> ReorderSlides(Slide sourceSlide, Slide targetSlide, bool insertAfterTarget)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return false;
+            }
+
             if (_isReorderingSlides || _currentTextProject == null || sourceSlide == null || targetSlide == null)
             {
                 return false;
@@ -1105,6 +1110,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                if (!TryRequireSlidesFeature())
+                {
+                    return;
+                }
+
                 // [缩略图调试] 输出幻灯片信息和缩略图路径
                 //System.Diagnostics.Debug.WriteLine($"\n========== [缩略图调试] ==========");
                 //System.Diagnostics.Debug.WriteLine($" 幻灯片ID: {slide.Id}");
@@ -1268,6 +1278,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnAddSlide_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
                 return;
 
@@ -1313,6 +1326,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnCopySlide_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (SlideListBox.SelectedItem is not Slide sourceSlide)
             {
                 WpfMessageBox.Show("请先选择要复制的幻灯片", "提示", 
@@ -1376,6 +1392,9 @@ namespace ImageColorChanger.UI
 
         private async void BtnPasteSlide_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
             {
                 WpfMessageBox.Show("请先打开目标项目", "提示",
@@ -1450,6 +1469,11 @@ namespace ImageColorChanger.UI
 
         private async Task<Slide> PasteSlideFromClipboardAsync()
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return null;
+            }
+
             if (_slideClipboardData == null || _slideClipboardData.SlideTemplate == null || _currentTextProject == null)
             {
                 return null;
@@ -1559,6 +1583,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void BtnDeleteSlide_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_isDeletingSlide)
                 return;
 
@@ -1695,6 +1722,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task LoadSlideList()
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
                 return;
 
@@ -1743,6 +1773,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task NormalizeSlideSortOrdersIfNeededAsync(int projectId)
         {
+            if (!TryRequireSlidesFeature())
+            {
+                return;
+            }
+
             if (_isNormalizingSlideSortOrder || projectId <= 0)
             {
                 return;
@@ -1795,6 +1830,9 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async Task RefreshSlideList()
         {
+            if (!TryRequireSlidesFeature())
+                return;
+
             if (_currentTextProject == null)
                 return;
 

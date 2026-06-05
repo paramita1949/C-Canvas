@@ -332,11 +332,21 @@ namespace ImageColorChanger.UI
 
         private void BtnLiveCaptionMic_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                return;
+            }
+
             StartLiveCaption(LiveCaptionAudioSource.Microphone);
         }
 
         private void BtnLiveCaptionSystem_Click(object sender, RoutedEventArgs e)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                return;
+            }
+
             StartLiveCaption(LiveCaptionAudioSource.SystemLoopback);
         }
 
@@ -356,23 +366,35 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                return;
+            }
+
             _configManager.LiveCaptionRealtimeEnabled = true;
             StartLiveCaption(_liveCaptionCurrentSource);
         }
 
-        public static (string Text, string ToolTip, bool IsActive) BuildAiCaptionButtonStateForTest(
+        public static (string Text, string ToolTip, bool IsActive, bool IsEnabled) BuildAiCaptionButtonStateForTest(
             bool realtimeEnabled,
             bool engineRunning,
-            bool overlayVisible)
+            bool overlayVisible,
+            bool featureAllowed = true,
+            string deniedToolTip = null)
         {
+            if (!featureAllowed)
+            {
+                return ("字幕", string.IsNullOrWhiteSpace(deniedToolTip) ? "功能未开通" : deniedToolTip, false, false);
+            }
+
             bool active = realtimeEnabled && engineRunning;
             _ = overlayVisible;
             if (!active)
             {
-                return ("字幕", "打开 AI字幕 (F4)", false);
+                return ("字幕", "打开 AI字幕 (F4)", false, true);
             }
 
-            return ("字幕", "AI字幕运行中 (F4)", true);
+            return ("字幕", "AI字幕运行中 (F4)", true, true);
         }
 
         private bool IsLiveCaptionRealtimeConnected()
@@ -396,13 +418,32 @@ namespace ImageColorChanger.UI
             var state = BuildAiCaptionButtonStateForTest(
                 _configManager?.LiveCaptionRealtimeEnabled == true,
                 _liveCaptionEngine?.IsRunning == true,
-                _liveCaptionOverlayWindow?.IsVisible == true);
+                _liveCaptionOverlayWindow?.IsVisible == true,
+                TryGetPremiumFeatureUiState(Services.Licensing.PremiumFeature.LiveCaption, out string deniedToolTip),
+                deniedToolTip);
 
             if (BtnAiCaptionText != null)
             {
                 BtnAiCaptionText.Text = state.Text;
             }
             BtnAiCaption.ToolTip = state.ToolTip;
+            BtnAiCaption.IsEnabled = state.IsEnabled;
+            ToolTipService.SetShowOnDisabled(BtnAiCaption, !state.IsEnabled);
+
+            if (!state.IsEnabled)
+            {
+                BtnAiCaption.Opacity = 0.48;
+                BtnAiCaption.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF1, 0xF3, 0xF5));
+                BtnAiCaption.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD6, 0xDA, 0xDE));
+                BtnAiCaption.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x99, 0xA1, 0xAA));
+                if (BtnAiCaptionIcon != null)
+                {
+                    BtnAiCaptionIcon.Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x99, 0xA1, 0xAA));
+                }
+                return;
+            }
+
+            BtnAiCaption.ClearValue(UIElement.OpacityProperty);
 
             if (state.IsActive)
             {
@@ -510,6 +551,11 @@ namespace ImageColorChanger.UI
 
         private async void StartLiveCaption(LiveCaptionAudioSource source)
         {
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                return;
+            }
+
             var sw = System.Diagnostics.Stopwatch.StartNew();
             EnsureLiveCaptionComponents();
             LiveCaptionDebugLogger.Log($"StartPerf: ensure-components={sw.ElapsedMilliseconds}ms");
@@ -637,6 +683,14 @@ namespace ImageColorChanger.UI
         private async void OnRealtimeRecognitionToggleRequested(bool enabled)
         {
             LogRealtimeCaption($"RecognitionToggle: enabled={enabled}");
+            if (enabled && !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                _configManager.LiveCaptionRealtimeEnabled = false;
+                _liveCaptionOverlayWindow?.SetRecognitionToggleStates(false, _configManager.LiveCaptionShortPhraseEnabled);
+                SyncAiCaptionUiState();
+                return;
+            }
+
             _configManager.LiveCaptionRealtimeEnabled = enabled;
             await ApplyRecognitionStateAsync();
         }
@@ -644,6 +698,13 @@ namespace ImageColorChanger.UI
         private async void OnShortPhraseRecognitionToggleRequested(bool enabled)
         {
             LogShortPhraseCaption($"RecognitionToggle: enabled={enabled}");
+            if (enabled && !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                _configManager.LiveCaptionShortPhraseEnabled = false;
+                _liveCaptionOverlayWindow?.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, false);
+                return;
+            }
+
             _configManager.LiveCaptionShortPhraseEnabled = enabled;
             await ApplyRecognitionStateAsync();
         }
@@ -662,6 +723,32 @@ namespace ImageColorChanger.UI
             SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow?.SetRecognitionToggleStates(realtimeEnabled, shortEnabled);
             UpdateLiveCaptionIdleShutdownWatcherState(realtimeEnabled, shortEnabled);
+
+            if ((realtimeEnabled || shortEnabled) &&
+                !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                LiveCaptionDebugLogger.Log("RecognitionState: premium.live_caption denied, stopping consumers and shared capture.");
+                _configManager.LiveCaptionRealtimeEnabled = false;
+                _configManager.LiveCaptionShortPhraseEnabled = false;
+                _liveCaptionOverlayWindow?.SetRecognitionToggleStates(false, false);
+                UpdateLiveCaptionIdleShutdownWatcherState(realtimeEnabled: false, shortPhraseEnabled: false);
+                _liveCaptionEngine?.Stop();
+                if (_bibleShortPhraseRuntime?.IsRunning == true)
+                {
+                    await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                }
+                _sharedAudioCaptureSession?.Stop();
+                _liveCaptionProjectionCaptionHidden = true;
+                _liveCaptionComposer.Reset();
+                _liveCaptionNdiComposer.Reset();
+                _projectionManager?.HideProjectionCaptionOverlay();
+                _ndiRouter?.PushCaptionIdleFrame();
+                StopProjectionNdiSenderIfUnused();
+                UpdateLiveCaptionProjectionActionState();
+                UpdateLiveCaptionNdiActionState();
+                SyncAiCaptionUiState();
+                return;
+            }
 
             if (!realtimeEnabled && !shortEnabled)
             {
@@ -2234,6 +2321,16 @@ namespace ImageColorChanger.UI
         {
             try
             {
+                bool nextHidden = !_liveCaptionProjectionCaptionHidden;
+                if (!nextHidden &&
+                    !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption))
+                {
+                    _liveCaptionProjectionCaptionHidden = true;
+                    UpdateLiveCaptionProjectionActionState();
+                    _projectionManager?.HideProjectionCaptionOverlay();
+                    return;
+                }
+
                 _liveCaptionProjectionCaptionHidden = !_liveCaptionProjectionCaptionHidden;
                 UpdateLiveCaptionProjectionActionState();
                 if (_liveCaptionProjectionCaptionHidden)
@@ -2280,6 +2377,19 @@ namespace ImageColorChanger.UI
                 }
 
                 bool nextEnabled = !IsLiveCaptionNdiEnabled();
+                if (nextEnabled)
+                {
+                    if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption) ||
+                        !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
+                    {
+                        _configManager.LiveCaptionNdiEnabled = false;
+                        UpdateLiveCaptionNdiActionState();
+                        _ndiRouter?.PushCaptionIdleFrame();
+                        StopProjectionNdiSenderIfUnused();
+                        return;
+                    }
+                }
+
                 _configManager.LiveCaptionNdiEnabled = nextEnabled;
                 if (nextEnabled)
                 {
@@ -2304,6 +2414,12 @@ namespace ImageColorChanger.UI
         private void UpdateLiveCaptionProjectionCaption(string captionText, int? highlightStart = null)
         {
             string next = captionText ?? string.Empty;
+
+            if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                _projectionManager?.HideProjectionCaptionOverlay();
+                return;
+            }
 
             if (_projectionManager?.IsProjectionActive != true)
             {
@@ -2335,6 +2451,14 @@ namespace ImageColorChanger.UI
         {
             if (_ndiRouter == null || _configManager?.LiveCaptionNdiEnabled != true)
             {
+                return;
+            }
+
+            if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.LiveCaption) ||
+                !IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.Ndi))
+            {
+                _ndiRouter.PushCaptionIdleFrame();
+                StopProjectionNdiSenderIfUnused();
                 return;
             }
 
@@ -2606,6 +2730,12 @@ namespace ImageColorChanger.UI
 
         internal void SyncLiveCaptionProjectionCaptionForProjectionState(bool isProjectionActive)
         {
+            if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.LiveCaption))
+            {
+                _projectionManager?.HideProjectionCaptionOverlay();
+                return;
+            }
+
             if (!isProjectionActive)
             {
                 _projectionManager?.HideProjectionCaptionOverlay();
