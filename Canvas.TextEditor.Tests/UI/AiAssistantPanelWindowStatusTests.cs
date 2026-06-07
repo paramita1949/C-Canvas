@@ -116,6 +116,21 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
             Assert.Equal(expectedEnabled ? null : "功能未开通", state.ToolTip);
         }
 
+        [Theory]
+        [InlineData(null, false, false)]
+        [InlineData(null, true, false)]
+        [InlineData(false, false, false)]
+        [InlineData(false, true, true)]
+        [InlineData(true, false, true)]
+        [InlineData(true, true, false)]
+        public void ShouldReloadSlidesProjectTreeForTest_ReloadsOnlyWhenKnownAuthorizationStateChanges(
+            bool? previousAllowed,
+            bool currentAllowed,
+            bool expected)
+        {
+            Assert.Equal(expected, MainWindow.ShouldReloadSlidesProjectTreeForTest(previousAllowed, currentAllowed));
+        }
+
         [Fact]
         public void BuildMessageHeader_AssistantDetailedStream_UsesVisibleTimestampAndLabel()
         {

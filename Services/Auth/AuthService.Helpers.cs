@@ -262,7 +262,7 @@ namespace ImageColorChanger.Services
         {
             UpdateServerTimeBaseline(data?.ServerTimeString);
             ApplyAuthData(data);
-            SaveSignedLicenseFromServer(data?.License, source);
+            bool signedLicenseUpdated = SaveSignedLicenseFromServer(data?.License, source);
             TryShowHolidayBonusNotification(data?.HolidayBonus);
             TryShowClientNotices(data, source);
 
@@ -274,6 +274,15 @@ namespace ImageColorChanger.Services
             if (persistLocalCache)
             {
                 RequestPersistAuthData();
+            }
+
+            if (signedLicenseUpdated)
+            {
+                AuthenticationChanged?.Invoke(this, new AuthenticationChangedEventArgs
+                {
+                    IsAuthenticated = _isAuthenticated,
+                    IsAutoLogin = false
+                });
             }
         }
 
@@ -321,11 +330,11 @@ namespace ImageColorChanger.Services
             _deviceInfo = MapDeviceInfo(authData.DeviceInfo);
         }
 
-        private void SaveSignedLicenseFromServer(SignedLicenseEnvelope license, string source)
+        private bool SaveSignedLicenseFromServer(SignedLicenseEnvelope license, string source)
         {
             if (license == null)
             {
-                return;
+                return false;
             }
 
             if (string.IsNullOrWhiteSpace(license.PayloadJson) ||
@@ -336,7 +345,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 忽略不完整授权: source={source}");
 #endif
-                return;
+                return false;
             }
 
             try
@@ -345,6 +354,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 已保存服务端签名授权: source={source}, key={license.KeyId}, alg={license.Algorithm}");
 #endif
+                return true;
             }
             catch (Exception ex)
             {
@@ -353,6 +363,7 @@ namespace ImageColorChanger.Services
 #else
                 _ = ex;
 #endif
+                return false;
             }
         }
 

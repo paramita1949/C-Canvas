@@ -7,6 +7,8 @@ namespace ImageColorChanger.UI
 {
     public partial class MainWindow : Window
     {
+        private bool? _lastSlidesFeatureAllowedForProjectTree;
+
         private bool TryRequirePremiumFeature(PremiumFeature feature)
         {
             try
@@ -120,6 +122,11 @@ namespace ImageColorChanger.UI
             return (false, "功能未开通");
         }
 
+        public static bool ShouldReloadSlidesProjectTreeForTest(bool? previousAllowed, bool currentAllowed)
+        {
+            return previousAllowed.HasValue && previousAllowed.Value != currentAllowed;
+        }
+
         private void ApplyAiPlatformMenuState(MenuItem aiPlatformItem)
         {
             if (aiPlatformItem == null)
@@ -142,9 +149,34 @@ namespace ImageColorChanger.UI
 
         private void RefreshPremiumFeatureUi()
         {
+            bool slidesAllowed = IsPremiumFeatureAllowed(PremiumFeature.Slides);
+            bool shouldReloadSlidesProjectTree = ShouldReloadSlidesProjectTreeForTest(
+                _lastSlidesFeatureAllowedForProjectTree,
+                slidesAllowed);
+            _lastSlidesFeatureAllowedForProjectTree = slidesAllowed;
+
             SyncAiCaptionUiState();
             ApplyPremiumButtonState(BtnShowProjects, PremiumFeature.Slides, "幻灯片");
             ApplyTextEditorPremiumUiState();
+
+            if (shouldReloadSlidesProjectTree)
+            {
+                ReloadProjectsAfterSlidesAuthorizationChanged();
+            }
+        }
+
+        private void ReloadProjectsAfterSlidesAuthorizationChanged()
+        {
+            if (_projectTreeItems == null || ProjectTree == null)
+            {
+                return;
+            }
+
+            TreeItemType? preferredType = _currentTextProject?.Id > 0
+                ? TreeItemType.TextProject
+                : null;
+            int preferredId = _currentTextProject?.Id ?? 0;
+            ReloadProjectsPreservingTreeState(preferredType, preferredId);
         }
 
         private void ApplyTextEditorPremiumUiState()
