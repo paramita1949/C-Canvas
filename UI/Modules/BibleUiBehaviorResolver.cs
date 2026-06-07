@@ -210,5 +210,12 @@ namespace ImageColorChanger.UI.Modules
             double centeredOffset = clampedIndex * safeItemHeight - Math.Max(0, safeViewportHeight - safeItemHeight) / 2;
             return Math.Max(0, centeredOffset);
         }
+
+        public static bool ShouldCloseHistoryPreviewAfterLeave(
+            bool isHistoryItemMouseOver,
+            bool isPreviewPopupMouseOver)
+        {
+            return !isHistoryItemMouseOver && !isPreviewPopupMouseOver;
+        }
     }
 }

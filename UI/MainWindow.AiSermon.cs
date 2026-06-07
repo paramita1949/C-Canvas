@@ -159,7 +159,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerRenameRequested += (oldName, newName) => _ = RenameAiSpeakerAsync(oldName, newName);
-            _aiAssistantPanelWindow.ScriptureCorrectionSubmitted += correction => _ = SubmitAiScriptureCorrectionAsync(correction);
+            _aiAssistantPanelWindow.ManualContextSubmitted += context => _ = SubmitAiManualContextAsync(context);
             _aiAssistantPanelWindow.EndSessionRequested += EndAiSermonSessionFromPanelAsync;
             _aiAssistantPanelWindow.OutputModeChanged += mode =>
             {
@@ -442,11 +442,11 @@ namespace ImageColorChanger.UI
             ShowStatus("AI本场已结束，消耗已写入历史。");
         }
 
-        private async Task SubmitAiScriptureCorrectionAsync(string correction)
+        private async Task SubmitAiManualContextAsync(string context)
         {
             EnsureAiSermonCoordinator();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-            await _aiSermonCoordinator.SendScriptureCorrectionAsync(correction, cts.Token);
+            await _aiSermonCoordinator.SendManualContextAsync(context, cts.Token);
         }
 
         private async Task ApplyAiSpeakerAsync(string speaker)

@@ -45,6 +45,7 @@ namespace ImageColorChanger.UI
         private bool _isProjectionVersePreviewActive;
         private TaskCompletionSource<bool> _projectionVersePreviewTcs;
         private UI.Controls.BiblePinyinHintControl _projectionVersePreviewControl;
+        private string _projectionVersePreviewAiContext = string.Empty;
 
         private bool HasAnyBibleVersePopupVisible()
         {
@@ -77,7 +78,8 @@ namespace ImageColorChanger.UI
                 }
 
                 string previewContent = FormatVerseWithNumbers(verses);
-                bool confirmed = await ShowBibleProjectionPreviewLikeTabAsync(reference, previewContent);
+                string aiContext = BuildProjectionVersePreviewManualContext(book.Name, chapter, startVerse, endVerse);
+                bool confirmed = await ShowBibleProjectionPreviewLikeTabAsync(reference, previewContent, aiContext);
                 if (!confirmed)
                 {
                     return;
@@ -131,7 +133,10 @@ namespace ImageColorChanger.UI
             ShowMainBibleVersePopup(reference, content, config, popupAutoHideSeconds);
         }
 
-        private async Task<bool> ShowBibleProjectionPreviewLikeTabAsync(string reference, string previewContent)
+        private async Task<bool> ShowBibleProjectionPreviewLikeTabAsync(
+            string reference,
+            string previewContent,
+            string aiContext)
         {
             var hintControl = TextEditorBiblePinyinHintControl ?? BiblePinyinHintControl;
             if (hintControl == null)
@@ -159,11 +164,13 @@ namespace ImageColorChanger.UI
             hintControl.SetConfirmActionsVisible(true, "确认投影", "取消");
 
             _projectionVersePreviewControl = hintControl;
+            _projectionVersePreviewAiContext = aiContext ?? string.Empty;
             _projectionVersePreviewTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _isProjectionVersePreviewActive = true;
             PreviewKeyDown += MainWindow_ProjectionVersePreview_PreviewKeyDown;
             PreviewMouseDown += MainWindow_ProjectionVersePreview_PreviewMouseDown;
             _projectionVersePreviewControl.ConfirmActionRequested += MainWindow_ProjectionVersePreview_ConfirmActionRequested;
+            _projectionVersePreviewControl.SendAiRequested += MainWindow_ProjectionVersePreview_SendAiRequested;
 
             Focus();
             Keyboard.Focus(this);
@@ -190,6 +197,40 @@ namespace ImageColorChanger.UI
             }
 
             _projectionVersePreviewTcs.TrySetResult(confirmed);
+        }
+
+        private void MainWindow_ProjectionVersePreview_SendAiRequested()
+        {
+            if (!_isProjectionVersePreviewActive)
+            {
+                return;
+            }
+
+            _ = SendProjectionVersePreviewToAiAsync();
+        }
+
+        private async Task SendProjectionVersePreviewToAiAsync()
+        {
+            string context = BuildProjectionVersePreviewManualContext(
+                _projectionVersePreviewAiContext);
+            if (string.IsNullOrWhiteSpace(context))
+            {
+                ShowStatus("没有可发送给AI的经文预览内容");
+                return;
+            }
+
+            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            {
+                return;
+            }
+
+            EnsureAiSermonPanel();
+            EnsureAiSermonCoordinator();
+            _aiAssistantPanelWindow?.Show();
+            _aiAssistantPanelWindow?.Activate();
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(45));
+            await _aiSermonCoordinator.SendManualContextAsync(context, cts.Token);
+            ShowStatus("已发送经文预览给AI");
         }
 
         private void MainWindow_ProjectionVersePreview_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -241,12 +282,46 @@ namespace ImageColorChanger.UI
             if (_projectionVersePreviewControl != null)
             {
                 _projectionVersePreviewControl.ConfirmActionRequested -= MainWindow_ProjectionVersePreview_ConfirmActionRequested;
+                _projectionVersePreviewControl.SendAiRequested -= MainWindow_ProjectionVersePreview_SendAiRequested;
                 _projectionVersePreviewControl.SetConfirmActionsVisible(false);
             }
             _projectionVersePreviewControl?.Hide();
             _projectionVersePreviewControl = null;
+            _projectionVersePreviewAiContext = string.Empty;
             _projectionVersePreviewTcs = null;
             _isProjectionVersePreviewActive = false;
+        }
+
+        internal static string BuildProjectionVersePreviewManualContextForTest(
+            string bookName,
+            int chapter,
+            int startVerse,
+            int endVerse)
+        {
+            return BuildProjectionVersePreviewManualContext(bookName, chapter, startVerse, endVerse);
+        }
+
+        private static string BuildProjectionVersePreviewManualContext(
+            string bookName,
+            int chapter,
+            int startVerse,
+            int endVerse)
+        {
+            string safeBookName = (bookName ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(safeBookName) || chapter <= 0 || startVerse <= 0)
+            {
+                return string.Empty;
+            }
+
+            return endVerse > startVerse
+                ? $"{safeBookName}{chapter} {startVerse} {endVerse}"
+                : $"{safeBookName}{chapter} {startVerse}";
+        }
+
+        private static string BuildProjectionVersePreviewManualContext(string compactReference)
+        {
+            string value = (compactReference ?? string.Empty).Trim();
+            return value;
         }
 
         internal bool TryHandleProjectionVersePreviewConfirmCancelByKey(Key key)

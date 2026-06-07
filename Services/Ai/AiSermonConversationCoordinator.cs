@@ -400,24 +400,24 @@ namespace ImageColorChanger.Services.Ai
             return SendVisibleUserMessageAsync("user", text, cancellationToken);
         }
 
-        public Task SendScriptureCorrectionAsync(string text, CancellationToken cancellationToken = default)
+        public Task SendManualContextAsync(string text, CancellationToken cancellationToken = default)
         {
             if (!CanUseAiPanel())
             {
                 return Task.CompletedTask;
             }
 
-            string correction = (text ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(correction))
+            string supplement = (text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(supplement))
             {
-                StatusChanged?.Invoke("请输入需要修正的经文线索");
+                StatusChanged?.Invoke("请输入需要补充的本场线索");
                 return Task.CompletedTask;
             }
 
-            AppendHistoricalSignal($"人工经文修正: {NormalizeSignal(correction)}");
+            AppendHistoricalSignal($"人工补充线索: {NormalizeSignal(supplement)}");
             return SendVisibleUserMessageAsync(
-                "scripture_correction",
-                BuildScriptureCorrectionPrompt(correction),
+                "manual_context",
+                BuildManualContextPrompt(supplement),
                 cancellationToken);
         }
 
@@ -815,15 +815,15 @@ namespace ImageColorChanger.Services.Ai
             return $"raw_asr_window_version:{snapshot.Version}\nraw_asr_window:\n{text}";
         }
 
-        private static string BuildScriptureCorrectionPrompt(string correction)
+        private static string BuildManualContextPrompt(string supplement)
         {
             return
-                "这是人工修正/补充的经文识别线索。\n" +
-                "请结合今日幻灯片上下文、最近 ASR、已确认经文历史和传道人表达习惯，判断它是否指向圣经经文。\n" +
-                "如果能明确或合理推测经文，请优先调用 propose_scripture_candidate。\n" +
-                "不要长篇解释，不要声称已经写入历史；无法判断时只简短说明不确定。\n\n" +
-                "人工修正：\n" +
-                correction;
+                "这是人工补充的本场讲道线索，可能是主题说明、讲员刚才表达、ASR纠错、经文纠错或上下文补充。\n" +
+                "请结合今日幻灯片上下文、最近 ASR、已确认经文历史和传道人表达习惯，更新对当前讲道内容的理解。\n" +
+                "如果补充内容能明确或合理推测经文，请优先调用 propose_scripture_candidate。\n" +
+                "如果只是主题或上下文补充，请简短反馈当前理解，不要强行猜测经文，不要声称已经写入历史。\n\n" +
+                "人工补充：\n" +
+                supplement;
         }
 
         private static string BuildStableProjectContext(AiSermonSessionState session)

@@ -138,5 +138,17 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
 
             Assert.Matches(new Regex(@"^\d{2}:\d{2}:\d{2} \[摘要\]$"), header);
         }
+
+        [Fact]
+        public void BuildProjectionVersePreviewManualContextForTest_UsesCompactReferenceExpression()
+        {
+            string text = MainWindow.BuildProjectionVersePreviewManualContextForTest(
+                "马太福音",
+                1,
+                12,
+                15);
+
+            Assert.Equal("马太福音1 12 15", text);
+        }
     }
 }

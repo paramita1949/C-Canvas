@@ -254,5 +254,22 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
 
             Assert.True(actual >= 900);
         }
+
+        [Theory]
+        [InlineData(false, false, true)]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, false)]
+        [InlineData(true, true, false)]
+        public void ShouldCloseHistoryPreviewAfterLeave_ClosesOnlyWhenItemAndPopupAreBothInactive(
+            bool isHistoryItemMouseOver,
+            bool isPreviewPopupMouseOver,
+            bool expected)
+        {
+            bool actual = BibleUiBehaviorResolver.ShouldCloseHistoryPreviewAfterLeave(
+                isHistoryItemMouseOver,
+                isPreviewPopupMouseOver);
+
+            Assert.Equal(expected, actual);
+        }
     }
 }

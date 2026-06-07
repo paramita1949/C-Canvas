@@ -674,7 +674,7 @@
                                AllowsTransparency="True"
                                StaysOpen="True"
                                Focusable="False"
-                               IsHitTestVisible="False"
+                               IsHitTestVisible="True"
                                PopupAnimation="Fade">
                             <Border Background="#EE101828"
                                     BorderBrush="#335D6B84"
@@ -682,7 +682,9 @@
                                     CornerRadius="12"
                                     Padding="14"
                                     Width="430"
-                                    SnapsToDevicePixels="True">
+                                    SnapsToDevicePixels="True"
+                                    MouseEnter="BibleHistoryPreviewPopup_MouseEnter"
+                                    MouseLeave="BibleHistoryPreviewPopup_MouseLeave">
                                 <StackPanel>
                                     <TextBlock x:Name="BibleHistoryPreviewReferenceText"
                                                Text=""

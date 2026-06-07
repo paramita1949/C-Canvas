@@ -760,7 +760,7 @@
                 </Grid>
             </Border>
 
-            <Border x:Name="ScriptureCorrectionGrid"
+            <Border x:Name="ManualContextGrid"
                     Grid.Row="3"
                     Margin="0,8,0,0"
                     Background="#74101F30"
@@ -775,13 +775,13 @@
                     </Grid.ColumnDefinitions>
                     <Grid Grid.Column="0"
                           Margin="0,0,8,0">
-                        <TextBox x:Name="ScriptureCorrectionTextBox"
+                        <TextBox x:Name="ManualContextTextBox"
                                  Style="{StaticResource HudCorrectionTextBoxStyle}"
-                                 ToolTip="手动修正经文识别，Ctrl+Enter发送，回车换行"
-                                 TextChanged="ScriptureCorrectionTextBox_TextChanged"
-                                 KeyDown="ScriptureCorrectionTextBox_KeyDown"/>
-                        <TextBlock x:Name="ScriptureCorrectionPlaceholder"
-                                   Text="修正经文识别，例如：刚才不是约翰福音3:16，是罗马书8:28"
+                                 ToolTip="补充本场主题、讲员表达或经文修正，Ctrl+Enter发送，回车换行"
+                                 TextChanged="ManualContextTextBox_TextChanged"
+                                 KeyDown="ManualContextTextBox_KeyDown"/>
+                        <TextBlock x:Name="ManualContextPlaceholder"
+                                   Text="补充本场线索，例如：讲员刚才在讲家庭与下一代，也可修正经文"
                                    Foreground="#739FC0D6"
                                    FontSize="11"
                                    VerticalAlignment="Center"
@@ -792,21 +792,10 @@
                     <Button Grid.Column="1"
                             Content="发送"
                             Style="{StaticResource HudCorrectionSendButtonStyle}"
-                            Click="ScriptureCorrectionSendButton_Click"/>
+                            Click="ManualContextSendButton_Click"/>
                 </Grid>
             </Border>
 
-            <Grid x:Name="FooterHintGrid" Grid.Row="4" Margin="0,8,0,0">
-                <TextBlock Text="拖动空白处移动 · 右下角缩放"
-                           Foreground="#7FA8C0"
-                           FontSize="10"
-                           VerticalAlignment="Center"/>
-                <primitives:ResizeGrip Width="16"
-                                        Height="16"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Bottom"
-                                        Opacity="0.65"/>
-            </Grid>
         </Grid>
     </Border>
 </Window>

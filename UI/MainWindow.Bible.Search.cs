@@ -370,8 +370,32 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            await CloseBibleHistoryPreviewAfterLeaveAsync();
+        }
+
+        private void BibleHistoryPreviewPopup_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_configManager.BibleHistoryHoverPreviewEnabled)
+            {
+                return;
+            }
+
             CancelBibleHistoryPreviewPendingTask();
-            _bibleHistoryPreviewPendingItem = null;
+        }
+
+        private async void BibleHistoryPreviewPopup_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (!_configManager.BibleHistoryHoverPreviewEnabled)
+            {
+                return;
+            }
+
+            await CloseBibleHistoryPreviewAfterLeaveAsync();
+        }
+
+        private async Task CloseBibleHistoryPreviewAfterLeaveAsync()
+        {
+            CancelBibleHistoryPreviewPendingTask();
             _bibleHistoryPreviewCts = new System.Threading.CancellationTokenSource();
             var token = _bibleHistoryPreviewCts.Token;
 
@@ -383,7 +407,14 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                HideBibleHistoryPreviewPopup();
+                bool isItemMouseOver = BibleHistoryPreviewPopup?.PlacementTarget is FrameworkElement target &&
+                                       target.IsMouseOver;
+                bool isPopupMouseOver = BibleHistoryPreviewPopup?.Child is FrameworkElement child &&
+                                        child.IsMouseOver;
+                if (BibleUiBehaviorResolver.ShouldCloseHistoryPreviewAfterLeave(isItemMouseOver, isPopupMouseOver))
+                {
+                    HideBibleHistoryPreviewPopup();
+                }
             }
             catch (TaskCanceledException)
             {

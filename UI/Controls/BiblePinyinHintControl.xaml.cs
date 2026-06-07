@@ -50,6 +50,7 @@ namespace ImageColorChanger.UI.Controls
 
         public event Action<int, int> PreviewVerseRangeConfirmed;
         public event Action<bool> ConfirmActionRequested;
+        public event Action SendAiRequested;
 
         private sealed class PreviewVerseItem
         {
@@ -598,6 +599,12 @@ namespace ImageColorChanger.UI.Controls
         private void BtnPreviewCancel_Click(object sender, RoutedEventArgs e)
         {
             ConfirmActionRequested?.Invoke(false);
+            e.Handled = true;
+        }
+
+        private void BtnPreviewSendAi_Click(object sender, RoutedEventArgs e)
+        {
+            SendAiRequested?.Invoke();
             e.Handled = true;
         }
 

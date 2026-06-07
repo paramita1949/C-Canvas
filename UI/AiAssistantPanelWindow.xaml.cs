@@ -43,7 +43,7 @@ namespace ImageColorChanger.UI
         public event Action<string, string> SpeakerRenameRequested;
         public event Action<string> OutputModeChanged;
         public event Action<string> ModelChanged;
-        public event Action<string> ScriptureCorrectionSubmitted;
+        public event Action<string> ManualContextSubmitted;
         public event Action<bool, IReadOnlyList<string>> DialectSchemeChanged;
         public event Func<Task> EndSessionRequested;
         public event Action HistoryRequested;
@@ -316,13 +316,13 @@ namespace ImageColorChanger.UI
             string label = name switch
             {
                 "project_context" => "主题解读",
-                "scripture_correction" => "经文修正",
+                "manual_context" => "人工补充",
                 _ => "你"
             };
             string display = name switch
             {
                 "project_context" => "读取幻灯片项目，建立本场主题、经文范围和后续ASR理解上下文。",
-                "scripture_correction" => ExtractScriptureCorrectionDisplay(content),
+                "manual_context" => ExtractManualContextDisplay(content),
                 _ => content
             };
             AddMessage(label, display, "#8DEAFF");
@@ -847,8 +847,7 @@ namespace ImageColorChanger.UI
 
                 MetaSectionGrid.Visibility = Visibility.Collapsed;
                 MessageContainerBorder.Visibility = Visibility.Collapsed;
-                ScriptureCorrectionGrid.Visibility = Visibility.Collapsed;
-                FooterHintGrid.Visibility = Visibility.Collapsed;
+                ManualContextGrid.Visibility = Visibility.Collapsed;
                 CollapsedInfoGrid.Visibility = Visibility.Visible;
                 Height = CollapsedPanelHeight;
                 CollapseButton.Content = "▸";
@@ -861,8 +860,7 @@ namespace ImageColorChanger.UI
             MetaSectionGrid.Visibility = Visibility.Visible;
             MessageContainerBorder.Visibility = Visibility.Visible;
             _isCollapsed = false;
-            UpdateScriptureCorrectionVisibility();
-            FooterHintGrid.Visibility = Visibility.Visible;
+            UpdateManualContextVisibility();
             Height = Math.Max(_expandedHeight, 260);
             CollapseButton.Content = "▾";
             CollapseButton.ToolTip = "折叠";
@@ -899,7 +897,7 @@ namespace ImageColorChanger.UI
                 HistoryViewButton.IsChecked = showHistory;
                 RealtimeContentGrid.Visibility = showHistory ? Visibility.Collapsed : Visibility.Visible;
                 HistoryContentGrid.Visibility = showHistory ? Visibility.Visible : Visibility.Collapsed;
-                UpdateScriptureCorrectionVisibility();
+                UpdateManualContextVisibility();
             }
             finally
             {
@@ -1611,19 +1609,19 @@ namespace ImageColorChanger.UI
             RefreshMessageTextWidths();
         }
 
-        private void ScriptureCorrectionTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void ManualContextTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ScriptureCorrectionPlaceholder == null || ScriptureCorrectionTextBox == null)
+            if (ManualContextPlaceholder == null || ManualContextTextBox == null)
             {
                 return;
             }
 
-            ScriptureCorrectionPlaceholder.Visibility = string.IsNullOrWhiteSpace(ScriptureCorrectionTextBox.Text)
+            ManualContextPlaceholder.Visibility = string.IsNullOrWhiteSpace(ManualContextTextBox.Text)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }
 
-        private void ScriptureCorrectionTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void ManualContextTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key != Key.Enter || !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
@@ -1631,42 +1629,42 @@ namespace ImageColorChanger.UI
             }
 
             e.Handled = true;
-            SubmitScriptureCorrectionInput();
+            SubmitManualContextInput();
         }
 
-        private void ScriptureCorrectionSendButton_Click(object sender, RoutedEventArgs e)
+        private void ManualContextSendButton_Click(object sender, RoutedEventArgs e)
         {
-            SubmitScriptureCorrectionInput();
+            SubmitManualContextInput();
         }
 
-        private void SubmitScriptureCorrectionInput()
+        private void SubmitManualContextInput()
         {
-            if (ScriptureCorrectionTextBox == null)
+            if (ManualContextTextBox == null)
             {
                 return;
             }
 
-            string text = (ScriptureCorrectionTextBox.Text ?? string.Empty).Trim();
+            string text = (ManualContextTextBox.Text ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(text))
             {
-                AppendStatus("请输入需要修正的经文线索");
-                ScriptureCorrectionTextBox.Focus();
+                AppendStatus("请输入需要补充的本场线索");
+                ManualContextTextBox.Focus();
                 return;
             }
 
-            ScriptureCorrectionTextBox.Clear();
-            ScriptureCorrectionSubmitted?.Invoke(text);
+            ManualContextTextBox.Clear();
+            ManualContextSubmitted?.Invoke(text);
         }
 
-        private void UpdateScriptureCorrectionVisibility()
+        private void UpdateManualContextVisibility()
         {
-            if (ScriptureCorrectionGrid == null || HistoryContentGrid == null)
+            if (ManualContextGrid == null || HistoryContentGrid == null)
             {
                 return;
             }
 
             bool showHistory = HistoryContentGrid.Visibility == Visibility.Visible;
-            ScriptureCorrectionGrid.Visibility = (!_isCollapsed && !showHistory)
+            ManualContextGrid.Visibility = (!_isCollapsed && !showHistory)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }
@@ -1754,9 +1752,9 @@ namespace ImageColorChanger.UI
             return value.Substring(0, maxLength) + "...";
         }
 
-        private static string ExtractScriptureCorrectionDisplay(string content)
+        private static string ExtractManualContextDisplay(string content)
         {
-            const string marker = "人工修正：";
+            const string marker = "人工补充：";
             string value = (content ?? string.Empty).Trim();
             int index = value.LastIndexOf(marker, StringComparison.Ordinal);
             if (index >= 0)
@@ -1764,7 +1762,7 @@ namespace ImageColorChanger.UI
                 value = value.Substring(index + marker.Length).Trim();
             }
 
-            return string.IsNullOrWhiteSpace(value) ? "已提交人工经文修正" : value;
+            return string.IsNullOrWhiteSpace(value) ? "已提交人工补充线索" : value;
         }
 
         private void RefreshMessageTextWidths()
@@ -1910,5 +1908,3 @@ namespace ImageColorChanger.UI
         }
     }
 }
-
-
