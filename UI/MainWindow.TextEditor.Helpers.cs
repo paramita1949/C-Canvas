@@ -377,7 +377,7 @@ namespace ImageColorChanger.UI
                 throw new InvalidOperationException("文本保存编排服务未初始化。");
             }
 
-            return await _textEditorSaveOrchestrator.SaveAsync(
+            var result = await _textEditorSaveOrchestrator.SaveAsync(
                 new TextEditorSaveRequest
                 {
                     Trigger = trigger,
@@ -399,6 +399,12 @@ namespace ImageColorChanger.UI
                         : null
                 },
                 cancellationToken);
+            if (result.Succeeded)
+            {
+                QueueAiSermonProjectContextRefresh();
+            }
+
+            return result;
         }
 
         /// <summary>

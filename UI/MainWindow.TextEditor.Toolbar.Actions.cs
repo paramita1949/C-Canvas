@@ -100,6 +100,7 @@ namespace ImageColorChanger.UI
                 }
 
                 await _textProjectService.AddSlidesAsync(newSlides);
+                QueueAiSermonProjectContextRefresh();
 
                 SlideListBox.SelectionChanged -= SlideListBox_SelectionChanged;
                 foreach (var slide in newSlides)

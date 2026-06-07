@@ -222,6 +222,44 @@ namespace ImageColorChanger.Services.Ai
             await SendVisibleUserMessageAsync("project_context", prompt, cancellationToken).ConfigureAwait(false);
         }
 
+        public async Task<bool> RefreshActiveProjectContextAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            if (projectId <= 0 || _session == null || _session.ProjectId != projectId)
+            {
+                return false;
+            }
+
+            var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
+            await _sessionInitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_session == null || _session.ProjectId != projectId)
+                {
+                    return false;
+                }
+
+                bool changed =
+                    !string.Equals(_session.ProjectContext, context.ContextText, StringComparison.Ordinal) ||
+                    !string.Equals(_session.RuntimeContext, context.RuntimeContextText, StringComparison.Ordinal) ||
+                    !string.Equals(_session.ProjectName, context.ProjectName, StringComparison.Ordinal);
+                if (!changed)
+                {
+                    return false;
+                }
+
+                _session.ProjectName = context.ProjectName;
+                _session.ProjectContext = context.ContextText;
+                _session.RuntimeContext = context.RuntimeContextText;
+                AppendHistoricalSignal($"项目上下文已更新: {NormalizeSignal(context.ProjectName)}");
+                StatusChanged?.Invoke($"AI已同步幻灯片项目更新：{context.ProjectName}");
+                return true;
+            }
+            finally
+            {
+                _sessionInitLock.Release();
+            }
+        }
+
         public async Task SetSpeakerAsync(string speakerName, CancellationToken cancellationToken = default)
         {
             var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(speakerName)).ConfigureAwait(false);
@@ -360,6 +398,27 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return SendVisibleUserMessageAsync("user", text, cancellationToken);
+        }
+
+        public Task SendScriptureCorrectionAsync(string text, CancellationToken cancellationToken = default)
+        {
+            if (!CanUseAiPanel())
+            {
+                return Task.CompletedTask;
+            }
+
+            string correction = (text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(correction))
+            {
+                StatusChanged?.Invoke("请输入需要修正的经文线索");
+                return Task.CompletedTask;
+            }
+
+            AppendHistoricalSignal($"人工经文修正: {NormalizeSignal(correction)}");
+            return SendVisibleUserMessageAsync(
+                "scripture_correction",
+                BuildScriptureCorrectionPrompt(correction),
+                cancellationToken);
         }
 
         public Task SendAsrTurnAsync(AiAsrTurnEnvelope turn, CancellationToken cancellationToken = default)
@@ -754,6 +813,17 @@ namespace ImageColorChanger.Services.Ai
             }
 
             return $"raw_asr_window_version:{snapshot.Version}\nraw_asr_window:\n{text}";
+        }
+
+        private static string BuildScriptureCorrectionPrompt(string correction)
+        {
+            return
+                "这是人工修正/补充的经文识别线索。\n" +
+                "请结合今日幻灯片上下文、最近 ASR、已确认经文历史和传道人表达习惯，判断它是否指向圣经经文。\n" +
+                "如果能明确或合理推测经文，请优先调用 propose_scripture_candidate。\n" +
+                "不要长篇解释，不要声称已经写入历史；无法判断时只简短说明不确定。\n\n" +
+                "人工修正：\n" +
+                correction;
         }
 
         private static string BuildStableProjectContext(AiSermonSessionState session)

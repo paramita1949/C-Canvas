@@ -109,6 +109,56 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
+        public async Task RefreshActiveProjectContextAsync_WhenSlideContentChanges_UpdatesNextAsrContextWithoutSendingAiRequest()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-refresh-project-context-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var textProjects = new MutableTextProjectService();
+                var chat = new RecordingChatClient();
+                var scheduler = new AiRealtimeUnderstandingScheduler();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(textProjects),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    scheduler);
+
+                await coordinator.StartProjectAsync(7);
+                int requestCountAfterInitialRead = chat.Requests.Count;
+
+                textProjects.UpdateFirstSlideText("更新后的主题：罗马书八章二十八节");
+                bool refreshed = await coordinator.RefreshActiveProjectContextAsync(7, CancellationToken.None);
+
+                Assert.True(refreshed);
+                Assert.Equal(requestCountAfterInitialRead, chat.Requests.Count);
+
+                await coordinator.SendAsrTurnAsync(new AiAsrTurnEnvelope
+                {
+                    TurnId = "asr-after-refresh",
+                    Text = "我们现在来看刚才更新的主题",
+                    CapturedAt = DateTimeOffset.Now,
+                    IsFinal = true
+                });
+                await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
+
+                var latestRequest = chat.Requests.Last();
+                var projectContext = latestRequest.Messages.Single(message => message.Name == "project_context");
+                Assert.Contains("罗马书八章二十八节", projectContext.Content, StringComparison.Ordinal);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
         public async Task SendAsrTurnAsync_WhenScriptureCandidateReturned_ConfirmsCandidateBeforeCompletion()
         {
             string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-candidate-priority-{Guid.NewGuid():N}.db");
@@ -152,6 +202,48 @@ namespace Canvas.TextEditor.Tests.Ai
                 await scheduler.WaitForIdleAsync(TimeSpan.FromSeconds(5));
 
                 Assert.Equal(new[] { "candidate", "complete" }, order);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task SendManualContextAsync_WhenCandidateReturned_UsesSupplementPromptAndAcceptsCandidate()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-manual-context-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new CandidateChatClient();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                AiScriptureCandidate accepted = null;
+                coordinator.ScriptureCandidateAccepted += candidate => accepted = candidate;
+
+                await coordinator.StartProjectAsync(7);
+                await coordinator.SendManualContextAsync(
+                    "补充：讲员刚才在讲父母如何面对下一代，也提到约翰福音三章十六节。",
+                    CancellationToken.None);
+
+                Assert.NotNull(accepted);
+                Assert.Equal("约翰福音", accepted.BookName);
+                var correctionRequest = chat.Requests.Last();
+                var correctionMessage = correctionRequest.Messages.Last(message =>
+                    string.Equals(message.Name, "manual_context", StringComparison.Ordinal));
+                Assert.Contains("人工补充", correctionMessage.Content, StringComparison.Ordinal);
+                Assert.Contains("父母如何面对下一代", correctionMessage.Content, StringComparison.Ordinal);
+                Assert.True(correctionRequest.EnableScriptureTool);
             }
             finally
             {
@@ -567,11 +659,14 @@ namespace Canvas.TextEditor.Tests.Ai
 
         private sealed class CandidateChatClient : IDeepSeekChatClient
         {
+            public List<AiChatRequest> Requests { get; } = new();
+
             public Task<AiChatStreamResult> StreamChatAsync(
                 AiChatRequest request,
                 Action<string> onContentDelta,
                 CancellationToken cancellationToken)
             {
+                Requests.Add(request);
                 onContentDelta?.Invoke("候选摘要");
                 return Task.FromResult(new AiChatStreamResult
                 {
@@ -791,6 +886,79 @@ namespace Canvas.TextEditor.Tests.Ai
                         }
                     }
                 });
+            }
+
+            public Task<TextProject> CreateProjectAsync(string name, int canvasWidth = 1920, int canvasHeight = 1080) => throw new NotSupportedException();
+            public Task<List<TextProject>> GetAllProjectsAsync() => throw new NotSupportedException();
+            public Task SaveProjectAsync(TextProject project) => throw new NotSupportedException();
+            public Task DeleteProjectAsync(int projectId) => throw new NotSupportedException();
+            public Task UpdateBackgroundImageAsync(int projectId, string imagePath) => throw new NotSupportedException();
+            public Task<bool> ProjectHasSlidesAsync(int projectId) => throw new NotSupportedException();
+            public Task<int> GetSlideCountAsync(int projectId) => throw new NotSupportedException();
+            public Task<int> GetMaxSlideSortOrderAsync(int projectId) => throw new NotSupportedException();
+            public Task<Slide> AddSlideAsync(Slide slide) => throw new NotSupportedException();
+            public Task AddSlidesAsync(IEnumerable<Slide> slides) => throw new NotSupportedException();
+            public Task<Slide> GetSlideByIdAsync(int slideId) => throw new NotSupportedException();
+            public Task UpdateSlideAsync(Slide slide) => throw new NotSupportedException();
+            public Task UpdateSlideThumbnailAsync(int slideId, string thumbnailPath) => throw new NotSupportedException();
+            public Task<List<Slide>> GetSlidesByProjectAsync(int projectId) => throw new NotSupportedException();
+            public Task UpdateSlideSortOrdersAsync(IEnumerable<Slide> slides) => throw new NotSupportedException();
+            public Task ShiftSlideSortOrdersAsync(int projectId, int fromSortOrder, int delta) => throw new NotSupportedException();
+            public Task DeleteSlideAsync(int slideId) => throw new NotSupportedException();
+            public Task DeleteSlidesByProjectAsync(int projectId) => throw new NotSupportedException();
+            public Task<List<TextElement>> GetElementsBySlideWithRichTextAsync(int slideId) => throw new NotSupportedException();
+            public Task RebindProjectElementsToSlideAsync(int projectId, int targetSlideId) => throw new NotSupportedException();
+            public Task<TextElement> AddElementAsync(TextElement element) => throw new NotSupportedException();
+            public Task UpdateElementAsync(TextElement element) => throw new NotSupportedException();
+            public Task UpdateElementsAsync(IEnumerable<TextElement> elements) => throw new NotSupportedException();
+            public Task<RichTextSpan> AddRichTextSpanAsync(RichTextSpan span) => throw new NotSupportedException();
+            public Task DeleteRichTextSpansByElementIdAsync(int textElementId) => throw new NotSupportedException();
+            public Task SaveRichTextSpansAsync(int textElementId, List<RichTextSpan> spans) => throw new NotSupportedException();
+            public Task DeleteElementAsync(int elementId) => throw new NotSupportedException();
+            public Task DeleteAllElementsAsync(int projectId) => throw new NotSupportedException();
+            public Task<List<TextElement>> GetElementsByProjectAsync(int projectId) => throw new NotSupportedException();
+            public Task<MediaFile> GetMediaFileByPathAsync(string path) => throw new NotSupportedException();
+            public TextElement CloneElement(TextElement source) => throw new NotSupportedException();
+        }
+
+        private sealed class MutableTextProjectService : ITextProjectService
+        {
+            private readonly TextProject _project = new()
+            {
+                Id = 7,
+                Name = "主日信息",
+                CanvasWidth = 1920,
+                CanvasHeight = 1080
+            };
+
+            private readonly List<Slide> _slides = new()
+            {
+                new()
+                {
+                    Id = 1,
+                    ProjectId = 7,
+                    SortOrder = 0,
+                    Title = "第一讲",
+                    Elements = new List<TextElement>
+                    {
+                        new() { Id = 1, Content = "原始主题：出埃及记2章1-10节", ZIndex = 0 }
+                    }
+                }
+            };
+
+            public void UpdateFirstSlideText(string text)
+            {
+                _slides[0].Elements.First().Content = text;
+            }
+
+            public Task<TextProject> LoadProjectAsync(int projectId)
+            {
+                return Task.FromResult(_project);
+            }
+
+            public Task<List<Slide>> GetSlidesByProjectWithElementsAsync(int projectId)
+            {
+                return Task.FromResult(_slides);
             }
 
             public Task<TextProject> CreateProjectAsync(string name, int canvasWidth = 1920, int canvasHeight = 1080) => throw new NotSupportedException();

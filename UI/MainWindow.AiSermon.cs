@@ -159,6 +159,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerDeleteRequested += speaker => _ = DeleteAiSpeakerAsync(speaker);
             _aiAssistantPanelWindow.SpeakerRenameRequested += (oldName, newName) => _ = RenameAiSpeakerAsync(oldName, newName);
+            _aiAssistantPanelWindow.ScriptureCorrectionSubmitted += correction => _ = SubmitAiScriptureCorrectionAsync(correction);
             _aiAssistantPanelWindow.EndSessionRequested += EndAiSermonSessionFromPanelAsync;
             _aiAssistantPanelWindow.OutputModeChanged += mode =>
             {
@@ -335,6 +336,29 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private void QueueAiSermonProjectContextRefresh()
+        {
+            int projectId = _currentTextProject?.Id ?? 0;
+            if (projectId <= 0 || _aiSermonCoordinator == null)
+            {
+                return;
+            }
+
+            _ = RefreshAiSermonProjectContextSafeAsync(projectId);
+        }
+
+        private async Task RefreshAiSermonProjectContextSafeAsync(int projectId)
+        {
+            try
+            {
+                await _aiSermonCoordinator.RefreshActiveProjectContextAsync(projectId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AiSermon] 刷新项目上下文失败: {ex.Message}");
+            }
+        }
+
         private void EnsureAiSermonCoordinator()
         {
             if (_aiSermonCoordinator != null)
@@ -416,6 +440,13 @@ namespace ImageColorChanger.UI
             await RefreshAiHistoryInPanelAsync();
             _aiAssistantPanelWindow?.AppendStatus("AI本场已结束，消耗已写入历史。");
             ShowStatus("AI本场已结束，消耗已写入历史。");
+        }
+
+        private async Task SubmitAiScriptureCorrectionAsync(string correction)
+        {
+            EnsureAiSermonCoordinator();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            await _aiSermonCoordinator.SendScriptureCorrectionAsync(correction, cts.Token);
         }
 
         private async Task ApplyAiSpeakerAsync(string speaker)

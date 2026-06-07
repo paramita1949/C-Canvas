@@ -197,6 +197,56 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="HudCorrectionTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#F4FBFF"/>
+            <Setter Property="CaretBrush" Value="#7FEAFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="MaxLines" Value="2"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        </Style>
+        <Style x:Key="HudCorrectionSendButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="48"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Background" Value="#2F8CD7"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#88CAFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonChrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#3AA4F4"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonChrome" Property="Background" Value="#1E6FAE"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border x:Name="PanelChromeBorder"
@@ -217,6 +267,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
@@ -709,7 +760,43 @@
                 </Grid>
             </Border>
 
-            <Grid x:Name="FooterHintGrid" Grid.Row="3" Margin="0,8,0,0">
+            <Border x:Name="ScriptureCorrectionGrid"
+                    Grid.Row="3"
+                    Margin="0,8,0,0"
+                    Background="#74101F30"
+                    BorderBrush="#4D90C4"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="8,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0"
+                          Margin="0,0,8,0">
+                        <TextBox x:Name="ScriptureCorrectionTextBox"
+                                 Style="{StaticResource HudCorrectionTextBoxStyle}"
+                                 ToolTip="手动修正经文识别，Ctrl+Enter发送，回车换行"
+                                 TextChanged="ScriptureCorrectionTextBox_TextChanged"
+                                 KeyDown="ScriptureCorrectionTextBox_KeyDown"/>
+                        <TextBlock x:Name="ScriptureCorrectionPlaceholder"
+                                   Text="修正经文识别，例如：刚才不是约翰福音3:16，是罗马书8:28"
+                                   Foreground="#739FC0D6"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="1,0,0,0"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsHitTestVisible="False"/>
+                    </Grid>
+                    <Button Grid.Column="1"
+                            Content="发送"
+                            Style="{StaticResource HudCorrectionSendButtonStyle}"
+                            Click="ScriptureCorrectionSendButton_Click"/>
+                </Grid>
+            </Border>
+
+            <Grid x:Name="FooterHintGrid" Grid.Row="4" Margin="0,8,0,0">
                 <TextBlock Text="拖动空白处移动 · 右下角缩放"
                            Foreground="#7FA8C0"
                            FontSize="10"

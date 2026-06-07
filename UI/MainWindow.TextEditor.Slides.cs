@@ -582,6 +582,7 @@ namespace ImageColorChanger.UI
                 }
 
                 await _textProjectService.UpdateSlideSortOrdersAsync(slides);
+                QueueAiSermonProjectContextRefresh();
 
                 // #if DEBUG
                 // System.Diagnostics.Debug.WriteLine($" [ReorderSlides] 排序已保存: 从位置{sourceIndex}移动到位置{targetIndex}");
@@ -1304,6 +1305,7 @@ namespace ImageColorChanger.UI
                 };
 
                 await _textProjectService.AddSlideAsync(newSlide);
+                QueueAiSermonProjectContextRefresh();
 
                 // 刷新幻灯片列表
                 await LoadSlideList();
@@ -1451,6 +1453,7 @@ namespace ImageColorChanger.UI
                     }
 
                     await LoadSlideList();
+                    QueueAiSermonProjectContextRefresh();
                     SlideListBox.SelectedItem = pastedSlide;
                 }
                 finally
@@ -1517,6 +1520,7 @@ namespace ImageColorChanger.UI
             };
 
             await _textProjectService.AddSlideAsync(newSlide);
+            QueueAiSermonProjectContextRefresh();
 
             foreach (var clipboardElement in _slideClipboardData.Elements)
             {
@@ -1638,6 +1642,7 @@ namespace ImageColorChanger.UI
 
                     // 删除幻灯片（级联删除会自动删除关联的 TextElements 和 RichTextSpans）
                     await _textProjectService.DeleteSlideAsync(slideIdToDelete);
+                    QueueAiSermonProjectContextRefresh();
 
                     // 刷新幻灯片列表（此时 SelectionChanged 已被禁用，不会触发保存）
                     await LoadSlideList();
