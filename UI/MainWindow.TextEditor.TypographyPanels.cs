@@ -93,7 +93,7 @@ namespace ImageColorChanger.UI
 
             if (!string.IsNullOrEmpty(sizeText) && int.TryParse(sizeText, out int fontSize))
             {
-                fontSize = Math.Max(10, Math.Min(200, fontSize));
+                fontSize = Math.Max(8, Math.Min(200, fontSize));
 
                 if (fontSize.ToString() != sizeText)
                 {
@@ -145,7 +145,7 @@ namespace ImageColorChanger.UI
                 {
                     delta = e.Delta > 0 ? 2 : -2;
                 }
-                int newSize = Math.Max(10, Math.Min(240, currentSize + delta));
+                int newSize = Math.Max(8, Math.Min(240, currentSize + delta));
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();
@@ -175,7 +175,7 @@ namespace ImageColorChanger.UI
                     : (int)Math.Round(_selectedTextBox.Data.FontSize);
 
                 int delta = currentSize > 30 ? -1 : -2;
-                int newSize = Math.Max(10, currentSize + delta);
+                int newSize = Math.Max(8, currentSize + delta);
 
                 _selectedTextBox.ApplyStyleToSelection(fontSize: newSize);
                 MarkContentAsModified();

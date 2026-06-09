@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using ImageColorChanger.UI.Modules;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 
@@ -153,7 +154,19 @@ namespace ImageColorChanger.UI
 
         private void TopMenuScrollViewer_Loaded(object sender, RoutedEventArgs e)
         {
+            NormalizeTopMenuButtons();
             Dispatcher.BeginInvoke(new Action(UpdateTopMenuScrollButtonState), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void NormalizeTopMenuButtons()
+        {
+            if (_configManager != null)
+            {
+                ApplyTopMenuFontSize(_configManager.TopMenuFontSize);
+                return;
+            }
+
+            TopMenuButtonNormalizer.NormalizeButtons(GetTopMenuButtons(), TopMenuButtonNormalizer.StandardMetrics);
         }
 
         private void TopMenuHostGrid_SizeChanged(object sender, SizeChangedEventArgs e)

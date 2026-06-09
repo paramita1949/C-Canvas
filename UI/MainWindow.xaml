@@ -156,14 +156,16 @@
                     </Button>
 
                     <Button x:Name="BtnAiCaption" Style="{StaticResource MenuButtonStyle}"
-                            MinWidth="92"
                             ToolTip="打开 AI字幕 (F4)" Click="BtnAiCaption_Click">
                         <StackPanel Orientation="Horizontal">
                             <Path x:Name="BtnAiCaptionIcon"
                                   Data="{StaticResource IconLucideCaptions}"
                                   Style="{StaticResource LucideIconPathStyle}"
                                   Margin="0,0,6,0"/>
-                            <TextBlock x:Name="BtnAiCaptionText" Text="字幕" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="BtnAiCaptionText"
+                                       Text="字幕"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </StackPanel>
                     </Button>
 

@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using ImageColorChanger.Core;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 
 namespace ImageColorChanger.UI
@@ -179,19 +180,13 @@ namespace ImageColorChanger.UI
             double adaptiveFontSize = CalculateAdaptiveFontSize(displayFontSize, screenWidth, dpiScale);
             var buttonParams = CalculateButtonParameters(fontSize, adaptiveFontSize, screenWidth);
 
-            foreach (var btn in GetTopMenuButtons())
-            {
-                if (btn == null)
-                {
-                    continue;
-                }
-
-                btn.FontSize = adaptiveFontSize;
-                btn.Height = buttonParams.Height;
-                btn.Padding = buttonParams.Padding;
-                btn.Margin = buttonParams.Margin;
-                btn.VerticalAlignment = VerticalAlignment.Center;
-            }
+            TopMenuButtonNormalizer.NormalizeButtons(
+                GetTopMenuButtons(),
+                new TopMenuButtonMetrics(
+                    adaptiveFontSize,
+                    buttonParams.Height,
+                    buttonParams.Padding,
+                    buttonParams.Margin));
 
             if (CountdownBorder != null && CountdownText != null)
             {
