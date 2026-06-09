@@ -147,6 +147,7 @@ namespace ImageColorChanger.UI
 
         // 注意：IsPinyinInputActive 已在 MainWindow.Bible.cs 中定义
         // 注意：NavigateHighlightedVerse() 已在 MainWindow.Bible.cs 中定义为internal方法
+        // 注意：NavigateBibleVerseByScrollDirection() 已在 MainWindow.Bible.Helpers.cs 中定义为internal方法
 
         #endregion
 

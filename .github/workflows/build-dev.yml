@@ -329,6 +329,28 @@ jobs:
           }
         }
 
+        # Canvas-Update.zip 只承载主程序和必要音频依赖，NDI 运行时 DLL 由完整包/运行时安装器提供。
+        $excludedUpdateDllPatterns = @(
+          "*NDI*.dll",
+          "Processing.NDI*.dll",
+          "NewTek*.dll"
+        )
+        foreach ($pattern in $excludedUpdateDllPatterns) {
+          $excludedMatches = Get-ChildItem -Path $updateDir -Filter $pattern -File -ErrorAction SilentlyContinue
+          foreach ($m in $excludedMatches) {
+            Remove-Item -Path $m.FullName -Force
+            echo "ℹ️ 已从 Canvas-Update.zip 排除 NDI 相关 DLL: $($m.Name)"
+          }
+        }
+
+        $unexpectedNdiDlls = Get-ChildItem -Path $updateDir -Filter "*.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.Name -match '(?i)ndi|newtek' }
+        if ($unexpectedNdiDlls) {
+          echo "❌ Canvas-Update.zip 仍包含 NDI 相关 DLL:"
+          $unexpectedNdiDlls | ForEach-Object { echo "  - $($_.Name)" }
+          exit 1
+        }
+
         if (Test-Path $pakFile) {
           Compress-Archive -Path $pakFile -DestinationPath $resourcesZipName
           $resourcesZipSize = (Get-Item $resourcesZipName).Length / 1MB

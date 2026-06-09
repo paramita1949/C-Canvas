@@ -137,6 +137,7 @@ namespace ImageColorChanger.UI
         // TreeView拖拽相关
         private ProjectTreeItem _draggedItem = null;
         private ProjectTreeItem _dragOverItem = null;
+        private long _projectTreeDragMouseDownTick = 0;
         private bool _isDragInProgress = false;
 
         // 数据库和管理器

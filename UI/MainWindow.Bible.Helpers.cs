@@ -586,10 +586,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnBiblePrevVerse_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
-                return;
-
-            HandleVerseScroll(-1);
+            NavigateBibleVerseByScrollDirection(-1);
         }
 
         /// <summary>
@@ -597,10 +594,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnBibleNextVerse_Click(object sender, RoutedEventArgs e)
         {
-            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
-                return;
-
-            HandleVerseScroll(1);
+            NavigateBibleVerseByScrollDirection(1);
         }
 
         // 滚轮对齐相关字段
@@ -622,7 +616,22 @@ namespace ImageColorChanger.UI
             // 计算滚动方向
             int direction = e.Delta > 0 ? -1 : 1; // 向上滚轮=-1（向上滚动），向下滚轮=+1（向下滚动）
 
-            HandleVerseScroll(direction);
+            NavigateBibleVerseByScrollDirection(direction);
+        }
+
+        /// <summary>
+        /// 按滚轮方向导航圣经经文，供滚轮、按钮和快捷键共用。
+        /// </summary>
+        internal void NavigateBibleVerseByScrollDirection(int direction)
+        {
+            if (!_isBibleMode || BibleVerseList == null || BibleVerseList.Items.Count == 0)
+                return;
+
+            int normalizedDirection = BibleVerseNavigationInputPolicy.NormalizeDirection(direction);
+            if (normalizedDirection == 0)
+                return;
+
+            HandleVerseScroll(normalizedDirection);
         }
 
         /// <summary>

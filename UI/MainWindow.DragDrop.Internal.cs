@@ -28,6 +28,7 @@ namespace ImageColorChanger.UI
         private const int ProjectTreeAutoScrollTickMilliseconds = 16;
         private const double ProjectTreeAutoScrollEdgeThreshold = 36;
         private const double ProjectTreeAutoScrollMaxStep = 28;
+        private const long ProjectTreeDragStartDelayMilliseconds = 300;
         private System.Windows.Threading.DispatcherTimer _projectTreeDragAutoScrollTimer;
         private double _projectTreePendingAutoScrollDelta;
         private ScrollViewer _projectTreeScrollViewer;
@@ -43,6 +44,7 @@ namespace ImageColorChanger.UI
             if (IsFromScrollBarChrome(e.OriginalSource as DependencyObject))
             {
                 _draggedItem = null;
+                _projectTreeDragMouseDownTick = 0;
                 return;
             }
 
@@ -51,10 +53,12 @@ namespace ImageColorChanger.UI
             if (treeViewItem != null)
             {
                 _draggedItem = treeViewItem.DataContext as ProjectTreeItem;
+                _projectTreeDragMouseDownTick = Environment.TickCount64;
             }
             else
             {
                 _draggedItem = null;
+                _projectTreeDragMouseDownTick = 0;
             }
         }
 
@@ -66,6 +70,7 @@ namespace ImageColorChanger.UI
             if (IsFromScrollBarChrome(e.OriginalSource as DependencyObject))
             {
                 _draggedItem = null;
+                _projectTreeDragMouseDownTick = 0;
                 return;
             }
 
@@ -73,10 +78,15 @@ namespace ImageColorChanger.UI
             {
                 System.Windows.Point currentPosition = e.GetPosition(null);
                 System.Windows.Vector diff = _dragStartPoint - currentPosition;
+                long elapsedMilliseconds = Environment.TickCount64 - _projectTreeDragMouseDownTick;
 
-                // 检查是否移动了足够的距离
-                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                if (ProjectTreeDragStartPolicy.ShouldStartDrag(
+                    elapsedMilliseconds,
+                    diff.X,
+                    diff.Y,
+                    SystemParameters.MinimumHorizontalDragDistance,
+                    SystemParameters.MinimumVerticalDragDistance,
+                    ProjectTreeDragStartDelayMilliseconds))
                 {
                     // 优化：允许拖拽文件、文件夹和Project节点
                     if (_draggedItem.Type == TreeItemType.File || 
@@ -88,13 +98,20 @@ namespace ImageColorChanger.UI
                     }
                     
                     _draggedItem = null;
+                    _projectTreeDragMouseDownTick = 0;
                 }
+            }
+            else
+            {
+                _draggedItem = null;
+                _projectTreeDragMouseDownTick = 0;
             }
         }
 
         private void ProjectTree_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             _draggedItem = null;
+            _projectTreeDragMouseDownTick = 0;
             StopProjectTreeAutoScroll();
         }
 

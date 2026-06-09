@@ -267,26 +267,26 @@ namespace ImageColorChanger.Utils
         }
 
         /// <summary>
-        /// 处理Up键 - 圣经经文上一节（变色高亮）
+        /// 处理Up键 - 圣经经文按滚轮逻辑上一节
         /// </summary>
         public void HandleUpKey()
         {
             // 只在圣经模式下生效
             if (_mainWindow.IsBibleMode())
             {
-                _mainWindow.NavigateHighlightedVerse(-1);
+                _mainWindow.NavigateBibleVerseByScrollDirection(-1);
             }
         }
 
         /// <summary>
-        /// 处理Down键 - 圣经经文下一节（变色高亮）
+        /// 处理Down键 - 圣经经文按滚轮逻辑下一节
         /// </summary>
         public void HandleDownKey()
         {
             // 只在圣经模式下生效
             if (_mainWindow.IsBibleMode())
             {
-                _mainWindow.NavigateHighlightedVerse(1);
+                _mainWindow.NavigateBibleVerseByScrollDirection(1);
             }
         }
 
