@@ -297,9 +297,7 @@ jobs:
           "config.json",
           "System.IO.Pipelines.dll"
         )
-        $wildcardPatterns = @(
-          "NAudio*.dll"
-        )
+        $wildcardPatterns = @()
         $pakFile = "publish\Resources.pak"
 
         foreach ($name in $requiredFiles) {
@@ -346,11 +344,30 @@ jobs:
           }
         }
 
+        $excludedAudioDllPatterns = @(
+          "NAudio*.dll"
+        )
+        foreach ($pattern in $excludedAudioDllPatterns) {
+          $excludedMatches = Get-ChildItem -Path $updateDir -Filter $pattern -File -ErrorAction SilentlyContinue
+          foreach ($m in $excludedMatches) {
+            Remove-Item -Path $m.FullName -Force
+            echo "ℹ️ 已从 Canvas-Update.zip 排除音频相关 DLL: $($m.Name)"
+          }
+        }
+
         $unexpectedNdiDlls = Get-ChildItem -Path $updateDir -Filter "*.dll" -File -ErrorAction SilentlyContinue |
           Where-Object { $_.Name -match '(?i)ndi|newtek' }
         if ($unexpectedNdiDlls) {
           echo "❌ Canvas-Update.zip 仍包含 NDI 相关 DLL:"
           $unexpectedNdiDlls | ForEach-Object { echo "  - $($_.Name)" }
+          exit 1
+        }
+
+        $unexpectedAudioDlls = Get-ChildItem -Path $updateDir -Filter "*.dll" -File -ErrorAction SilentlyContinue |
+          Where-Object { $_.Name -match '(?i)^NAudio' }
+        if ($unexpectedAudioDlls) {
+          echo "❌ Canvas-Update.zip 仍包含音频相关 DLL:"
+          $unexpectedAudioDlls | ForEach-Object { echo "  - $($_.Name)" }
           exit 1
         }
 
