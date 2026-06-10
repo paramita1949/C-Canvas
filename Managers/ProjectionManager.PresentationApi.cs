@@ -6,7 +6,6 @@ using System.Windows.Media.Imaging;
 using SkiaSharp;
 using ImageColorChanger.Core;
 using WpfColor = System.Windows.Media.Color;
-using WpfFontFamily = System.Windows.Media.FontFamily;
 
 namespace ImageColorChanger.Managers
 {
@@ -290,22 +289,24 @@ namespace ImageColorChanger.Managers
         {
             config ??= new BibleTextInsertConfig();
 
+            var popupFontFamily = BiblePopupFontResolver.ResolveWpfFontFamily(config);
+
             if (_projectionBiblePopupReferenceText != null)
             {
-                _projectionBiblePopupReferenceText.FontFamily = new WpfFontFamily(config.FontFamily);
-                _projectionBiblePopupReferenceText.FontSize = config.TitleStyle.FontSize;
-                _projectionBiblePopupReferenceText.FontWeight = config.TitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-                _projectionBiblePopupReferenceText.Foreground = BuildSolidBrush(config.TitleStyle.ColorHex, 100);
+                _projectionBiblePopupReferenceText.FontFamily = popupFontFamily;
+                _projectionBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
+                _projectionBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupReferenceText.Foreground = BuildSolidBrush(config.PopupTitleStyle.ColorHex, 100);
             }
 
             if (_projectionBiblePopupContentText != null)
             {
-                _projectionBiblePopupContentText.FontFamily = new WpfFontFamily(config.FontFamily);
-                _projectionBiblePopupContentText.FontSize = config.VerseStyle.FontSize;
-                _projectionBiblePopupContentText.FontWeight = config.VerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
-                _projectionBiblePopupContentText.Foreground = BuildSolidBrush(config.VerseStyle.ColorHex, 100);
+                _projectionBiblePopupContentText.FontFamily = popupFontFamily;
+                _projectionBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
+                _projectionBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupContentText.Foreground = BuildSolidBrush(config.PopupVerseStyle.ColorHex, 100);
 
-                double lineHeight = config.VerseStyle.FontSize * Math.Max(1.0, config.VerseStyle.VerseSpacing);
+                double lineHeight = config.PopupVerseStyle.FontSize * Math.Max(1.0, config.PopupVerseStyle.VerseSpacing);
                 _projectionBiblePopupContentText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
                 _projectionBiblePopupContentText.LineHeight = lineHeight;
             }

@@ -407,12 +407,14 @@ namespace ImageColorChanger.UI
 
         private void ApplyMainBibleVersePopupStyle(BibleTextInsertConfig config)
         {
-            MainBiblePopupReferenceText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
+            var popupFontFamily = BiblePopupFontResolver.ResolveWpfFontFamily(config);
+
+            MainBiblePopupReferenceText.FontFamily = popupFontFamily;
             MainBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
             MainBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
             MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.PopupTitleStyle.ColorHex, 0);
 
-            MainBiblePopupContentText.FontFamily = new System.Windows.Media.FontFamily(config.PopupFontFamily ?? config.FontFamily);
+            MainBiblePopupContentText.FontFamily = popupFontFamily;
             MainBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
             MainBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
             MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.PopupVerseStyle.ColorHex, 0);
@@ -899,20 +901,14 @@ namespace ImageColorChanger.UI
             double popupWidth = Math.Max(480.0, Math.Min(canvasWidth - 60.0, 1500.0));
             float textMaxWidth = (float)Math.Max(1.0, popupWidth - 72.0);
 
-            using var titleFont = new SkiaSharp.SKFont
-            {
-                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize),
-                Subpixel = true,
-                Edging = SkiaSharp.SKFontEdging.Antialias
-            };
-            using var verseFont = new SkiaSharp.SKFont
-            {
-                Typeface = SkiaSharp.SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize),
-                Subpixel = true,
-                Edging = SkiaSharp.SKFontEdging.Antialias
-            };
+            using var titleFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupTitleStyle.FontSize),
+                cfg.PopupTitleStyle.IsBold);
+            using var verseFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupVerseStyle.FontSize),
+                cfg.PopupVerseStyle.IsBold);
             using var titlePaint = new SkiaSharp.SKPaint { IsAntialias = true };
             using var versePaint = new SkiaSharp.SKPaint { IsAntialias = true };
 

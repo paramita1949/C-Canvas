@@ -2295,27 +2295,18 @@ namespace ImageColorChanger.UI
                 verseViewportHeight = maxViewportByCanvas;
             }
 
-            using var titleFont = new SKFont
-            {
-                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize * bestScale),
-                Subpixel = true,
-                Edging = SKFontEdging.Antialias
-            };
-            using var verseFont = new SKFont
-            {
-                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize * bestScale),
-                Subpixel = true,
-                Edging = SKFontEdging.Antialias
-            };
-            using var verseNumberFont = new SKFont
-            {
-                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseNumberStyle.FontSize * bestScale),
-                Subpixel = true,
-                Edging = SKFontEdging.Antialias
-            };
+            using var titleFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupTitleStyle.FontSize * bestScale),
+                cfg.PopupTitleStyle.IsBold);
+            using var verseFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupVerseStyle.FontSize * bestScale),
+                cfg.PopupVerseStyle.IsBold);
+            using var verseNumberFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupVerseNumberStyle.FontSize * bestScale),
+                cfg.PopupVerseNumberStyle.IsBold);
             using var titlePaint = new SKPaint
             {
                 IsAntialias = true,
@@ -2549,20 +2540,14 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            using var titleFont = new SKFont
-            {
-                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupTitleStyle.FontSize * scale),
-                Subpixel = true,
-                Edging = SKFontEdging.Antialias
-            };
-            using var verseFont = new SKFont
-            {
-                Typeface = SKTypeface.FromFamilyName(cfg.PopupFontFamily ?? cfg.FontFamily ?? "Microsoft YaHei UI"),
-                Size = Math.Max(16f, cfg.PopupVerseStyle.FontSize * scale),
-                Subpixel = true,
-                Edging = SKFontEdging.Antialias
-            };
+            using var titleFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupTitleStyle.FontSize * scale),
+                cfg.PopupTitleStyle.IsBold);
+            using var verseFont = BiblePopupFontResolver.CreateSkiaFont(
+                cfg,
+                Math.Max(16f, cfg.PopupVerseStyle.FontSize * scale),
+                cfg.PopupVerseStyle.IsBold);
             using var titlePaint = new SKPaint { IsAntialias = true };
             using var versePaint = new SKPaint { IsAntialias = true };
 
