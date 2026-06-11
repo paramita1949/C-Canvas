@@ -295,7 +295,7 @@ namespace ImageColorChanger.Managers
             {
                 _projectionBiblePopupReferenceText.FontFamily = popupFontFamily;
                 _projectionBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
-                _projectionBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupReferenceText.FontWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, config.PopupTitleStyle.IsBold);
                 _projectionBiblePopupReferenceText.Foreground = BuildSolidBrush(config.PopupTitleStyle.ColorHex, 100);
             }
 
@@ -303,7 +303,7 @@ namespace ImageColorChanger.Managers
             {
                 _projectionBiblePopupContentText.FontFamily = popupFontFamily;
                 _projectionBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
-                _projectionBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+                _projectionBiblePopupContentText.FontWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, config.PopupVerseStyle.IsBold);
                 _projectionBiblePopupContentText.Foreground = BuildSolidBrush(config.PopupVerseStyle.ColorHex, 100);
 
                 double lineHeight = config.PopupVerseStyle.FontSize * Math.Max(1.0, config.PopupVerseStyle.VerseSpacing);

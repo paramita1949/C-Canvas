@@ -411,12 +411,12 @@ namespace ImageColorChanger.UI
 
             MainBiblePopupReferenceText.FontFamily = popupFontFamily;
             MainBiblePopupReferenceText.FontSize = config.PopupTitleStyle.FontSize;
-            MainBiblePopupReferenceText.FontWeight = config.PopupTitleStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+            MainBiblePopupReferenceText.FontWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, config.PopupTitleStyle.IsBold);
             MainBiblePopupReferenceText.Foreground = BuildMainPopupBrush(config.PopupTitleStyle.ColorHex, 0);
 
             MainBiblePopupContentText.FontFamily = popupFontFamily;
             MainBiblePopupContentText.FontSize = config.PopupVerseStyle.FontSize;
-            MainBiblePopupContentText.FontWeight = config.PopupVerseStyle.IsBold ? FontWeights.Bold : FontWeights.Normal;
+            MainBiblePopupContentText.FontWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, config.PopupVerseStyle.IsBold);
             MainBiblePopupContentText.Foreground = BuildMainPopupBrush(config.PopupVerseStyle.ColorHex, 0);
             MainBiblePopupContentText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
             MainBiblePopupContentText.LineHeight = config.PopupVerseStyle.FontSize * Math.Max(1.0, config.PopupVerseStyle.VerseSpacing);

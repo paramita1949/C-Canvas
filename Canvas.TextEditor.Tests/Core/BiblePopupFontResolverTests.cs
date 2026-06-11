@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Media;
 using ImageColorChanger.Core;
 using SkiaSharp;
@@ -39,6 +40,54 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Core
             string actual = BiblePopupFontResolver.ResolveFamilyName(config);
 
             Assert.Equal(expected, actual);
+        }
+
+        [Theory]
+        [InlineData("Microsoft YaHei Light")]
+        [InlineData("Microsoft YaHei UI Light")]
+        [InlineData("微软雅黑 Light")]
+        [InlineData("Microsoft YaHei Light & Microsoft YaHei UI Light (TrueType)")]
+        public void ResolveFamilyName_NormalizesMicrosoftYaHeiLightAliases(string popupFontFamily)
+        {
+            var config = new BibleTextInsertConfig
+            {
+                PopupFontFamily = popupFontFamily
+            };
+
+            string actual = BiblePopupFontResolver.ResolveFamilyName(config);
+
+            Assert.Equal("Microsoft YaHei UI", actual);
+        }
+
+        [Fact]
+        public void ResolveWpfFontWeight_UsesYaHeiLightWeightUnlessBoldIsRequested()
+        {
+            var config = new BibleTextInsertConfig
+            {
+                PopupFontFamily = "Microsoft YaHei UI Light"
+            };
+
+            FontWeight regularWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, isBold: false);
+            FontWeight boldWeight = BiblePopupFontResolver.ResolveWpfFontWeight(config, isBold: true);
+
+            Assert.Equal(FontWeight.FromOpenTypeWeight(290), regularWeight);
+            Assert.Equal(FontWeights.Bold, boldWeight);
+        }
+
+        [Fact]
+        public void ResolveSkiaFontStyle_UsesYaHeiLightWeightUnlessBoldIsRequested()
+        {
+            var config = new BibleTextInsertConfig
+            {
+                PopupFontFamily = "Microsoft YaHei Light & Microsoft YaHei UI Light (TrueType)"
+            };
+
+            SKFontStyle regularStyle = BiblePopupFontResolver.ResolveSkiaFontStyle(config, isBold: false, isItalic: false);
+            SKFontStyle boldStyle = BiblePopupFontResolver.ResolveSkiaFontStyle(config, isBold: true, isItalic: false);
+
+            Assert.Equal(290, regularStyle.Weight);
+            Assert.Equal(SKFontStyleSlant.Upright, regularStyle.Slant);
+            Assert.Equal(SKFontStyle.Bold.Weight, boldStyle.Weight);
         }
 
         [Fact]

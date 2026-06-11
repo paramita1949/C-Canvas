@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.Windows.Media;
 using SkiaSharp;
 using WpfFontFamily = System.Windows.Media.FontFamily;
@@ -11,8 +12,41 @@ namespace ImageColorChanger.Core
     public static class BiblePopupFontResolver
     {
         public const string DefaultPopupFontFamily = "Microsoft YaHei UI";
+        private const int MicrosoftYaHeiLightWeight = 290;
 
         public static string ResolveFamilyName(BibleTextInsertConfig config)
+        {
+            return NormalizeFamilyName(ResolveRawFamilyName(config));
+        }
+
+        public static FontWeight ResolveWpfFontWeight(BibleTextInsertConfig config, bool isBold)
+        {
+            if (isBold)
+            {
+                return FontWeights.Bold;
+            }
+
+            return IsMicrosoftYaHeiLightFamilyName(ResolveRawFamilyName(config))
+                ? FontWeight.FromOpenTypeWeight(MicrosoftYaHeiLightWeight)
+                : FontWeights.Normal;
+        }
+
+        public static SKFontStyle ResolveSkiaFontStyle(
+            BibleTextInsertConfig config,
+            bool isBold = false,
+            bool isItalic = false)
+        {
+            var slant = isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
+            int weight = isBold
+                ? (int)SKFontStyleWeight.Bold
+                : IsMicrosoftYaHeiLightFamilyName(ResolveRawFamilyName(config))
+                    ? MicrosoftYaHeiLightWeight
+                    : (int)SKFontStyleWeight.Normal;
+
+            return new SKFontStyle(weight, (int)SKFontStyleWidth.Normal, slant);
+        }
+
+        private static string ResolveRawFamilyName(BibleTextInsertConfig config)
         {
             string popupFamily = config?.PopupFontFamily?.Trim();
             if (!string.IsNullOrWhiteSpace(popupFamily))
@@ -55,11 +89,15 @@ namespace ImageColorChanger.Core
             Func<string, bool, bool, SKTypeface> loadTypeface = null)
         {
             string familyName = ResolveFamilyName(config);
+            bool usesMicrosoftYaHeiLight = IsMicrosoftYaHeiLightFamilyName(ResolveRawFamilyName(config));
+            SKFontStyle fontStyle = ResolveSkiaFontStyle(config, isBold, isItalic);
             SKTypeface typeface = null;
 
             try
             {
-                typeface = (loadTypeface ?? SkiaFontService.Instance.GetTypeface)(familyName, isBold, isItalic);
+                typeface = usesMicrosoftYaHeiLight && loadTypeface == null
+                    ? SKTypeface.FromFamilyName(familyName, fontStyle)
+                    : (loadTypeface ?? SkiaFontService.Instance.GetTypeface)(familyName, isBold, isItalic);
             }
             catch
             {
@@ -67,7 +105,8 @@ namespace ImageColorChanger.Core
             }
 
             return typeface
-                ?? SKTypeface.FromFamilyName(DefaultPopupFontFamily, GetFontStyle(isBold, isItalic))
+                ?? SKTypeface.FromFamilyName(familyName, fontStyle)
+                ?? SKTypeface.FromFamilyName(DefaultPopupFontFamily, fontStyle)
                 ?? SKTypeface.Default;
         }
 
@@ -100,19 +139,27 @@ namespace ImageColorChanger.Core
                 ?? new WpfFontFamily(familyName);
         }
 
-        private static SKFontStyle GetFontStyle(bool isBold, bool isItalic)
+        private static string NormalizeFamilyName(string familyName)
         {
-            if (isBold && isItalic)
-            {
-                return SKFontStyle.BoldItalic;
-            }
-
-            if (isBold)
-            {
-                return SKFontStyle.Bold;
-            }
-
-            return isItalic ? SKFontStyle.Italic : SKFontStyle.Normal;
+            return IsMicrosoftYaHeiLightFamilyName(familyName)
+                ? DefaultPopupFontFamily
+                : familyName;
         }
+
+        public static bool IsMicrosoftYaHeiLightFamilyName(string familyName)
+        {
+            if (string.IsNullOrWhiteSpace(familyName))
+            {
+                return false;
+            }
+
+            string normalized = familyName.Trim();
+            return normalized.Equals("Microsoft YaHei Light", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("Microsoft YaHei UI Light", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("微软雅黑 Light", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("微软雅黑Light", StringComparison.OrdinalIgnoreCase)
+                || normalized.Equals("Microsoft YaHei Light & Microsoft YaHei UI Light (TrueType)", StringComparison.OrdinalIgnoreCase);
+        }
+
     }
 }

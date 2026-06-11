@@ -284,9 +284,11 @@ namespace ImageColorChanger.UI
             };
             CmbPopupFont.ItemsSource = fontDisplayNames;
             string popupDisplayName = null;
+            bool popupFontIsYaHeiLight = BiblePopupFontResolver.IsMicrosoftYaHeiLightFamilyName(_config.PopupFontFamily);
             foreach (var kvp in _fontDisplayMap)
             {
-                if (kvp.Value == _config.PopupFontFamily)
+                if (kvp.Value == _config.PopupFontFamily ||
+                    (popupFontIsYaHeiLight && BiblePopupFontResolver.IsMicrosoftYaHeiLightFamilyName(kvp.Value)))
                 {
                     popupDisplayName = kvp.Key;
                     break;
