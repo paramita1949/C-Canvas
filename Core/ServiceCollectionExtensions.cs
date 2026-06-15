@@ -149,6 +149,7 @@ namespace ImageColorChanger.Core
 
             // 认证服务（仅暴露接口，避免上层依赖具体实现）
             services.AddSingleton<IAuthService>(_ => AuthService.Instance);
+            services.AddSingleton<ClientUsageReportService>();
             services.AddSingleton<ILicenseStore, ProtectedLicenseStore>();
             services.AddSingleton<ISignedLicenseVerifier, SignedLicenseVerifier>();
             services.AddSingleton<IFeatureGate, FeatureGate>();

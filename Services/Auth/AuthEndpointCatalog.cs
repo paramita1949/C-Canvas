@@ -14,5 +14,6 @@ namespace ImageColorChanger.Services.Auth
         public const string RegisterEndpoint = "/canvas-user-register";
         public const string ResetDevicesEndpoint = "/canvas-user-reset-devices";
         public const string ReachabilityEndpoint = "/canvas-auth-health";
+        public const string ClientUsageReportEndpoint = "/canvas-client-version-report";
     }
 }

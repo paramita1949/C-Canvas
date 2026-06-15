@@ -35,7 +35,8 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
                 AuthEndpointCatalog.ResetPasswordEndpoint,
                 AuthEndpointCatalog.RegisterEndpoint,
                 AuthEndpointCatalog.ResetDevicesEndpoint,
-                AuthEndpointCatalog.ReachabilityEndpoint
+                AuthEndpointCatalog.ReachabilityEndpoint,
+                AuthEndpointCatalog.ClientUsageReportEndpoint
             };
 
             Assert.All(endpoints, endpoint =>
@@ -43,6 +44,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Services
                 Assert.StartsWith("/canvas-", endpoint, StringComparison.Ordinal);
                 Assert.DoesNotContain("/api/auth", endpoint, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("/api/user", endpoint, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("/api/client", endpoint, StringComparison.OrdinalIgnoreCase);
             });
 
             Assert.Equal(endpoints.Length, endpoints.Distinct(StringComparer.Ordinal).Count());

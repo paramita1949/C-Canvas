@@ -66,6 +66,7 @@ namespace ImageColorChanger
                 ConfigureServices(services);
                 ServiceProvider = services.BuildServiceProvider();
                 StartupPerfLogger.Mark("App.DependencyInjection.Ready");
+                StartClientUsageReport();
 
                 // 预热数据库单例：与资源加载/窗口构造并行，减少首屏阶段等待。
                 DatabaseWarmupTask = Task.Run(() =>
@@ -114,6 +115,23 @@ namespace ImageColorChanger
 
             // 注册MainWindow（需要时手动从ServiceProvider获取依赖）
             // services.AddTransient<UI.MainWindow>();
+        }
+
+        private static void StartClientUsageReport()
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var reporter = ServiceProvider.GetRequiredService<ImageColorChanger.Services.ClientUsageReportService>();
+                    await reporter.ReportStartupAsync().ConfigureAwait(false);
+                    StartupPerfLogger.Mark("App.ClientUsageReport.Completed");
+                }
+                catch (Exception ex)
+                {
+                    StartupPerfLogger.Error("App.ClientUsageReport.Failed", ex);
+                }
+            });
         }
 
         /// <summary>
