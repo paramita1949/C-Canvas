@@ -10,6 +10,7 @@ env:
   PROJECT_NAME: ImageColorChanger
   OUTPUT_NAME: CanvasCast
   DOTNET_VERSION: '8.0.x'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: write
@@ -21,12 +22,12 @@ jobs:
     
     steps:
     - name: 检出代码
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
     
     - name: 设置 .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
@@ -500,33 +501,33 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: 上传完整包
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Canvas-Cast-Full-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.full_zip_name }}
-        retention-days: 60
+        retention-days: 3
 
     - name: 上传更新包
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Canvas-Cast-Update-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.update_zip_name }}
-        retention-days: 60
+        retention-days: 3
     
     - name: 上传资源包
       if: ${{ steps.create_package.outputs.resources_zip_name != '' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Canvas-Cast-Resources-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.resources_zip_name }}
-        retention-days: 60
+        retention-days: 3
 
     - name: 上传新增文件包
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Canvas-Cast-Added-${{ steps.get_version.outputs.full_version }}
         path: ${{ steps.create_package.outputs.added_zip_name }}
-        retention-days: 60
+        retention-days: 3
 
     - name: 调试Release信息
       shell: pwsh
@@ -585,7 +586,7 @@ jobs:
     
     - name: 创建 GitHub Release
       id: create_release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         files: |
           ${{ steps.create_package.outputs.full_zip_name }}
