@@ -255,7 +255,7 @@ jobs:
       run: |
         $fullVersion = "${{ steps.get_version.outputs.full_version }}"
         $tag = "${{ steps.get_version.outputs.tag }}"
-        $fullZipName = "cast.zip"
+        $fullZipName = "YongMu.zip"
         $updateZipName = "Canvas-Update.zip"
         $resourcesZipName = "Resources.zip"
         $addedZipName = "Added-Files.zip"
@@ -407,7 +407,7 @@ jobs:
         # ========== 对比上一个版本并生成新增文件包 ==========
         echo ""
         echo "=== 生成新增文件包（对比上一个版本） ==="
-        $prevZip = "prev-cast.zip"
+        $prevZip = "prev-YongMu.zip"
         $prevExtract = "prev_release_extract"
         $addedDir = "added_files_temp"
         $currentListFile = "current_files.txt"
@@ -432,12 +432,12 @@ jobs:
         }
 
         if ($latestRelease -and $latestRelease.assets) {
-          $prevAsset = $latestRelease.assets | Where-Object { $_.name -eq "cast.zip" } | Select-Object -First 1
+          $prevAsset = $latestRelease.assets | Where-Object { $_.name -eq "YongMu.zip" } | Select-Object -First 1
           if ($prevAsset) {
             Invoke-WebRequest -Uri $prevAsset.browser_download_url -Headers $apiHeaders -OutFile $prevZip
             Expand-Archive -Path $prevZip -DestinationPath $prevExtract -Force
           } else {
-            echo "上一个Release未找到 cast.zip，新增文件包将包含当前全部文件"
+            echo "上一个Release未找到 YongMu.zip，新增文件包将包含当前全部文件"
           }
         }
 
@@ -605,7 +605,7 @@ jobs:
           本次发布提供四种文件，请根据需要选择：
 
           #### 🆕 新用户 - 完整安装包
-          - 📥 下载 `cast.zip`
+          - 📥 下载 `YongMu.zip`
           - 📂 解压到任意目录
           - ▶️ 运行 `CanvasCast.exe`
 

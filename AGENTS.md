@@ -120,6 +120,17 @@ Use this repository entry to ensure every turn in `d:/img/Canvas` can invoke bot
 ## System Change Gate (Mandatory)
 For any non-trivial feature/bugfix/UI behavior change (not pure text copy edits), the agent MUST complete this full-chain workflow before claiming completion.
 
+### Lightweight Change Exception (Mandatory)
+For small, explicitly scoped changes such as GitHub Actions/YML filename edits, copy-only text edits, documentation wording, version metadata, or simple config value changes:
+1. Do **not** run unrelated app/test suites or `scripts/verify-change.ps1` unless the user explicitly asks for build verification.
+2. Do **not** update `docs/engineering-change-gate.md`, `task_plan.md`, `progress.md`, or `findings.md` unless the user asks for persistent task records or the change is a non-trivial feature/bugfix/UI behavior change.
+3. Verify only the directly changed surface with targeted checks, for example:
+   - `rg` for old/new text in the edited files.
+   - `git diff --check` when whitespace or YAML formatting could matter.
+   - A YAML parser/linter only if already available and directly relevant.
+4. In the final response, state that broad tests were intentionally skipped because the change is configuration/text-only.
+5. If the user says “just modify YML/config/text”, treat that as an explicit request for this lightweight path.
+
 ### 1) Impact Surface First
 Before code edits, enumerate the impacted surface in `docs/engineering-change-gate.md`:
 - modules/files touched
