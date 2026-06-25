@@ -1567,63 +1567,59 @@
                             </Button.Style>
                         </Button>
                     </StackPanel>
-                    <!--  速度控制按钮（仅在播放时显示） -->
-                    <Button x:Name="BtnCompositeSpeed"
-                            Padding="12,6"
-                            Margin="0,8,0,0"
-                            FontSize="13"
-                            FontWeight="SemiBold"
-                            Background="{StaticResource BrushBrandWarning}"
-                            Foreground="White"
-                            BorderBrush="{StaticResource BrushBrandWarning}"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            Opacity="0.75"
-                            Visibility="Collapsed"
-                            Focusable="False"
-                            IsTabStop="False"
-                            MouseEnter="BtnCompositeSpeed_MouseEnter"
-                            MouseLeave="BtnCompositeSpeed_MouseLeave"
-                            PreviewMouseLeftButtonDown="BtnCompositeSpeed_PreviewMouseLeftButtonDown"
-                            ToolTip="悬浮：选择播放速度">
-                        <StackPanel Orientation="Horizontal">
-                            <Path Data="{StaticResource IconLucideZap}"
-                                  Style="{StaticResource LucideIconPathStyle}"
-                                  Stroke="White"
-                                  Margin="0,0,6,0"/>
-                            <TextBlock Text="1.0x" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <Button.Style>
-                            <Style TargetType="Button">
+                    <!--  速度选项（仅在播放时显示） -->
+                    <UniformGrid x:Name="CompositeSpeedOptionsPanel"
+                                 Rows="2"
+                                 Columns="4"
+                                 Margin="0,8,0,0"
+                                 Visibility="Collapsed"
+                                 HorizontalAlignment="Center">
+                        <UniformGrid.Resources>
+                            <Style x:Key="CompositeSpeedOptionButtonStyle" TargetType="Button">
+                                <Setter Property="MinWidth" Value="42"/>
+                                <Setter Property="Height" Value="28"/>
+                                <Setter Property="Margin" Value="2,2"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="#455A64"/>
+                                <Setter Property="BorderBrush" Value="#607D8B"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Opacity" Value="0.82"/>
+                                <Setter Property="Cursor" Value="Hand"/>
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" 
+                                            <Border x:Name="speedOptionBorder"
                                                     Background="{TemplateBinding Background}"
                                                     BorderBrush="{TemplateBinding BorderBrush}"
                                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="20"
-                                                    Padding="{TemplateBinding Padding}">
-                                                <Border.Effect>
-                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.3" Color="Black"/>
-                                                </Border.Effect>
+                                                    CornerRadius="4">
                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#F57C00"/>
-                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                    <Setter TargetName="speedOptionBorder" Property="Background" Value="#546E7A"/>
                                                 </Trigger>
                                                 <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="border" Property="Background" Value="#E65100"/>
+                                                    <Setter TargetName="speedOptionBorder" Property="Background" Value="#37474F"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Setter.Value>
                                 </Setter>
                             </Style>
-                        </Button.Style>
-                    </Button>
+                        </UniformGrid.Resources>
+                        <Button Content="0.5" Tag="0.50" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="0.75" Tag="0.75" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="1.0" Tag="1.00" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="1.25" Tag="1.25" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="1.5" Tag="1.50" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="2.0" Tag="2.00" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="2.5" Tag="2.50" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                        <Button Content="3.0" Tag="3.00" Click="CompositeSpeedOption_Click" Style="{StaticResource CompositeSpeedOptionButtonStyle}"/>
+                    </UniformGrid>
                 </StackPanel>
 
             </Grid>

@@ -7,37 +7,52 @@ namespace Canvas.TextEditor.Tests.UI
     public sealed class CompositeSpeedButtonInteractionTests
     {
         [Fact]
-        public void CompositeSpeedButton_Should_SwallowMouseClickBeforeButtonDefaultClick()
+        public void CompositeSpeedOptions_Should_RenderAsTwoTransparentRowsWithoutLargeIndicator()
         {
             string xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.xaml"));
-            string buttonBlock = Regex.Match(
+            string optionsBlock = Regex.Match(
                 xaml,
-                "<Button x:Name=\"BtnCompositeSpeed\"[\\s\\S]*?</Button>")
+                "<UniformGrid x:Name=\"CompositeSpeedOptionsPanel\"[\\s\\S]*?</UniformGrid>")
                 .Value;
 
-            Assert.Contains("MouseEnter=\"BtnCompositeSpeed_MouseEnter\"", buttonBlock);
-            Assert.Contains("PreviewMouseLeftButtonDown=\"BtnCompositeSpeed_PreviewMouseLeftButtonDown\"", buttonBlock);
-            Assert.Contains("MouseLeave=\"BtnCompositeSpeed_MouseLeave\"", buttonBlock);
-            Assert.Contains("Focusable=\"False\"", buttonBlock);
-            Assert.Contains("IsTabStop=\"False\"", buttonBlock);
-            Assert.DoesNotContain("Click=\"BtnCompositeSpeed_Click\"", buttonBlock);
+            Assert.DoesNotContain("x:Name=\"BtnCompositeSpeed\"", xaml);
+            Assert.Contains("Rows=\"2\"", optionsBlock);
+            Assert.Contains("Columns=\"4\"", optionsBlock);
+            Assert.Contains("Margin=\"0,8,0,0\"", optionsBlock);
+            Assert.Contains("Opacity\" Value=\"0.82\"", optionsBlock);
+            Assert.DoesNotContain("<WrapPanel", optionsBlock);
+            Assert.Equal(8, Regex.Matches(optionsBlock, "Click=\"CompositeSpeedOption_Click\"").Count);
+
+            string[] expectedSpeedTags = { "0.50", "0.75", "1.00", "1.25", "1.50", "2.00", "2.50", "3.00" };
+            foreach (string speedTag in expectedSpeedTags)
+            {
+                Assert.Contains($"Tag=\"{speedTag}\"", optionsBlock);
+            }
+
+            Assert.DoesNotContain("Tag=\"1.10\"", optionsBlock);
         }
 
         [Fact]
-        public void CompositeSpeedButton_ClickHandlers_Should_SuppressHoverUntilMouseLeaves()
+        public void CompositeSpeedOptions_Should_NotUseHoverContextMenu()
         {
+            string xaml = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.xaml"));
             string code = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.Keyframe.Events.cs"));
 
-            Assert.Contains("private bool _suppressCompositeSpeedHoverUntilMouseLeave;", code);
-            Assert.Matches(
-                "private void BtnCompositeSpeed_MouseEnter\\(object sender, System\\.Windows\\.Input\\.MouseEventArgs e\\)[\\s\\S]*?if \\(_suppressCompositeSpeedHoverUntilMouseLeave\\)[\\s\\S]*?return;",
-                code);
-            Assert.Matches(
-                "private void BtnCompositeSpeed_PreviewMouseLeftButtonDown\\(object sender, System\\.Windows\\.Input\\.MouseButtonEventArgs e\\)[\\s\\S]*?_suppressCompositeSpeedHoverUntilMouseLeave = true;[\\s\\S]*?CloseCompositeSpeedMenu\\(\\);[\\s\\S]*?e\\.Handled = true;",
-                code);
-            Assert.Matches(
-                "private void BtnCompositeSpeed_MouseLeave\\(object sender, System\\.Windows\\.Input\\.MouseEventArgs e\\)[\\s\\S]*?_suppressCompositeSpeedHoverUntilMouseLeave = false;",
-                code);
+            Assert.Contains("x:Name=\"CompositeSpeedOptionsPanel\"", xaml);
+            Assert.Contains("Click=\"CompositeSpeedOption_Click\"", xaml);
+            Assert.DoesNotContain("BtnCompositeSpeed", xaml);
+            Assert.DoesNotContain("BtnCompositeSpeed_MouseEnter", xaml);
+            Assert.DoesNotContain("BtnCompositeSpeed_PreviewMouseDown", xaml);
+            Assert.DoesNotContain("BtnCompositeSpeed_MouseLeave", xaml);
+
+            Assert.DoesNotContain("BtnCompositeSpeed", code);
+            Assert.DoesNotContain("_compositeSpeedMenu", code);
+            Assert.DoesNotContain("ShowCompositeSpeedMenu", code);
+            Assert.DoesNotContain("BuildCompositeSpeedMenu", code);
+            Assert.DoesNotContain("RefreshCompositeSpeedMenuCheckedState", code);
+            Assert.DoesNotContain("CompositeSpeedMenuAutoCloseTimer_Tick", code);
+            Assert.Contains("private void CompositeSpeedOption_Click(object sender, RoutedEventArgs e)", code);
+            Assert.Contains("UpdateCompositeSpeedOptionSelection(speed)", code);
         }
 
         private static string FindRepoRoot()

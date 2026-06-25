@@ -136,7 +136,7 @@ namespace ImageColorChanger.UI
                                     SetCompositePlayButtonContent(false);
                                     BtnCompositePause.Visibility = Visibility.Collapsed;
                                     SetCompositePauseButtonContent(false);
-                                    BtnCompositeSpeed.Visibility = Visibility.Collapsed;
+                                    SetCompositeSpeedControlsVisibility(Visibility.Collapsed);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                     CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
@@ -242,7 +242,7 @@ namespace ImageColorChanger.UI
                                     SetCompositePlayButtonContent(false);
                                     BtnCompositePause.Visibility = Visibility.Collapsed;
                                     SetCompositePauseButtonContent(false);
-                                    BtnCompositeSpeed.Visibility = Visibility.Collapsed;
+                                    SetCompositeSpeedControlsVisibility(Visibility.Collapsed);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                     CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;

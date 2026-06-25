@@ -140,11 +140,6 @@ namespace ImageColorChanger.UI
             BtnFloatingCompositePlay.Content = BuildIconLabelContent(iconKey, label, System.Windows.Media.Brushes.White);
         }
 
-        private void SetCompositeSpeedButtonContent(double speed)
-        {
-            BtnCompositeSpeed.Content = BuildIconLabelContent("IconLucideZap", $"{speed:F2}x", System.Windows.Media.Brushes.White);
-        }
-
         private void SetCompositePauseButtonContent(bool isPaused)
         {
             if (BtnCompositePause == null)
