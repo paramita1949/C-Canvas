@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.UI.Modules;
 using WpfColor = System.Windows.Media.Color;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -58,6 +59,7 @@ namespace ImageColorChanger.UI
             };
 
             LoadFontFamilies();
+            PopulateBibleFontSizeOptions();
             PopulatePreviewFontSizeOptions();
             LoadSettings();
             Loaded += BibleSettingsWindow_Loaded;
@@ -124,6 +126,27 @@ namespace ImageColorChanger.UI
                     Style = itemStyle
                 };
                 CmbPreviewFontSize.Items.Add(item);
+            }
+        }
+
+        private void PopulateBibleFontSizeOptions()
+        {
+            if (CmbFontSize == null)
+            {
+                return;
+            }
+
+            CmbFontSize.Items.Clear();
+            var itemStyle = FindResource("ComboBoxItemStyle") as Style;
+            foreach (int size in BibleSettingsFontSizeOptions.Values)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = size.ToString(),
+                    Style = itemStyle,
+                    IsSelected = size == BibleSettingsFontSizeOptions.DefaultValue
+                };
+                CmbFontSize.Items.Add(item);
             }
         }
 

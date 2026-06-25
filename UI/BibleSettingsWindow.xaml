@@ -193,29 +193,7 @@
                 <TextBlock Grid.Column="0" Text="大小" Style="{StaticResource LabelStyle}"/>
                 <ComboBox x:Name="CmbFontSize" Grid.Column="1" Style="{StaticResource ComboBoxStyle}"
                           SelectionChanged="Setting_Changed"
-                          MouseWheel="ComboBox_MouseWheel">
-                    <ComboBoxItem Content="30" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="32" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="34" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="36" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="38" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="40" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="42" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="44" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="46" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="48" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="50" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="52" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="54" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="56" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="58" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="60" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="64" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="68" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="72" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="76" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="80" Style="{StaticResource ComboBoxItemStyle}"/>
-                </ComboBox>
+                          MouseWheel="ComboBox_MouseWheel"/>
             </Grid>
 
             <!-- 边距 -->

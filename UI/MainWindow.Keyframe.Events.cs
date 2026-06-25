@@ -1496,6 +1496,18 @@ namespace ImageColorChanger.UI
             ShowCompositeSpeedMenu();
         }
 
+        private void BtnCompositeSpeed_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
+        }
+
+        private void BtnCompositeSpeed_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
+        }
+
         private async void BtnCompositePause_Click(object sender, RoutedEventArgs e)
         {
             await ToggleCompositePauseResumeByHotkeyAsync();

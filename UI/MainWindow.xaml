@@ -1581,6 +1581,8 @@
                             Opacity="0.75"
                             Visibility="Collapsed"
                             MouseEnter="BtnCompositeSpeed_MouseEnter"
+                            PreviewMouseLeftButtonDown="BtnCompositeSpeed_PreviewMouseLeftButtonDown"
+                            Click="BtnCompositeSpeed_Click"
                             ToolTip="悬浮：选择播放速度">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucideZap}"
