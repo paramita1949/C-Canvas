@@ -23,6 +23,7 @@ namespace ImageColorChanger.UI
         private System.Windows.Threading.DispatcherTimer _compositeSpeedMenuAutoCloseTimer;
         private DateTime _compositeSpeedMenuLastKeepAliveUtc = DateTime.MinValue;
         private const double CompositeSpeedMenuCloseGracePeriodMs = 320;
+        private bool _suppressCompositeSpeedHoverUntilMouseLeave;
         private Guid _compositeDiagnosticsSessionId = Guid.Empty;
         private System.Diagnostics.Stopwatch _compositeDiagnosticsStopwatch;
         private long _compositeDiagnosticsLastFrameTicks;
@@ -1493,19 +1494,24 @@ namespace ImageColorChanger.UI
         
         private void BtnCompositeSpeed_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
+            if (_suppressCompositeSpeedHoverUntilMouseLeave)
+            {
+                return;
+            }
+
             ShowCompositeSpeedMenu();
         }
 
         private void BtnCompositeSpeed_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            _suppressCompositeSpeedHoverUntilMouseLeave = true;
+            CloseCompositeSpeedMenu();
             e.Handled = true;
-            _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
         }
 
-        private void BtnCompositeSpeed_Click(object sender, RoutedEventArgs e)
+        private void BtnCompositeSpeed_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            e.Handled = true;
-            _compositeSpeedMenuLastKeepAliveUtc = DateTime.UtcNow;
+            _suppressCompositeSpeedHoverUntilMouseLeave = false;
         }
 
         private async void BtnCompositePause_Click(object sender, RoutedEventArgs e)
@@ -1658,6 +1664,16 @@ namespace ImageColorChanger.UI
         private void StopCompositeSpeedMenuAutoCloseTimer()
         {
             _compositeSpeedMenuAutoCloseTimer?.Stop();
+        }
+
+        private void CloseCompositeSpeedMenu()
+        {
+            StopCompositeSpeedMenuAutoCloseTimer();
+
+            if (_compositeSpeedMenu != null)
+            {
+                _compositeSpeedMenu.IsOpen = false;
+            }
         }
 
         private void CompositeSpeedMenuAutoCloseTimer_Tick(object sender, EventArgs e)

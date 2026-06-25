@@ -1580,9 +1580,11 @@
                             Cursor="Hand"
                             Opacity="0.75"
                             Visibility="Collapsed"
+                            Focusable="False"
+                            IsTabStop="False"
                             MouseEnter="BtnCompositeSpeed_MouseEnter"
+                            MouseLeave="BtnCompositeSpeed_MouseLeave"
                             PreviewMouseLeftButtonDown="BtnCompositeSpeed_PreviewMouseLeftButtonDown"
-                            Click="BtnCompositeSpeed_Click"
                             ToolTip="悬浮：选择播放速度">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource IconLucideZap}"
