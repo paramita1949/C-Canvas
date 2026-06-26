@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.0.8.5</Version>
-    <FileVersion>6.0.8.5</FileVersion>
-    <AssemblyVersion>6.0.8.5</AssemblyVersion>
+    <Version>6.0.8.6</Version>
+    <FileVersion>6.0.8.6</FileVersion>
+    <AssemblyVersion>6.0.8.6</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -171,6 +171,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <Link>data\icon\geci.png</Link>
+    </None>
+    <None Include="data\splash\SOM.png" Condition="Exists('data\splash\SOM.png')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>data\splash\SOM.png</Link>
     </None>
     <None Include="data\NDI6Runtime.exe" Condition="Exists('data\NDI6Runtime.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

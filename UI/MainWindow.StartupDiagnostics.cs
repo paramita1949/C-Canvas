@@ -8,6 +8,7 @@ namespace ImageColorChanger.UI
         private void MainWindow_ContentRendered(object sender, EventArgs e)
         {
             StartupPerfLogger.Mark("MainWindow.ContentRendered");
+            StartupSplashController.Close();
         }
     }
 }

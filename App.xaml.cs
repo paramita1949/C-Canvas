@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ImageColorChanger.Core;
 using ImageColorChanger.Utils;
 using ImageColorChanger.Database;
+using ImageColorChanger.UI;
 
 namespace ImageColorChanger
 {
@@ -58,6 +59,9 @@ namespace ImageColorChanger
 
             ApplyPendingDatabaseImportIfExists();
             StartupPerfLogger.Mark("App.PendingDatabaseImport.Checked");
+            StartupSplashController.Show(
+                "正在初始化服务...",
+                StartupScriptureVerseProvider.GetRandomVerseText());
 
             try
             {
@@ -69,6 +73,7 @@ namespace ImageColorChanger
                 StartClientUsageReport();
 
                 // 预热数据库单例：与资源加载/窗口构造并行，减少首屏阶段等待。
+                StartupSplashController.UpdateStatus("正在加载资料库...");
                 DatabaseWarmupTask = Task.Run(() =>
                 {
                     var sw = Stopwatch.StartNew();
@@ -87,6 +92,7 @@ namespace ImageColorChanger
                 // 初始化资源加载器（检测PAK或使用文件系统）
                 ResourceLoader.Initialize();
                 StartupPerfLogger.Mark("App.ResourceLoader.Initialized");
+                StartupSplashController.UpdateStatus("正在准备主界面...");
 
                 // 全局异常处理
                 AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
@@ -95,6 +101,7 @@ namespace ImageColorChanger
             }
             catch (Exception ex)
             {
+                StartupSplashController.Close();
                 StartupPerfLogger.Error("App.OnStartup.Failed", ex);
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($" [FATAL] 应用程序启动失败: {ex.Message}");
@@ -140,6 +147,7 @@ namespace ImageColorChanger
         protected override void OnExit(ExitEventArgs e)
         {
             StartupPerfLogger.Mark("App.OnExit");
+            StartupSplashController.Close();
 
             // 兜底：确保认证状态在应用退出前尽量完成落盘。
             try
