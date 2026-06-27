@@ -101,10 +101,31 @@ namespace Canvas.TextEditor.Tests.UI
             Assert.Contains("SOM.png", resolverCode);
             Assert.Contains("data", resolverCode);
             Assert.Contains("splash", resolverCode);
+            Assert.Contains("GetSupportedSplashImagePaths", resolverCode);
+            Assert.Contains("SelectRandomSplashImagePath", resolverCode);
             Assert.Contains("BitmapCacheOption.OnLoad", resolverCode);
-            Assert.Contains("data\\splash\\SOM.png", projectFile);
+            Assert.Contains("data\\splash\\**\\*.png", projectFile);
+            Assert.Contains("data\\splash\\**\\*.jpg", projectFile);
+            Assert.Contains("data\\splash\\**\\*.jpeg", projectFile);
+            Assert.Contains("data\\splash\\**\\*.webp", projectFile);
+            Assert.Contains("data\\splash\\**\\*.bmp", projectFile);
             Assert.Contains("CopyToOutputDirectory", projectFile);
             Assert.Contains("CopyToPublishDirectory", projectFile);
+        }
+
+        [Fact]
+        public void StartupSplashImageResolver_CanRandomlySelectFromSplashImagePool()
+        {
+            string root = FindRepoRoot();
+            string splashDirectory = Path.Combine(root, "data", "splash");
+
+            var images = StartupSplashImageResolver.GetSupportedSplashImagePaths(splashDirectory);
+            string selected = StartupSplashImageResolver.SelectRandomSplashImagePath(splashDirectory, new FixedRandom(1));
+
+            Assert.True(images.Count >= 2, "data/splash should support multiple startup images.");
+            Assert.Contains(images, path => Path.GetFileName(path) == "Road of Hope.png");
+            Assert.DoesNotContain(images, path => Path.GetExtension(path).Equals(".txt", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(images[1], selected);
         }
 
         [Fact]

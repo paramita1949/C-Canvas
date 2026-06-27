@@ -56,12 +56,11 @@ For any user request in this repository, the agent MUST load and follow BOTH glo
 For coding, debugging, refactoring, review, or impact-analysis requests in this repository, the agent MUST use CodeGraph before broad file scanning when the CodeGraph MCP tools are available.
 
 Required pattern:
-1. Run CodeGraph context/query/callers/callees/impact first to identify relevant files, symbols, entry points, and impacted surfaces.
+1. When CodeGraph MCP tools are exposed, run `codegraph_context` / `codegraph_search` / `codegraph_callers` / `codegraph_callees` / `codegraph_impact` first to identify relevant files, symbols, entry points, and impacted surfaces.
 2. Then read only the directly relevant source files to verify details before editing.
-3. If CodeGraph MCP tools are not exposed in the current session, use the CLI fallback from `d:/img/Canvas`:
+3. If CodeGraph MCP tools are not exposed in the current session, use the CLI fallback from `d:/img/Canvas`. The CLI does not currently provide a `context` subcommand, so do not run `codegraph context`:
    - `codegraph status`
-   - `codegraph context "<task>"`
-   - `codegraph query "<symbol-or-feature>"`
+   - `codegraph query "<symbol-or-feature-or-task-keywords>"`
    - `codegraph callers "<symbol>"`
    - `codegraph callees "<symbol>"`
    - `codegraph impact "<symbol>"`
@@ -122,7 +121,7 @@ For any non-trivial feature/bugfix/UI behavior change (not pure text copy edits)
 
 ### Lightweight Change Exception (Mandatory)
 For small, explicitly scoped changes such as GitHub Actions/YML filename edits, copy-only text edits, documentation wording, version metadata, or simple config value changes:
-1. Do **not** run unrelated app/test suites or `scripts/verify-change.ps1` unless the user explicitly asks for build verification.
+1. Do **not** run unrelated app/test suites unless the user explicitly asks for build verification.
 2. Do **not** update `docs/engineering-change-gate.md`, `task_plan.md`, `progress.md`, or `findings.md` unless the user asks for persistent task records or the change is a non-trivial feature/bugfix/UI behavior change.
 3. Verify only the directly changed surface with targeted checks, for example:
    - `rg` for old/new text in the edited files.
@@ -160,9 +159,9 @@ Before completion, run scenario regression (not build-only):
 - one negative path (invalid input or missing data)
 
 ### 5) Verification Artifact Required
-The turn must include:
+For non-trivial feature/bugfix/UI behavior changes, the turn must include:
 - updated `docs/engineering-change-gate.md` checklist section for the task
-- verification command output summary from `scripts/verify-change.ps1`
+- verification command output summary from task-relevant checks, such as targeted unit tests, `dotnet build`, UI inspection, or scenario-specific scripts
 
 If any checklist item is not validated, explicitly mark it as pending and do not claim full completion.
 
