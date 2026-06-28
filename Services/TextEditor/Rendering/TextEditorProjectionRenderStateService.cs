@@ -67,7 +67,8 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
                 EncodePart(context.BiblePopupOverlayBackgroundColor),
                 context.BiblePopupOverlayBackgroundOpacity.ToString(CultureInfo.InvariantCulture),
                 context.BiblePopupOverlayHideSlideContent ? "1" : "0",
-                context.BiblePopupOverlayScrollOffset.ToString("G17", CultureInfo.InvariantCulture));
+                context.BiblePopupOverlayScrollOffset.ToString("G17", CultureInfo.InvariantCulture),
+                context.BiblePopupOverlayHighlightedVerseIndex.ToString(CultureInfo.InvariantCulture));
         }
 
         public bool TryGetCached(string cacheKey, out SKBitmap cachedBitmap)

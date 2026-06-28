@@ -204,6 +204,43 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Rendering
         }
 
         [Fact]
+        public void BuildCanvasCacheKey_Changes_WhenBiblePopupHighlightedVerseChanges()
+        {
+            var service = new TextEditorProjectionRenderStateService();
+
+            var baseContext = new TextEditorProjectionCacheContext
+            {
+                BiblePopupOverlayVisible = true,
+                BiblePopupOverlayReference = "马太福音 12:2-3",
+                BiblePopupOverlayContent = "2 看哪...\n3 耶稣说...",
+                BiblePopupOverlayPosition = "Bottom",
+                BiblePopupOverlayBackgroundColor = "#1C2740",
+                BiblePopupOverlayBackgroundOpacity = 0,
+                BiblePopupOverlayHideSlideContent = false,
+                BiblePopupOverlayScrollOffset = 0,
+                BiblePopupOverlayHighlightedVerseIndex = 0
+            };
+
+            var changedContext = new TextEditorProjectionCacheContext
+            {
+                BiblePopupOverlayVisible = baseContext.BiblePopupOverlayVisible,
+                BiblePopupOverlayReference = baseContext.BiblePopupOverlayReference,
+                BiblePopupOverlayContent = baseContext.BiblePopupOverlayContent,
+                BiblePopupOverlayPosition = baseContext.BiblePopupOverlayPosition,
+                BiblePopupOverlayBackgroundColor = baseContext.BiblePopupOverlayBackgroundColor,
+                BiblePopupOverlayBackgroundOpacity = baseContext.BiblePopupOverlayBackgroundOpacity,
+                BiblePopupOverlayHideSlideContent = baseContext.BiblePopupOverlayHideSlideContent,
+                BiblePopupOverlayScrollOffset = baseContext.BiblePopupOverlayScrollOffset,
+                BiblePopupOverlayHighlightedVerseIndex = 1
+            };
+
+            var key1 = service.BuildCanvasCacheKey(baseContext);
+            var key2 = service.BuildCanvasCacheKey(changedContext);
+
+            Assert.NotEqual(key1, key2);
+        }
+
+        [Fact]
         public void BuildCanvasCacheKey_HandlesGradientSpecWithSeparators()
         {
             var service = new TextEditorProjectionRenderStateService();

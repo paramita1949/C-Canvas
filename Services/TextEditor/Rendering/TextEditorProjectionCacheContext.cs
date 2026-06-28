@@ -23,5 +23,6 @@ namespace ImageColorChanger.Services.TextEditor.Rendering
         public int BiblePopupOverlayBackgroundOpacity { get; init; }
         public bool BiblePopupOverlayHideSlideContent { get; init; }
         public double BiblePopupOverlayScrollOffset { get; init; }
+        public int BiblePopupOverlayHighlightedVerseIndex { get; init; } = -1;
     }
 }

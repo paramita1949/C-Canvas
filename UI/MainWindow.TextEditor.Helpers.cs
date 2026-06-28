@@ -762,7 +762,8 @@ namespace ImageColorChanger.UI
                 BiblePopupOverlayBackgroundColor = _biblePopupOverlayConfig?.PopupBackgroundColorHex,
                 BiblePopupOverlayBackgroundOpacity = _biblePopupOverlayConfig?.PopupBackgroundOpacity ?? 0,
                 BiblePopupOverlayHideSlideContent = _biblePopupOverlayConfig?.PopupHideSlideContent ?? false,
-                BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset
+                BiblePopupOverlayScrollOffset = _biblePopupOverlayVerseScrollOffset,
+                BiblePopupOverlayHighlightedVerseIndex = _biblePopupOverlayHighlightedVerseIndex
             };
         }
 
