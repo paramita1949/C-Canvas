@@ -44,6 +44,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (TryHandleBiblePopupOverlayNavigationKey(key))
+            {
+                e.Handled = true;
+                LogBibleQuickLocateDebug("WindowPreviewKeyDown", $"handled bible popup overlay navigation key={key}");
+                return;
+            }
+
             if (await TryHandleBibleQuickLocationFromWindowAsync(key))
             {
                 e.Handled = true;

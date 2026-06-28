@@ -10,6 +10,7 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Managers.Keyframes;
 using ImageColorChanger.Services.Diagnostics;
+using ImageColorChanger.UI.Modules;
 using MessageBox = System.Windows.MessageBox;
 using Microsoft.EntityFrameworkCore;
 
@@ -884,31 +885,395 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private async void CountdownBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount < 2)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            await SaveCompositeDurationFromCountdownAsync();
+        }
+
+        private void CountdownBorder_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            ShowCountdownDurationShortcutMenu(sender as UIElement);
+        }
+
+        private void ShowCountdownDurationShortcutMenu(UIElement placementTarget)
+        {
+            try
+            {
+                var contextMenu = new ContextMenu();
+                contextMenu.Style = (Style)this.FindResource("NoBorderContextMenuStyle");
+
+                var applyTimeItem = new MenuItem
+                {
+                    Header = "应用"
+                };
+                applyTimeItem.Click += async (s, args) =>
+                {
+                    await SaveCompositeDurationFromCountdownAsync();
+                };
+                contextMenu.Items.Add(applyTimeItem);
+
+                var editScriptItem = new MenuItem
+                {
+                    Header = "修改"
+                };
+                editScriptItem.Click += async (s, args) =>
+                {
+                    await OpenCompositeDurationQuickEditDialogAsync();
+                };
+                contextMenu.Items.Add(editScriptItem);
+
+                contextMenu.PlacementTarget = placementTarget ?? CountdownBorder;
+                contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+                contextMenu.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($" 显示倒计时时间菜单失败: {ex.Message}");
+            }
+        }
+
+        private async Task SaveCompositeDurationFromCountdownAsync()
+        {
+            if (_currentImageId == 0)
+            {
+                ShowStatus("请先选择一张图片");
+                return;
+            }
+
+            if (!CompositeCountdownDurationShortcut.TryNormalizeElapsedDuration(_lastCountdownElapsedSeconds, out double duration))
+            {
+                ShowStatus("当前没有可保存的已播放时间");
+                return;
+            }
+
+            if (await SetCompositeTotalDuration(duration))
+            {
+                string durationText = FormatCompositeDurationForStatus(duration);
+                ShowToast($"已应用 {durationText} 秒", 1200);
+            }
+        }
+
+        private async Task OpenCompositeDurationQuickEditDialogAsync()
+        {
+            if (_currentImageId == 0)
+            {
+                ShowStatus("请先选择一张图片");
+                return;
+            }
+
+            if (_compositeScriptRepository == null)
+            {
+                ShowStatus("合成播放脚本未初始化");
+                return;
+            }
+
+            double currentDuration = _configManager?.CompositePlaybackDefaultDuration ?? 105.0;
+            var existingScript = await _compositeScriptRepository.GetByImageIdAsync(_currentImageId);
+            if (existingScript != null && existingScript.TotalDuration > 0)
+            {
+                currentDuration = existingScript.TotalDuration;
+            }
+
+            var inputBox = new System.Windows.Controls.TextBox
+            {
+                Text = FormatCompositeDurationForStatus(currentDuration),
+                MinWidth = 220,
+                Height = 58,
+                FontSize = 32,
+                FontWeight = FontWeights.SemiBold,
+                TextAlignment = TextAlignment.Center,
+                HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(8, 0, 8, 2),
+                Margin = new Thickness(0, 12, 0, 8),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 250, 252)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225)),
+                BorderThickness = new Thickness(1)
+            };
+
+            var dialog = new Window
+            {
+                Title = "修改时间",
+                Owner = this,
+                Width = 340,
+                Height = 260,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                ShowInTaskbar = false,
+                Background = System.Windows.Media.Brushes.Transparent
+            };
+            dialog.Content = BuildCompositeDurationQuickEditContent(inputBox, dialog);
+
+            inputBox.Loaded += (s, e) =>
+            {
+                inputBox.Focus();
+                inputBox.SelectAll();
+            };
+
+            inputBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    dialog.DialogResult = true;
+                    dialog.Close();
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    dialog.DialogResult = false;
+                    dialog.Close();
+                }
+            };
+            dialog.PreviewMouseWheel += (s, e) =>
+            {
+                double currentInputDuration = TryParseCompositeDuration(inputBox.Text, out double parsedDuration)
+                    ? parsedDuration
+                    : double.NaN;
+                double adjustedDuration = CompositeCountdownDurationShortcut.AdjustDurationByWheelDelta(currentInputDuration, e.Delta);
+                inputBox.Text = FormatCompositeDurationForStatus(adjustedDuration);
+                inputBox.SelectAll();
+                e.Handled = true;
+            };
+
+            bool? result = dialog.ShowDialog();
+            if (result != true)
+            {
+                return;
+            }
+
+            if (!TryParseCompositeDuration(inputBox.Text, out double duration))
+            {
+                ShowStatus("请输入大于 0 的秒数");
+                return;
+            }
+
+            await SetCompositeTotalDuration(duration);
+        }
+
+        private UIElement BuildCompositeDurationQuickEditContent(System.Windows.Controls.TextBox inputBox, Window dialog)
+        {
+            var card = new Border
+            {
+                Margin = new Thickness(12),
+                Padding = new Thickness(20, 18, 20, 16),
+                CornerRadius = new CornerRadius(16),
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1)
+            };
+            card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 8,
+                BlurRadius = 24,
+                Opacity = 0.18,
+                Color = System.Windows.Media.Colors.Black
+            };
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            card.Child = root;
+
+            var title = new TextBlock
+            {
+                Text = "修改时间",
+                FontSize = 18,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(15, 23, 42)),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+            };
+            Grid.SetRow(title, 0);
+            root.Children.Add(title);
+
+            Grid.SetRow(inputBox, 1);
+            root.Children.Add(inputBox);
+
+            var hint = new TextBlock
+            {
+                Text = "滚轮 ±5 秒，回车保存",
+                FontSize = 13,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139)),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+            };
+            Grid.SetRow(hint, 2);
+            root.Children.Add(hint);
+
+            var buttons = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 18, 0, 0)
+            };
+            Grid.SetRow(buttons, 4);
+
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "取消",
+                Width = 82,
+                Height = 34,
+                Margin = new Thickness(0, 0, 10, 0),
+                IsCancel = true,
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(203, 213, 225)),
+                BorderThickness = new Thickness(1),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 65, 85)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Template = CreateCompositeDurationQuickEditButtonTemplate()
+            };
+            cancelButton.Click += (s, e) =>
+            {
+                dialog.DialogResult = false;
+                dialog.Close();
+            };
+            var confirmButton = new System.Windows.Controls.Button
+            {
+                Content = "保存",
+                Width = 82,
+                Height = 34,
+                IsDefault = true,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)),
+                BorderThickness = new Thickness(1),
+                Foreground = System.Windows.Media.Brushes.White,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Template = CreateCompositeDurationQuickEditButtonTemplate()
+            };
+            confirmButton.Click += (s, e) =>
+            {
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            buttons.Children.Add(cancelButton);
+            buttons.Children.Add(confirmButton);
+            root.Children.Add(buttons);
+
+            return card;
+        }
+
+        private static ControlTemplate CreateCompositeDurationQuickEditButtonTemplate()
+        {
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "buttonBorder";
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+            borderFactory.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+            borderFactory.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+            borderFactory.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+            borderFactory.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            contentFactory.SetBinding(ContentPresenter.ContentProperty, new System.Windows.Data.Binding("Content")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+            contentFactory.SetBinding(System.Windows.Documents.TextElement.ForegroundProperty, new System.Windows.Data.Binding("Foreground")
+            {
+                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent
+            });
+            borderFactory.AppendChild(contentFactory);
+
+            var template = new ControlTemplate(typeof(System.Windows.Controls.Button))
+            {
+                VisualTree = borderFactory
+            };
+
+            var hoverTrigger = new Trigger
+            {
+                Property = UIElement.IsMouseOverProperty,
+                Value = true
+            };
+            hoverTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, 0.92, "buttonBorder"));
+            template.Triggers.Add(hoverTrigger);
+
+            var pressedTrigger = new Trigger
+            {
+                Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty,
+                Value = true
+            };
+            pressedTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, 0.78, "buttonBorder"));
+            template.Triggers.Add(pressedTrigger);
+
+            return template;
+        }
+
+        private static bool TryParseCompositeDuration(string text, out double duration)
+        {
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out duration)
+                && !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out duration))
+            {
+                duration = 0;
+                return false;
+            }
+
+            if (double.IsNaN(duration) || double.IsInfinity(duration) || duration <= 0)
+            {
+                duration = 0;
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// 设置合成播放的总时长
         /// </summary>
-        private async System.Threading.Tasks.Task SetCompositeTotalDuration(int duration)
+        private async System.Threading.Tasks.Task<bool> SetCompositeTotalDuration(double duration)
         {
             try
             {
                 // 获取CompositeScriptRepository
                 var compositeScriptRepo = _compositeScriptRepository;
-                if (compositeScriptRepo == null) return;
+                if (compositeScriptRepo == null) return false;
                 
                 // 更新TOTAL时长
                 await compositeScriptRepo.CreateOrUpdateAsync(_currentImageId, duration, autoCalculate: false);
-                
-                ShowStatus($"总时长已设置为 {duration} 秒");
+
+                string durationText = FormatCompositeDurationForStatus(duration);
+                ShowStatus($"总时长已设置为 {durationText} 秒");
                 
                 #if DEBUG
-                System.Diagnostics.Debug.WriteLine($" 总时长已设置: {duration}秒 (图片ID: {_currentImageId})");
+                System.Diagnostics.Debug.WriteLine($" 总时长已设置: {durationText}秒 (图片ID: {_currentImageId})");
                 #endif
+                return true;
             }
             catch (Exception ex)
             {
                 ShowStatus($"设置时长失败: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($" 设置总时长失败: {ex}");
+                return false;
             }
+        }
+
+        private static string FormatCompositeDurationForStatus(double duration)
+        {
+            return Math.Abs(duration - Math.Round(duration)) < 0.001
+                ? duration.ToString("F0", CultureInfo.InvariantCulture)
+                : duration.ToString("F1", CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -1312,7 +1677,7 @@ namespace ImageColorChanger.UI
                     // 停止场景：清空倒计时并恢复指示块
                     if (!isPauseOnly && !preserveCountdown)
                     {
-                        CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                        ResetCountdownDisplay();
                         _countdownService?.Stop();
                         _keyframeManager?.UpdatePreviewLines();
                     }
@@ -1433,7 +1798,7 @@ namespace ImageColorChanger.UI
             // 与按钮停止一致：确保滚动动画和倒计时都被清理
             _keyframeManager?.StopScrollAnimation();
             StopCompositeScrollAnimation();
-            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+            ResetCountdownDisplay();
             _countdownService?.Stop();
 
             ShowStatus(statusMessage);
@@ -1822,7 +2187,7 @@ namespace ImageColorChanger.UI
                         StopCompositeScrollAnimation();
                         
                         // 重置倒计时显示
-                        CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                        ResetCountdownDisplay();
                             _countdownService?.Stop();
                         }
                         else
@@ -1839,7 +2204,7 @@ namespace ImageColorChanger.UI
                             StopCompositeScrollAnimation();
                             
                             // 重置倒计时显示
-                            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                            ResetCountdownDisplay();
                                 _countdownService?.Stop();
                             });
                         }

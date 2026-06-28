@@ -260,7 +260,11 @@
                     <Border x:Name="CountdownBorder" Background="#FFFFCC" 
                             BorderThickness="0"
                             CornerRadius="4" Padding="8,2" Margin="3,0" Width="110"
-                            VerticalAlignment="Center">
+                            VerticalAlignment="Center"
+                            Cursor="Hand"
+                            ToolTip="双击：应用已播放时间 | 右键：应用/修改"
+                            MouseLeftButtonDown="CountdownBorder_MouseLeftButtonDown"
+                            MouseRightButtonUp="CountdownBorder_MouseRightButtonUp">
                         <TextBlock x:Name="CountdownText" Text="|" FontSize="18" 
                                    FontWeight="Bold" Foreground="#CC6600" 
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>

@@ -100,6 +100,7 @@ namespace ImageColorChanger.UI
         // 图像处理相关
         private ImageProcessor _imageProcessor;
         private string _imagePath;
+        private double _lastCountdownElapsedSeconds;
 
         // 图片缩放相关
         private double _currentZoom = 1.0;
@@ -229,6 +230,7 @@ namespace ImageColorChanger.UI
         {
             double elapsed = Math.Max(0, elapsedSeconds);
             double remaining = Math.Max(0, remainingSeconds);
+            _lastCountdownElapsedSeconds = elapsed;
 
             CountdownText.Inlines.Clear();
             CountdownText.Inlines.Add(new System.Windows.Documents.Run($"{remaining:F1}|")
@@ -239,6 +241,12 @@ namespace ImageColorChanger.UI
             {
                 Foreground = COUNTDOWN_ELAPSED_BRUSH
             });
+        }
+
+        private void ResetCountdownDisplay()
+        {
+            _lastCountdownElapsedSeconds = 0;
+            CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
         }
 
         #endregion

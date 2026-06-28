@@ -107,7 +107,7 @@ namespace ImageColorChanger.UI
 
                                 Dispatcher.Invoke(() =>
                                 {
-                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                                    ResetCountdownDisplay();
                                     CountdownText.ToolTip = null;
                                 });
                             }
@@ -139,7 +139,7 @@ namespace ImageColorChanger.UI
                                     SetCompositeSpeedControlsVisibility(Visibility.Collapsed);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                                    ResetCountdownDisplay();
                                     CountdownText.ToolTip = null;
                                     _countdownService?.Stop();
                                     System.Diagnostics.Debug.WriteLine("[投影] 已停止合成播放的滚动动画和倒计时");
@@ -216,7 +216,7 @@ namespace ImageColorChanger.UI
 
                                 Dispatcher.Invoke(() =>
                                 {
-                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                                    ResetCountdownDisplay();
                                     CountdownText.ToolTip = null;
                                 });
                             }
@@ -245,7 +245,7 @@ namespace ImageColorChanger.UI
                                     SetCompositeSpeedControlsVisibility(Visibility.Collapsed);
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
-                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                                    ResetCountdownDisplay();
                                     CountdownText.ToolTip = null;
                                     _countdownService?.Stop();
                                 });

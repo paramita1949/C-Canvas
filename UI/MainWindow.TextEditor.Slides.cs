@@ -946,6 +946,12 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (TryHandleBiblePopupOverlayNavigationKey(e.Key))
+            {
+                e.Handled = true;
+                return;
+            }
+
             bool ctrlPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
             if (ctrlPressed && e.Key == Key.A)
             {
@@ -1716,6 +1722,12 @@ namespace ImageColorChanger.UI
         private void MainBiblePopupOverlayImage_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _ = sender;
+            if (HandleBiblePopupOverlayClick(e))
+            {
+                e.Handled = true;
+                return;
+            }
+
             if (TryOpenBibleToolbarForPopupOverlay())
             {
                 e.Handled = true;

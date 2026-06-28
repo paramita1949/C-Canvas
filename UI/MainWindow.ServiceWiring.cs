@@ -111,7 +111,7 @@ namespace ImageColorChanger.UI
                                     : System.Windows.SystemColors.ControlBrush;
                                 if (!_playbackViewModel.IsPlaying)
                                 {
-                                    CountdownText.Text = COUNTDOWN_DEFAULT_TEXT;
+                                    ResetCountdownDisplay();
                                     _keyframeManager?.StopScrollAnimation();
                                     StopCompositeScrollAnimation();
                                 }

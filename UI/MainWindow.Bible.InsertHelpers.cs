@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 using WpfMessageBox = System.Windows.MessageBox;
 
@@ -677,34 +678,33 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            double relativeY = pt.Y - _biblePopupOverlayLastVerseViewportRect.Top + _biblePopupOverlayVerseScrollOffset;
-            int verseCount = Math.Min(_biblePopupOverlayVerseAnchors.Count, _biblePopupOverlayVerseHeights.Count);
-            if (verseCount <= 0)
+            if (!BiblePopupOverlayInputPolicy.TryGetClickedVerseIndex(
+                    _biblePopupOverlayLastVerseViewportRect.Top,
+                    pt.Y,
+                    _biblePopupOverlayVerseScrollOffset,
+                    _biblePopupOverlayVerseAnchors,
+                    _biblePopupOverlayVerseHeights,
+                    GetBiblePopupOverlayLineHeight(),
+                    out int targetIndex))
             {
                 return false;
-            }
-
-            int targetIndex = -1;
-            for (int i = 0; i < verseCount; i++)
-            {
-                double top = _biblePopupOverlayVerseAnchors[i];
-                double bottom = top + Math.Max(1.0, _biblePopupOverlayVerseHeights[i]);
-                if (relativeY >= top && relativeY < bottom)
-                {
-                    targetIndex = i;
-                    break;
-                }
-            }
-
-            if (targetIndex < 0)
-            {
-                targetIndex = Math.Clamp((int)Math.Round(relativeY / Math.Max(1.0, GetBiblePopupOverlayLineHeight())), 0, verseCount - 1);
             }
 
             _biblePopupOverlayHighlightedVerseIndex = targetIndex;
             RefreshMainBiblePopupOverlayPreview();
             RefreshProjectionForBiblePopupOverlay();
             return true;
+        }
+
+        private bool TryHandleBiblePopupOverlayNavigationKey(Key key)
+        {
+            if (Keyboard.Modifiers != ModifierKeys.None)
+            {
+                return false;
+            }
+
+            int direction = BiblePopupOverlayInputPolicy.GetDirectionFromKey(key);
+            return TryNavigateBiblePopupOverlayByDirection(direction);
         }
 
         private void StartBiblePopupOverlayEnterAnimation()
@@ -809,34 +809,54 @@ namespace ImageColorChanger.UI
                 return false;
             }
 
-            int currentIndex = _biblePopupOverlayHighlightedVerseIndex;
-            if (currentIndex < 0 || currentIndex >= verseCount)
+            int delta = wheelDelta < 0 ? 1 : -1;
+            return TryMoveBiblePopupHighlightedVerse(delta, out nextOffset);
+        }
+
+        private bool TryNavigateBiblePopupOverlayByDirection(int direction)
+        {
+            if (!_isBiblePopupOverlayVisible)
             {
-                const double epsilon = 0.5;
-                double currentOffset = Math.Clamp(_biblePopupOverlayVerseScrollOffset, 0, _biblePopupOverlayVerseMaxScroll);
-                currentIndex = 0;
-                for (int i = 0; i < verseCount; i++)
-                {
-                    if (_biblePopupOverlayVerseAnchors[i] <= currentOffset + epsilon)
-                    {
-                        currentIndex = i;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
+                return false;
             }
 
-            int delta = wheelDelta < 0 ? 1 : -1;
-            int targetIndex = Math.Clamp(currentIndex + delta, 0, verseCount - 1);
-            if (targetIndex == currentIndex)
+            double previousOffset = _biblePopupOverlayVerseScrollOffset;
+            int previousIndex = _biblePopupOverlayHighlightedVerseIndex;
+            if (!TryMoveBiblePopupHighlightedVerse(direction, out double nextOffset))
+            {
+                return false;
+            }
+
+            _biblePopupOverlayVerseScrollOffset = nextOffset;
+            bool changed =
+                Math.Abs(previousOffset - _biblePopupOverlayVerseScrollOffset) >= 0.5 ||
+                previousIndex != _biblePopupOverlayHighlightedVerseIndex;
+            if (!changed)
+            {
+                return true;
+            }
+
+            RefreshMainBiblePopupOverlayPreview();
+            RefreshProjectionForBiblePopupOverlay();
+            return true;
+        }
+
+        private bool TryMoveBiblePopupHighlightedVerse(int direction, out double nextOffset)
+        {
+            nextOffset = _biblePopupOverlayVerseScrollOffset;
+            if (!BiblePopupOverlayInputPolicy.TryMoveHighlightedVerse(
+                    _biblePopupOverlayHighlightedVerseIndex,
+                    _biblePopupOverlayVerseScrollOffset,
+                    _biblePopupOverlayVerseAnchors,
+                    direction,
+                    _biblePopupOverlayVerseMaxScroll,
+                    out int targetIndex,
+                    out nextOffset))
             {
                 return false;
             }
 
             _biblePopupOverlayHighlightedVerseIndex = targetIndex;
-            nextOffset = Math.Clamp(_biblePopupOverlayVerseAnchors[targetIndex], 0, _biblePopupOverlayVerseMaxScroll);
             return true;
         }
 
