@@ -91,6 +91,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+# Legacy local mirror path; cf-admin source now lives at D:\img\cloudflare\cf-admin.
 cf-admin/
 
 # Environments

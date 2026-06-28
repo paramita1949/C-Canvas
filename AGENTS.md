@@ -165,16 +165,14 @@ For non-trivial feature/bugfix/UI behavior changes, the turn must include:
 
 If any checklist item is not validated, explicitly mark it as pending and do not claim full completion.
 
-## CF-ADMIN Sync Policy (Mandatory)
+## CF-ADMIN Source Policy (Mandatory)
 For any request involving `cf-admin` content/features/config:
 
 1. Treat `D:\img\cloudflare\cf-admin` as the source of truth for edits.
-2. Apply all `cf-admin` code/content changes in `D:\img\cloudflare\cf-admin` first.
-3. After source edits, mirror-sync to `D:\img\Canvas\cf-admin` in the same turn.
-4. Exclude source `.git` metadata when syncing; only project files are mirrored.
-5. Verify sync success with file-level comparison (for example hash check or mirror tool report) before claiming completion.
+2. Apply all `cf-admin` code/content/config changes directly in `D:\img\cloudflare\cf-admin`.
+3. Do not maintain or recreate `D:\img\Canvas\cf-admin` as a mirror.
+4. Verify changes in the source repository itself using task-relevant checks, such as targeted `npm test`, `git diff --check`, static page inspection, or browser verification.
+5. Commit/push/deploy from `D:\img\cloudflare\cf-admin` only when the user explicitly asks for that delivery step.
 
 Completion rule:
-- Do not mark a `cf-admin` task complete unless both directories are confirmed consistent:
-  - `D:\img\cloudflare\cf-admin`
-  - `D:\img\Canvas\cf-admin`
+- Do not mark a `cf-admin` task complete by relying on a Canvas mirror. The source repository state in `D:\img\cloudflare\cf-admin` is authoritative.
