@@ -25,6 +25,8 @@ namespace ImageColorChanger.Services
         private readonly Func<string> _deviceNameProvider;
         private readonly string[] _endpoints;
 
+        public ClientVersionPolicyDecision LastPolicy { get; private set; } = ClientVersionPolicyDecision.CreateNone();
+
         public ClientUsageReportService(IAuthService authService)
             : this(
                 new HttpClient { Timeout = TimeSpan.FromSeconds(5) },
@@ -54,7 +56,7 @@ namespace ImageColorChanger.Services
                 : endpoints;
         }
 
-        public async Task ReportStartupAsync(CancellationToken cancellationToken = default)
+        public async Task<ClientVersionPolicyDecision> ReportStartupAsync(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -63,7 +65,7 @@ namespace ImageColorChanger.Services
 
                 if (string.IsNullOrWhiteSpace(hardwareId) || string.IsNullOrWhiteSpace(appVersion))
                 {
-                    return;
+                    return LastPolicy;
                 }
 
                 var payload = new Dictionary<string, string>
@@ -90,7 +92,9 @@ namespace ImageColorChanger.Services
                         using var response = await _httpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
                         if (response.IsSuccessStatusCode)
                         {
-                            return;
+                            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                            LastPolicy = ParseVersionPolicyDecision(responseJson);
+                            return LastPolicy;
                         }
                     }
                     catch
@@ -103,6 +107,86 @@ namespace ImageColorChanger.Services
             {
                 // 使用统计是后台辅助链路，任何异常都静默处理。
             }
+
+            return LastPolicy;
+        }
+
+        private static ClientVersionPolicyDecision ParseVersionPolicyDecision(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return ClientVersionPolicyDecision.CreateNone();
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    return ClientVersionPolicyDecision.CreateNone();
+                }
+
+                JsonElement policy = root;
+                if (root.TryGetProperty("policy", out var policyElement) && policyElement.ValueKind == JsonValueKind.Object)
+                {
+                    policy = policyElement;
+                }
+                else if (root.TryGetProperty("version_policy", out var versionPolicyElement) && versionPolicyElement.ValueKind == JsonValueKind.Object)
+                {
+                    policy = versionPolicyElement;
+                }
+
+                return new ClientVersionPolicyDecision
+                {
+                    Action = NormalizeAction(GetFirstString(policy, "action")),
+                    CurrentVersion = GetFirstString(policy, "current_version", "latest_version"),
+                    RecommendedBelow = GetFirstString(policy, "recommended_below", "min_supported_version"),
+                    RequiredBelow = GetFirstString(policy, "required_below", "force_upgrade_below"),
+                    Title = GetFirstString(policy, "title", "notice_title"),
+                    Message = GetFirstString(policy, "message", "notice_content")
+                };
+            }
+            catch
+            {
+                return ClientVersionPolicyDecision.CreateNone();
+            }
+        }
+
+        private static string NormalizeAction(string action)
+        {
+            var value = (action ?? string.Empty).Trim().ToLowerInvariant();
+            return value switch
+            {
+                "force" => "required",
+                "recommend" => "recommended",
+                "required" => "required",
+                "recommended" => "recommended",
+                "optional" => "optional",
+                _ => "none"
+            };
+        }
+
+        private static string GetFirstString(JsonElement element, params string[] names)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                return string.Empty;
+            }
+
+            foreach (var name in names)
+            {
+                if (element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    var text = value.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return text;
+                    }
+                }
+            }
+
+            return string.Empty;
         }
 
         private static string SafeGet(Func<string> provider)

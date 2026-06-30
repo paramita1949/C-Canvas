@@ -37,6 +37,39 @@ namespace Canvas.TextEditor.Tests.Services
         }
 
         [Fact]
+        public async Task ReportStartupAsync_ParsesRequiredVersionPolicy()
+        {
+            var handler = new CaptureHandler(_ => JsonResponse("""
+                {
+                  "success": true,
+                  "policy": {
+                    "current_version": "6.0.9.0",
+                    "recommended_below": "6.0.8.5",
+                    "required_below": "6.0.7.0",
+                    "action": "required",
+                    "title": "发现重要更新",
+                    "message": "请升级到最新版本。"
+                  }
+                }
+                """));
+            var reporter = new ClientUsageReportService(
+                new HttpClient(handler),
+                () => "hwid-sha256",
+                () => "6.0.6.9",
+                () => "Windows 11",
+                () => "Church-PC",
+                new[] { "https://example.test/api/client/version/report" });
+
+            var decision = await reporter.ReportStartupAsync();
+
+            Assert.True(decision.RequiresUpgrade);
+            Assert.Equal("6.0.9.0", decision.CurrentVersion);
+            Assert.Equal("发现重要更新", decision.Title);
+            Assert.Equal("请升级到最新版本。", decision.Message);
+            Assert.Same(decision, reporter.LastPolicy);
+        }
+
+        [Fact]
         public async Task ReportStartupAsync_SwallowsNetworkFailures()
         {
             var handler = new CaptureHandler(_ => throw new HttpRequestException("offline"));
@@ -73,6 +106,14 @@ namespace Canvas.TextEditor.Tests.Services
                 Requests.Add(new CapturedRequest(request.RequestUri, body));
                 return _responder(request);
             }
+        }
+
+        private static HttpResponseMessage JsonResponse(string json)
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+            };
         }
 
         private sealed record CapturedRequest(Uri RequestUri, string Body);

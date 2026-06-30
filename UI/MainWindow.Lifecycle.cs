@@ -524,11 +524,23 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //                System.Diagnostics.Debug.WriteLine("[MainWindow] 开始检查更新...");
 //#endif
+                var policy = await GetStartupVersionPolicyDecisionAsync();
                 var versionInfo = await UpdateService.CheckForUpdatesAsync();
                 
                 if (versionInfo != null)
                 {
-                    Dispatcher.Invoke(() => ShowTitleUpdateNotice(versionInfo));
+                    if (policy.RequiresUpgrade)
+                    {
+                        Dispatcher.Invoke(() => ShowRequiredUpdateWindow(versionInfo));
+                    }
+                    else if (policy.ShouldRecommend)
+                    {
+                        Dispatcher.Invoke(() => ShowRecommendedUpdateWindow(versionInfo));
+                    }
+                    else
+                    {
+                        Dispatcher.Invoke(() => ShowTitleUpdateNotice(versionInfo));
+                    }
                 }
 #if DEBUG
                 else
@@ -553,10 +565,52 @@ namespace ImageColorChanger.UI
             }
         }
 
+        private async Task<ClientVersionPolicyDecision> GetStartupVersionPolicyDecisionAsync()
+        {
+            try
+            {
+                var reporter = _mainWindowServices.GetRequired<ClientUsageReportService>();
+                if (reporter.LastPolicy.RequiresUpgrade)
+                {
+                    return reporter.LastPolicy;
+                }
+
+                return await reporter.ReportStartupAsync();
+            }
+            catch
+            {
+                return ClientVersionPolicyDecision.CreateNone();
+            }
+        }
+
         private void ShowTitleUpdateNotice(VersionInfo versionInfo)
         {
             _pendingTitleUpdateVersionInfo = versionInfo;
             RefreshWindowTitleByRuntimeState();
+        }
+
+        private void ShowRequiredUpdateWindow(VersionInfo versionInfo)
+        {
+            _pendingTitleUpdateVersionInfo = versionInfo;
+            RefreshWindowTitleByRuntimeState();
+
+            var updateWindow = new UpdateWindow(versionInfo, isRequired: true)
+            {
+                Owner = this
+            };
+            updateWindow.ShowDialog();
+        }
+
+        private void ShowRecommendedUpdateWindow(VersionInfo versionInfo)
+        {
+            _pendingTitleUpdateVersionInfo = versionInfo;
+            RefreshWindowTitleByRuntimeState();
+
+            var updateWindow = new UpdateWindow(versionInfo)
+            {
+                Owner = this
+            };
+            updateWindow.ShowDialog();
         }
 
         private void HideTitleUpdateNotice()
