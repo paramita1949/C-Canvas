@@ -529,13 +529,9 @@ namespace ImageColorChanger.UI
                 
                 if (versionInfo != null)
                 {
-                    if (policy.RequiresUpgrade)
+                    if (policy.RequiresUpgrade || policy.ShouldRecommend)
                     {
-                        Dispatcher.Invoke(() => ShowRequiredUpdateWindow(versionInfo));
-                    }
-                    else if (policy.ShouldRecommend)
-                    {
-                        Dispatcher.Invoke(() => ShowRecommendedUpdateWindow(versionInfo));
+                        Dispatcher.Invoke(() => ShowStartupUpdatePolicyWindow(versionInfo));
                     }
                     else
                     {
@@ -589,19 +585,7 @@ namespace ImageColorChanger.UI
             RefreshWindowTitleByRuntimeState();
         }
 
-        private void ShowRequiredUpdateWindow(VersionInfo versionInfo)
-        {
-            _pendingTitleUpdateVersionInfo = versionInfo;
-            RefreshWindowTitleByRuntimeState();
-
-            var updateWindow = new UpdateWindow(versionInfo, isRequired: true)
-            {
-                Owner = this
-            };
-            updateWindow.ShowDialog();
-        }
-
-        private void ShowRecommendedUpdateWindow(VersionInfo versionInfo)
+        private void ShowStartupUpdatePolicyWindow(VersionInfo versionInfo)
         {
             _pendingTitleUpdateVersionInfo = versionInfo;
             RefreshWindowTitleByRuntimeState();

@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
 using ImageColorChanger.Services;
@@ -11,19 +10,11 @@ namespace ImageColorChanger.UI
     {
         private VersionInfo _versionInfo;
         private string? _downloadedFilePath;
-        private readonly bool _isRequired;
-        private bool _allowRequiredClose;
 
         public UpdateWindow(VersionInfo versionInfo)
-            : this(versionInfo, false)
-        {
-        }
-
-        public UpdateWindow(VersionInfo versionInfo, bool isRequired)
         {
             InitializeComponent();
             _versionInfo = versionInfo;
-            _isRequired = isRequired;
             InitializeUI();
         }
 
@@ -38,17 +29,6 @@ namespace ImageColorChanger.UI
             // 默认显示提示信息
             InfoPanel.Visibility = Visibility.Visible;
             ProgressPanel.Visibility = Visibility.Collapsed;
-
-            if (_isRequired)
-            {
-                Title = "必须升级";
-                HeaderTitleText.Text = "必须升级";
-                InfoTitleText.Text = "当前版本需要升级后继续使用";
-                InfoSubtitleText.Text = "请立即更新，避免重要修复无法生效";
-                UpdateButtonText.Text = "立即升级";
-                SkipButtonText.Text = "退出软件";
-                CloseButton.Visibility = Visibility.Collapsed;
-            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -110,18 +90,12 @@ namespace ImageColorChanger.UI
                 }
 
                 // 应用更新（自动重启）
-                if (_isRequired)
-                {
-                    _allowRequiredClose = true;
-                }
-
                 if (UpdateService.ApplyUpdate(_downloadedFilePath))
                 {
                     // 程序将自动退出并重启
                 }
                 else
                 {
-                    _allowRequiredClose = false;
                     System.Windows.MessageBox.Show(
                         "应用更新失败，请尝试以管理员身份运行程序。",
                         "更新失败",
@@ -136,11 +110,6 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                if (_isRequired)
-                {
-                    _allowRequiredClose = false;
-                }
-
                 System.Windows.MessageBox.Show(
                     $"更新过程中发生错误：\n\n{ex.Message}",
                     "错误",
@@ -156,25 +125,7 @@ namespace ImageColorChanger.UI
 
         private void SkipButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_isRequired)
-            {
-                _allowRequiredClose = true;
-                System.Windows.Application.Current.Shutdown();
-                return;
-            }
-
             Close();
-        }
-
-        protected override void OnClosing(CancelEventArgs e)
-        {
-            if (_isRequired && !_allowRequiredClose)
-            {
-                e.Cancel = true;
-                return;
-            }
-
-            base.OnClosing(e);
         }
     }
 }
