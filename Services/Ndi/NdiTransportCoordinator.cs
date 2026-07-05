@@ -264,8 +264,14 @@ namespace ImageColorChanger.Services.Ndi
                 _ => "NDI"
             };
 
-            // 名称尽量短，避免接收端列表截断；局域网内若存在重名冲突，再考虑加机名后缀。
-            return channelLabel;
+            string senderBase = (_configManager?.ProjectionNdiSenderName ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(senderBase))
+            {
+                senderBase = $"YongMu-NDI-{Environment.MachineName}";
+            }
+
+            // 接收端以该名称显示 NDI 源；保留短通道标签，同时使用配置中的机器级基础名避免多机重名。
+            return $"{senderBase.TrimEnd('-', ' ', '　')}-{channelLabel}";
         }
 
         private sealed class ChannelProjectionNdiConfigProvider : IProjectionNdiConfigProvider
