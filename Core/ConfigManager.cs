@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using ImageColorChanger.Services.Lyrics.Output;
 using ImageColorChanger.Services.Projection.Output;
 using SkiaSharp;
@@ -18,6 +19,8 @@ namespace ImageColorChanger.Core
     {
         private const string LegacyProjectionNdiSenderName = "CanvasCast-Projection";
         private const string StaticProjectionNdiSenderName = "YongMu-NDI";
+        private const string ProjectionNdiDeviceCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+        private const int ProjectionNdiDeviceCodeLength = 4;
         private static ConfigManager _instance;
         private static readonly object _lock = new object();
         
@@ -1374,6 +1377,34 @@ namespace ImageColorChanger.Core
 
             return trimmed;
         }
+
+        private static string NormalizeProjectionNdiDeviceCode(string deviceCode)
+        {
+            if (string.IsNullOrWhiteSpace(deviceCode))
+            {
+                return string.Empty;
+            }
+
+            string normalized = new string(deviceCode
+                .Trim()
+                .ToUpperInvariant()
+                .Where(char.IsLetterOrDigit)
+                .ToArray());
+
+            return normalized.Length == ProjectionNdiDeviceCodeLength ? normalized : string.Empty;
+        }
+
+        private static string CreateProjectionNdiDeviceCode()
+        {
+            var chars = new char[ProjectionNdiDeviceCodeLength];
+            for (int i = 0; i < chars.Length; i++)
+            {
+                chars[i] = ProjectionNdiDeviceCodeAlphabet[
+                    RandomNumberGenerator.GetInt32(ProjectionNdiDeviceCodeAlphabet.Length)];
+            }
+
+            return new string(chars);
+        }
     }
 
     /// <summary>
@@ -1584,6 +1615,11 @@ namespace ImageColorChanger.Core
         /// 全投影 NDI 发送端名称
         /// </summary>
         public string ProjectionNdiSenderName { get; set; } = "YongMu-NDI";
+
+        /// <summary>
+        /// 本机 NDI 稳定短标识，用于区分同名电脑
+        /// </summary>
+        public string ProjectionNdiDeviceCode { get; set; } = "";
 
         /// <summary>
         /// 全投影 NDI 输出宽度
@@ -1956,6 +1992,43 @@ namespace ImageColorChanger.Core
                     SaveConfig();
                 }
             }
+        }
+
+        /// <summary>
+        /// 本机 NDI 稳定短标识，用于区分同名电脑。
+        /// </summary>
+        public string ProjectionNdiDeviceCode
+        {
+            get => NormalizeProjectionNdiDeviceCode(_config.ProjectionNdiDeviceCode);
+            set
+            {
+                string next = NormalizeProjectionNdiDeviceCode(value);
+                if (!string.Equals(_config.ProjectionNdiDeviceCode ?? string.Empty, next, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiDeviceCode = next;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public string GetOrCreateProjectionNdiDeviceCode()
+        {
+            string existing = NormalizeProjectionNdiDeviceCode(_config.ProjectionNdiDeviceCode);
+            if (!string.IsNullOrWhiteSpace(existing))
+            {
+                if (!string.Equals(_config.ProjectionNdiDeviceCode, existing, StringComparison.Ordinal))
+                {
+                    _config.ProjectionNdiDeviceCode = existing;
+                    SaveConfig();
+                }
+
+                return existing;
+            }
+
+            string created = CreateProjectionNdiDeviceCode();
+            _config.ProjectionNdiDeviceCode = created;
+            SaveConfig();
+            return created;
         }
 
         /// <summary>

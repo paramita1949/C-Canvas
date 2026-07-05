@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using ImageColorChanger.Core;
 using ImageColorChanger.Services.Ndi;
@@ -9,35 +8,54 @@ namespace Canvas.TextEditor.Tests.Services
     public sealed class NdiTransportCoordinatorTests
     {
         [Fact]
-        public void GetChannelConfig_DefaultSenderName_IncludesMachineSpecificBaseAndChannelLabel()
+        public void GetChannelConfig_ConfiguredDeviceCode_UsesShortChannelNameAndStableSuffix()
         {
             using var tempConfig = TempConfigFile.Create();
-            var config = new ConfigManager(tempConfig.Path);
-            var coordinator = new NdiTransportCoordinator(config, services: null, featureGate: null);
-
-            NdiChannelOutputConfig channelConfig = coordinator.GetChannelConfig(NdiChannel.Slide);
-
-            string expectedBase = $"YongMu-NDI-{Environment.MachineName}";
-            Assert.Equal($"{expectedBase}-投影", channelConfig.SenderName);
-            Assert.Contains(Environment.MachineName, channelConfig.SenderName);
-            Assert.NotEqual("投影", channelConfig.SenderName);
-        }
-
-        [Fact]
-        public void GetChannelConfig_CustomSenderName_PreservesBaseAndAddsChannelLabel()
-        {
-            using var tempConfig = TempConfigFile.Create();
-            var config = new ConfigManager(tempConfig.Path)
+            File.WriteAllText(tempConfig.Path, """
             {
-                ProjectionNdiSenderName = "礼拜堂A"
-            };
+              "ProjectionNdiDeviceCode": "A7F3",
+              "ProjectionNdiSenderName": "YongMu-NDI-同名电脑"
+            }
+            """);
+
+            var config = new ConfigManager(tempConfig.Path);
             var coordinator = new NdiTransportCoordinator(config, services: null, featureGate: null);
 
             NdiChannelOutputConfig slideConfig = coordinator.GetChannelConfig(NdiChannel.Slide);
             NdiChannelOutputConfig captionConfig = coordinator.GetChannelConfig(NdiChannel.Caption);
 
-            Assert.Equal("礼拜堂A-投影", slideConfig.SenderName);
-            Assert.Equal("礼拜堂A-字幕", captionConfig.SenderName);
+            Assert.Equal("投影-A7F3", slideConfig.SenderName);
+            Assert.Equal("字幕-A7F3", captionConfig.SenderName);
+            Assert.DoesNotContain("YongMu-NDI", slideConfig.SenderName);
+            Assert.DoesNotContain("同名电脑", slideConfig.SenderName);
+        }
+
+        [Fact]
+        public void GetChannelConfig_MissingDeviceCode_CreatesAndPersistsStableSuffix()
+        {
+            using var tempConfig = TempConfigFile.Create();
+            var config = new ConfigManager(tempConfig.Path);
+            var coordinator = new NdiTransportCoordinator(config, services: null, featureGate: null);
+
+            NdiChannelOutputConfig slideConfig = coordinator.GetChannelConfig(NdiChannel.Slide);
+            string deviceCode = ExtractDeviceCode(slideConfig.SenderName);
+
+            Assert.Matches(@"^投影-[A-Z0-9]{4}$", slideConfig.SenderName);
+            Assert.NotEmpty(deviceCode);
+
+            var reloadedConfig = new ConfigManager(tempConfig.Path);
+            var reloadedCoordinator = new NdiTransportCoordinator(reloadedConfig, services: null, featureGate: null);
+            NdiChannelOutputConfig captionConfig = reloadedCoordinator.GetChannelConfig(NdiChannel.Caption);
+
+            Assert.Equal($"字幕-{deviceCode}", captionConfig.SenderName);
+        }
+
+        private static string ExtractDeviceCode(string senderName)
+        {
+            int dashIndex = senderName.LastIndexOf('-');
+            return dashIndex >= 0 && dashIndex < senderName.Length - 1
+                ? senderName[(dashIndex + 1)..]
+                : string.Empty;
         }
 
         private sealed class TempConfigFile : IDisposable

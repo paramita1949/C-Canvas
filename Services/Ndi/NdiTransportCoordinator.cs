@@ -21,6 +21,7 @@ namespace ImageColorChanger.Services.Ndi
         private readonly object _sync = new();
         private readonly Dictionary<NdiChannel, ProjectionNdiOutputManager> _channelManagers = new();
         private readonly Dictionary<NdiChannel, long> _lastIdleFrameLogTicks = new();
+        private readonly string _fallbackDeviceCode;
         private long _lastAudioRouteLogTick;
 
         public NdiTransportCoordinator(
@@ -31,6 +32,7 @@ namespace ImageColorChanger.Services.Ndi
             _configManager = configManager;
             _services = services;
             _featureGate = featureGate;
+            _fallbackDeviceCode = Guid.NewGuid().ToString("N")[..4].ToUpperInvariant();
         }
 
         public NdiChannelOutputConfig GetChannelConfig(NdiChannel channel)
@@ -264,14 +266,14 @@ namespace ImageColorChanger.Services.Ndi
                 _ => "NDI"
             };
 
-            string senderBase = (_configManager?.ProjectionNdiSenderName ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(senderBase))
+            string deviceCode = _configManager?.GetOrCreateProjectionNdiDeviceCode() ?? _fallbackDeviceCode;
+            if (string.IsNullOrWhiteSpace(deviceCode))
             {
-                senderBase = $"YongMu-NDI-{Environment.MachineName}";
+                deviceCode = _fallbackDeviceCode;
             }
 
-            // 接收端以该名称显示 NDI 源；保留短通道标签，同时使用配置中的机器级基础名避免多机重名。
-            return $"{senderBase.TrimEnd('-', ' ', '　')}-{channelLabel}";
+            // 接收端以该名称显示 NDI 源；保留原来的短通道名，用稳定短码区分同名电脑。
+            return $"{channelLabel}-{deviceCode}";
         }
 
         private sealed class ChannelProjectionNdiConfigProvider : IProjectionNdiConfigProvider
