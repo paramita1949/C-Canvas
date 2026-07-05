@@ -252,6 +252,144 @@ namespace Canvas.TextEditor.Tests.Ai
         }
 
         [Fact]
+        public async Task StartProjectAsync_WhenAssistantSummaryMentionsScriptureWithoutToolCandidate_AcceptsFallbackCandidate()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-summary-candidate-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new SummaryOnlyScriptureChatClient();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                AiScriptureCandidate accepted = null;
+                coordinator.ScriptureCandidateAccepted += candidate => accepted = candidate;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.NotNull(accepted);
+                Assert.Equal(45, accepted.BookId);
+                Assert.Equal("罗马书", accepted.BookName);
+                Assert.Equal(8, accepted.Chapter);
+                Assert.Equal(28, accepted.StartVerse);
+                Assert.Equal(28, accepted.EndVerse);
+                Assert.Equal("assistant_summary", accepted.SourceTurnId);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task StartProjectAsync_WhenAssistantSummaryReferenceIsOutOfRange_DoesNotAcceptFallbackCandidate()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-summary-invalid-candidate-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var chat = new InvalidSummaryScriptureChatClient();
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    chat,
+                    new FakeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                AiScriptureCandidate accepted = null;
+                coordinator.ScriptureCandidateAccepted += candidate => accepted = candidate;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.Null(accepted);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task StartProjectAsync_WhenAssistantMentionsChapterAndVerseTextWithoutVerseNumber_AcceptsSpecificVerse()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-chapter-quote-candidate-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new ChapterQuoteScriptureChatClient(),
+                    new MatthewChapterThreeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                AiScriptureCandidate accepted = null;
+                coordinator.ScriptureCandidateAccepted += candidate => accepted = candidate;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.NotNull(accepted);
+                Assert.Equal(40, accepted.BookId);
+                Assert.Equal("马太福音", accepted.BookName);
+                Assert.Equal(3, accepted.Chapter);
+                Assert.Equal(2, accepted.StartVerse);
+                Assert.Equal(2, accepted.EndVerse);
+                Assert.NotEqual(1, accepted.StartVerse);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task StartProjectAsync_WhenAssistantOnlyMentionsChapterWithoutVerseText_DoesNotInsertWholeChapter()
+        {
+            string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-chapter-only-candidate-{Guid.NewGuid():N}.db");
+            try
+            {
+                using var context = new CanvasDbContext(dbPath);
+                context.Database.EnsureCreated();
+                context.EnsureAiSermonSchemaExists();
+
+                var coordinator = new AiSermonConversationCoordinator(
+                    new AiSermonContextBuilder(new FakeTextProjectService()),
+                    new ChapterOnlyScriptureChatClient(),
+                    new MatthewChapterThreeBibleService(),
+                    new ConfigManager(),
+                    new AiSermonHistoryStore(context),
+                    new AiSermonSummaryService(),
+                    new AiRealtimeUnderstandingScheduler());
+                AiScriptureCandidate accepted = null;
+                coordinator.ScriptureCandidateAccepted += candidate => accepted = candidate;
+
+                await coordinator.StartProjectAsync(7);
+
+                Assert.Null(accepted);
+            }
+            finally
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+
+        [Fact]
         public async Task SendAsrTurnAsync_BuildsLeanAsrMessageAndKeepsPriorityInStableSystemPrompt()
         {
             string dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"canvas-ai-lean-asr-{Guid.NewGuid():N}.db");
@@ -372,6 +510,7 @@ namespace Canvas.TextEditor.Tests.Ai
                 var systemMessage = Assert.Single(request.Messages, message => message.Role == "system");
                 Assert.Contains("经文历史写入优先", systemMessage.Content, StringComparison.Ordinal);
                 Assert.Contains("不输出讲章摘要", systemMessage.Content, StringComparison.Ordinal);
+                Assert.Contains("不要提交整章候选", systemMessage.Content, StringComparison.Ordinal);
                 Assert.DoesNotContain("经文历史写入优先", asrMessage.Content, StringComparison.Ordinal);
                 Assert.DoesNotContain("本次输出按简洁模式", asrMessage.Content, StringComparison.Ordinal);
 
@@ -698,6 +837,112 @@ namespace Canvas.TextEditor.Tests.Ai
             }
         }
 
+        private sealed class SummaryOnlyScriptureChatClient : IDeepSeekChatClient
+        {
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                onContentDelta?.Invoke("本场摘要：当前主题落在罗马书8:28，强调万事互相效力。没有调用工具。");
+                return Task.FromResult(new AiChatStreamResult
+                {
+                    Content = "本场摘要：当前主题落在罗马书8:28，强调万事互相效力。没有调用工具。",
+                    ScriptureCandidates = Array.Empty<AiScriptureCandidate>()
+                });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                });
+            }
+        }
+
+        private sealed class InvalidSummaryScriptureChatClient : IDeepSeekChatClient
+        {
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                onContentDelta?.Invoke("本场摘要：当前主题误写成罗马书8:999，需要本地校验拦截。");
+                return Task.FromResult(new AiChatStreamResult
+                {
+                    Content = "本场摘要：当前主题误写成罗马书8:999，需要本地校验拦截。",
+                    ScriptureCandidates = Array.Empty<AiScriptureCandidate>()
+                });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                });
+            }
+        }
+
+        private sealed class ChapterQuoteScriptureChatClient : IDeepSeekChatClient
+        {
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                string content = "AI摘要：传道人提到马太福音3章，并引用“天国近了，你们应当悔改”。";
+                onContentDelta?.Invoke(content);
+                return Task.FromResult(new AiChatStreamResult
+                {
+                    Content = content,
+                    ScriptureCandidates = Array.Empty<AiScriptureCandidate>()
+                });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                });
+            }
+        }
+
+        private sealed class ChapterOnlyScriptureChatClient : IDeepSeekChatClient
+        {
+            public Task<AiChatStreamResult> StreamChatAsync(
+                AiChatRequest request,
+                Action<string> onContentDelta,
+                CancellationToken cancellationToken)
+            {
+                string content = "AI摘要：传道人可能在讲马太福音3章，但暂时没有听到具体经句。";
+                onContentDelta?.Invoke(content);
+                return Task.FromResult(new AiChatStreamResult
+                {
+                    Content = content,
+                    ScriptureCandidates = Array.Empty<AiScriptureCandidate>()
+                });
+            }
+
+            public Task<DeepSeekBalanceSnapshot> GetBalanceAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new DeepSeekBalanceSnapshot
+                {
+                    IsAvailable = true,
+                    Currency = "CNY",
+                    TotalBalance = 100m
+                });
+            }
+        }
+
         private sealed class LowBalanceChatClient : IDeepSeekChatClient
         {
             public List<AiChatRequest> Requests { get; } = new();
@@ -1006,6 +1251,40 @@ namespace Canvas.TextEditor.Tests.Ai
             public int GetChapterCount(int book) => 150;
             public Task<Dictionary<(int book, int chapter), int>> GetAllVerseCountsAsync() => throw new NotSupportedException();
             public Task<int> GetVerseCountAsync(int book, int chapter) => Task.FromResult(80);
+            public Task<bool> IsDatabaseAvailableAsync() => Task.FromResult(true);
+            public Task<Dictionary<string, string>> GetMetadataAsync() => Task.FromResult(new Dictionary<string, string>());
+            public void UpdateDatabasePath() { }
+        }
+
+        private sealed class MatthewChapterThreeBibleService : IBibleService
+        {
+            private readonly List<BibleVerse> _verses = new()
+            {
+                new BibleVerse { Book = 40, Chapter = 3, Verse = 1, Scripture = "那时，有施洗的约翰出来，在犹太的旷野传道，说：" },
+                new BibleVerse { Book = 40, Chapter = 3, Verse = 2, Scripture = "天国近了，你们应当悔改！" },
+                new BibleVerse { Book = 40, Chapter = 3, Verse = 3, Scripture = "这人就是先知以赛亚所说的。他说：在旷野有人声喊着说：预备主的道，修直他的路！" }
+            };
+
+            public Task<BibleVerse> GetVerseAsync(int book, int chapter, int verse)
+            {
+                return Task.FromResult(_verses.FirstOrDefault(v => v.Book == book && v.Chapter == chapter && v.Verse == verse));
+            }
+
+            public Task<List<BibleVerse>> GetChapterVersesAsync(int book, int chapter)
+            {
+                return Task.FromResult(_verses
+                    .Where(v => v.Book == book && v.Chapter == chapter)
+                    .ToList());
+            }
+
+            public Task<List<BibleVerse>> GetVerseRangeAsync(int book, int chapter, int startVerse, int endVerse) => throw new NotSupportedException();
+            public Task<List<BibleTitle>> GetChapterTitlesAsync(int book, int chapter) => throw new NotSupportedException();
+            public Task<List<object>> GetChapterContentAsync(int book, int chapter) => throw new NotSupportedException();
+            public Task<List<BibleSearchResult>> SearchVersesAsync(string keyword, int? bookId = null) => throw new NotSupportedException();
+            public Task<List<BibleSearchResult>> SearchVersesByPinyinAsync(string pinyinKeyword, int? bookId = null) => throw new NotSupportedException();
+            public int GetChapterCount(int book) => book == 40 ? 28 : 0;
+            public Task<Dictionary<(int book, int chapter), int>> GetAllVerseCountsAsync() => throw new NotSupportedException();
+            public Task<int> GetVerseCountAsync(int book, int chapter) => Task.FromResult(book == 40 && chapter == 3 ? _verses.Count : 0);
             public Task<bool> IsDatabaseAvailableAsync() => Task.FromResult(true);
             public Task<Dictionary<string, string>> GetMetadataAsync() => Task.FromResult(new Dictionary<string, string>());
             public void UpdateDatabasePath() { }

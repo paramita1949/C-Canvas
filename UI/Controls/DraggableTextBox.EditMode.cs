@@ -91,6 +91,8 @@ namespace ImageColorChanger.UI.Controls
 
             }
 
+            UpdateDragAreaHitTesting();
+
             if (System.Windows.Application.Current?.MainWindow is ImageColorChanger.UI.MainWindow mainWindow)
             {
                 mainWindow.SyncProjectionNavigationHotKeys();
@@ -148,6 +150,8 @@ namespace ImageColorChanger.UI.Controls
                 //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] RichTextBox状态: IsReadOnly={_richTextBox.IsReadOnly}, IsHitTestVisible={_richTextBox.IsHitTestVisible}");
 
             }
+
+            UpdateDragAreaHitTesting();
 
             if (System.Windows.Application.Current?.MainWindow is ImageColorChanger.UI.MainWindow mainWindow)
             {

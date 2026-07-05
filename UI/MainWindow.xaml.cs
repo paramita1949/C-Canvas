@@ -296,6 +296,10 @@ namespace ImageColorChanger.UI
             // 初始化文本编辑器
             InitializeTextEditor();
             StartupPerfLogger.Mark("MainWindow.InitializeTextEditor.Completed");
+
+            // 本机 MCP/自动化控制桥：只绑定 127.0.0.1，失败不影响主程序启动。
+            InitializeCanvasMcpBridge();
+            StartupPerfLogger.Mark("MainWindow.InitializeCanvasMcpBridge.Completed");
             
             // 初始化FPS监控器
             InitializeFpsMonitor();

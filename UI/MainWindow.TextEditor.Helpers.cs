@@ -24,6 +24,7 @@ using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.Services.TextEditor.Models;
 using ImageColorChanger.UI.Controls;
 using ImageColorChanger.UI.Controls.Common;
+using ImageColorChanger.UI.Modules;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
@@ -32,6 +33,7 @@ using WpfRectangle = System.Windows.Shapes.Rectangle;
 using SkiaSharp;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using Panel = System.Windows.Controls.Panel;
 
 namespace ImageColorChanger.UI
 {
@@ -189,25 +191,21 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            int maxZ = 0;
-            foreach (var tb in _textBoxes)
-            {
-                if (tb == null || tb == target)
-                {
-                    continue;
-                }
+            var siblingLayers = _textBoxes
+                .Where(tb => tb != null && tb != target)
+                .Select(tb => (
+                    DataZIndex: tb.Data?.ZIndex ?? 0,
+                    PanelZIndex: Panel.GetZIndex(tb)));
 
-                int z = tb.Data?.ZIndex ?? System.Windows.Controls.Panel.GetZIndex(tb);
-                if (z > maxZ)
-                {
-                    maxZ = z;
-                }
+            int targetZ = TextBoxZIndexPolicy.GetNextFrontZIndex(siblingLayers);
+            if (target.Data != null)
+            {
+                target.Data.ZIndex = targetZ;
             }
 
-            int targetZ = maxZ + 1;
-            if (System.Windows.Controls.Panel.GetZIndex(target) != targetZ)
+            if (Panel.GetZIndex(target) != targetZ)
             {
-                System.Windows.Controls.Panel.SetZIndex(target, targetZ);
+                Panel.SetZIndex(target, targetZ);
             }
         }
 

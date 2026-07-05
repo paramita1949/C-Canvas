@@ -55,6 +55,7 @@ namespace ImageColorChanger.UI.Controls
             }
 
             IsSelected = selected;
+            UpdateDragAreaHitTesting();
 
             if (selected)
             {

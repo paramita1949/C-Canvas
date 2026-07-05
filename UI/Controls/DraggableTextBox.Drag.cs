@@ -1,6 +1,7 @@
 using System;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Core;
+using ImageColorChanger.UI.Modules;
 using ImageColorChanger.Utils;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfCanvas = System.Windows.Controls.Canvas;
@@ -242,7 +243,10 @@ namespace ImageColorChanger.UI.Controls
             if (e.ChangedButton != WpfMouseButton.Left)
                 return;
 
-            if (IsNoticeComponentElement())
+            if (!DraggableTextBoxInteractionPolicy.CanStartDragAreaDrag(
+                    IsSelected,
+                    IsInEditMode,
+                    IsNoticeComponentElement()))
             {
                 e.Handled = true;
                 return;
@@ -306,6 +310,39 @@ namespace ImageColorChanger.UI.Controls
                 e.Handled = true;
 
                 //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 拖动区域结束拖动");
+            }
+        }
+
+        private void UpdateDragAreaHitTesting()
+        {
+            bool isEnabled = DraggableTextBoxInteractionPolicy.ShouldEnableDragAreaHitTesting(
+                IsSelected,
+                IsInEditMode,
+                IsNoticeComponentElement());
+
+            SetDragAreaHitTestVisible(isEnabled);
+        }
+
+        private void SetDragAreaHitTestVisible(bool isEnabled)
+        {
+            if (_dragAreaTop != null)
+            {
+                _dragAreaTop.IsHitTestVisible = isEnabled;
+            }
+
+            if (_dragAreaBottom != null)
+            {
+                _dragAreaBottom.IsHitTestVisible = isEnabled;
+            }
+
+            if (_dragAreaLeft != null)
+            {
+                _dragAreaLeft.IsHitTestVisible = isEnabled;
+            }
+
+            if (_dragAreaRight != null)
+            {
+                _dragAreaRight.IsHitTestVisible = isEnabled;
             }
         }
 

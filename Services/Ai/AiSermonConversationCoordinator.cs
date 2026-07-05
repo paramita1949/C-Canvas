@@ -583,8 +583,12 @@ namespace ImageColorChanger.Services.Ai
                         await EmitAssistantMessageAsync(result.Content, cancellationToken).ConfigureAwait(false);
                     }
 
-                    await HandleCandidatesAsync(
+                    var scriptureCandidates = await BuildCandidatesForAssistantResultAsync(
                         result.ScriptureCandidates,
+                        result.Content,
+                        cancellationToken).ConfigureAwait(false);
+                    await HandleCandidatesAsync(
+                        scriptureCandidates,
                         cancellationToken,
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     if (!isAsr)
@@ -595,8 +599,12 @@ namespace ImageColorChanger.Services.Ai
                 else if (!receivedAnyDelta)
                 {
                     StatusChanged?.Invoke("已收到反馈，本次无摘要。");
-                    await HandleCandidatesAsync(
+                    var scriptureCandidates = await BuildCandidatesForAssistantResultAsync(
                         result.ScriptureCandidates,
+                        result.Content,
+                        cancellationToken).ConfigureAwait(false);
+                    await HandleCandidatesAsync(
+                        scriptureCandidates,
                         cancellationToken,
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     if (!isAsr)
@@ -746,6 +754,47 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
+        private async Task<IReadOnlyList<AiScriptureCandidate>> BuildCandidatesForAssistantResultAsync(
+            IReadOnlyList<AiScriptureCandidate> toolCandidates,
+            string assistantContent,
+            CancellationToken cancellationToken)
+        {
+            if (toolCandidates != null && toolCandidates.Count > 0)
+            {
+                var resolved = new List<AiScriptureCandidate>(toolCandidates.Count);
+                foreach (var candidate in toolCandidates)
+                {
+                    if (candidate == null)
+                    {
+                        continue;
+                    }
+
+                    if (candidate.StartVerse > 0)
+                    {
+                        resolved.Add(candidate);
+                        continue;
+                    }
+
+                    var refined = await AiScriptureCandidateExtractor.RefineChapterOnlyCandidateAsync(
+                        candidate,
+                        assistantContent,
+                        _bibleService,
+                        cancellationToken).ConfigureAwait(false);
+                    if (refined != null && refined.StartVerse > 0)
+                    {
+                        resolved.Add(refined);
+                    }
+                }
+
+                return resolved;
+            }
+
+            return await AiScriptureCandidateExtractor.ExtractFromAssistantTextAsync(
+                assistantContent,
+                _bibleService,
+                cancellationToken).ConfigureAwait(false);
+        }
+
         private static string BuildSystemPrompt(IReadOnlyCollection<string> activeDialectTags)
         {
             return
@@ -758,6 +807,7 @@ namespace ImageColorChanger.Services.Ai
                 "像正常 AI 对话一样用简洁中文流式反馈理解。\n" +
                 "当你认为某段 ASR 明确指向某处经文时，调用 propose_scripture_candidate 提出候选。\n" +
                 "候选字段规则：只识别到经卷时只填 bookName；识别到章节时填 bookName+chapter；识别到具体经文时再填 startVerse/endVerse。\n" +
+                "如果只听到某章但同时听到经句正文，要先按经句正文判断具体节，再提交具体节候选；不要提交整章候选。\n" +
                 "你只能提出候选，不能声称已经写入历史记录。\n" +
                 "不确定时必须说明不确定，不要强行猜测具体章节。\n" +
                 "如果只是普通讲道内容，没有足够证据，不要调用工具。\n" +

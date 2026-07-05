@@ -55,7 +55,8 @@ namespace ImageColorChanger.UI.Controls
                 Height = dragAreaWidth,
                 VerticalAlignment = System.Windows.VerticalAlignment.Top,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                Cursor = WpfCursors.SizeAll
+                Cursor = WpfCursors.SizeAll,
+                IsHitTestVisible = false
             };
             _dragAreaTop.MouseLeftButtonDown += OnDragAreaMouseDown;
             _dragAreaTop.MouseMove += OnDragAreaMouseMove;
@@ -67,7 +68,8 @@ namespace ImageColorChanger.UI.Controls
                 Height = dragAreaWidth,
                 VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                Cursor = WpfCursors.SizeAll
+                Cursor = WpfCursors.SizeAll,
+                IsHitTestVisible = false
             };
             _dragAreaBottom.MouseLeftButtonDown += OnDragAreaMouseDown;
             _dragAreaBottom.MouseMove += OnDragAreaMouseMove;
@@ -79,7 +81,8 @@ namespace ImageColorChanger.UI.Controls
                 Width = dragAreaWidth,
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                Cursor = WpfCursors.SizeAll
+                Cursor = WpfCursors.SizeAll,
+                IsHitTestVisible = false
             };
             _dragAreaLeft.MouseLeftButtonDown += OnDragAreaMouseDown;
             _dragAreaLeft.MouseMove += OnDragAreaMouseMove;
@@ -91,7 +94,8 @@ namespace ImageColorChanger.UI.Controls
                 Width = dragAreaWidth,
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Cursor = WpfCursors.SizeAll
+                Cursor = WpfCursors.SizeAll,
+                IsHitTestVisible = false
             };
             _dragAreaRight.MouseLeftButtonDown += OnDragAreaMouseDown;
             _dragAreaRight.MouseMove += OnDragAreaMouseMove;
@@ -290,6 +294,7 @@ namespace ImageColorChanger.UI.Controls
             _border.Child = grid;
 
             Content = _border;
+            UpdateDragAreaHitTesting();
 
             // 设置控件属性
             Focusable = true;
