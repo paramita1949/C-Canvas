@@ -753,10 +753,9 @@ namespace ImageColorChanger.UI
             await RequestEndSessionAsync();
         }
 
-        private async void CloseButton_Click(object sender, RoutedEventArgs e)
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            await RequestEndSessionAsync();
-            Close();
+            Hide();
         }
 
         private async Task RequestEndSessionAsync()

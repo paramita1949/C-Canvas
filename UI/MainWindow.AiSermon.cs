@@ -23,6 +23,7 @@ namespace ImageColorChanger.UI
         private string _aiSermonOutputMode = "concise";
         private bool _aiBalanceRefreshInFlight;
         private int _aiPanelF5HotKeyId = -1;
+        private PendingAiSermonProjectRequest _pendingAiSermonProjectRequest;
         internal static readonly TimeSpan AiBalanceRefreshInterval = TimeSpan.FromMinutes(5);
         internal static readonly TimeSpan AiAsrFlushInterval = TimeSpan.FromMilliseconds(150);
 
@@ -39,24 +40,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            EnsureAiSermonPanel();
-            EnsureAiSermonCoordinator();
-            _aiAssistantPanelWindow.SetProjectTitle(item.Name);
-            _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
-            _aiAssistantPanelWindow.Show();
-            _aiAssistantPanelWindow.Activate();
-            StartAiBalanceRefreshTimer();
-
-            await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
-            SyncAiOutputModeFromCoordinator();
-            await RefreshAiSpeakerListAsync();
-
-            if (startAsr)
-            {
-                SetAiSermonReceiveAsr(true);
-                _configManager.LiveCaptionRealtimeEnabled = true;
-                StartLiveCaption(_liveCaptionCurrentSource);
-            }
+            await QueueOrStartAiProjectAsync(item, startAsr, completionStatus: string.Empty);
         }
 
         private async Task SetTextProjectAsAiSermonContextAsync(ProjectTreeItem item)
@@ -72,6 +56,17 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            await QueueOrStartAiProjectAsync(
+                item,
+                startAsr: false,
+                completionStatus: $"AI字幕已读取本场主题：{item.Name}");
+        }
+
+        private async Task QueueOrStartAiProjectAsync(
+            ProjectTreeItem item,
+            bool startAsr,
+            string completionStatus)
+        {
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
             _aiAssistantPanelWindow.SetProjectTitle(item.Name);
@@ -79,10 +74,72 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
             StartAiBalanceRefreshTimer();
-            await _aiSermonCoordinator.StartProjectAsync(item.Id, CancellationToken.None);
+
+            var request = new PendingAiSermonProjectRequest
+            {
+                ProjectId = item.Id,
+                ProjectName = item.Name ?? string.Empty,
+                StartAsr = startAsr,
+                CompletionStatus = completionStatus ?? string.Empty
+            };
+
+            if (!_aiSermonCoordinator.HasActiveSession)
+            {
+                _pendingAiSermonProjectRequest = request;
+                SetAiSermonReceiveAsr(false);
+                await RefreshAiSpeakerListAsync();
+                string status = $"已读取项目：{request.ProjectName}，请选择传道人后开始AI解读。";
+                _aiAssistantPanelWindow.AppendStatus(status);
+                ShowStatus(status);
+                return;
+            }
+
+            _pendingAiSermonProjectRequest = null;
+            await StartAiProjectRequestAsync(request);
+        }
+
+        private async Task StartAiProjectRequestAsync(PendingAiSermonProjectRequest request)
+        {
+            if (request == null)
+            {
+                return;
+            }
+
+            await _aiSermonCoordinator.StartProjectAsync(request.ProjectId, CancellationToken.None);
             SyncAiOutputModeFromCoordinator();
             await RefreshAiSpeakerListAsync();
-            ShowStatus($"AI字幕已读取本场主题：{item.Name}");
+
+            if (request.StartAsr)
+            {
+                SetAiSermonReceiveAsr(true);
+                _configManager.LiveCaptionRealtimeEnabled = true;
+                StartLiveCaption(_liveCaptionCurrentSource);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CompletionStatus))
+            {
+                ShowStatus(request.CompletionStatus);
+            }
+        }
+
+        private async Task StartPendingAiProjectAfterSpeakerSelectionAsync()
+        {
+            var request = _pendingAiSermonProjectRequest;
+            if (request == null)
+            {
+                return;
+            }
+
+            _pendingAiSermonProjectRequest = null;
+            try
+            {
+                await StartAiProjectRequestAsync(request);
+            }
+            catch
+            {
+                _pendingAiSermonProjectRequest = request;
+                throw;
+            }
         }
 
         private void OpenAiPlatformWindow(bool focusDeepSeekConfig = false)
@@ -117,6 +174,7 @@ namespace ImageColorChanger.UI
 
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
+            SetAiSermonReceiveAsr(_aiSermonCoordinator?.HasActiveSession == true);
             _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
@@ -125,6 +183,10 @@ namespace ImageColorChanger.UI
             _ = RefreshAiBalanceStatusAsync();
             _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
             _ = RefreshAiHistoryInPanelAsync();
+            if (!_aiSermonReceiveAsr)
+            {
+                _aiAssistantPanelWindow.AppendStatus("请先选择传道人，选定后开始接收ASR。");
+            }
         }
 
         private void OpenAiRealtimeSubtitle()
@@ -149,7 +211,6 @@ namespace ImageColorChanger.UI
             };
             EnsureAiAsrFlushTimer();
             EnsureAiBalanceRefreshTimer();
-            SetAiSermonReceiveAsr(true);
             _aiAssistantPanelWindow.DebugModeChanged += enabled => _aiSermonDebugEnabled = enabled;
             _aiAssistantPanelWindow.ModelChanged += model =>
             {
@@ -252,6 +313,7 @@ namespace ImageColorChanger.UI
             }
             else
             {
+                SetAiSermonReceiveAsr(_aiSermonCoordinator?.HasActiveSession == true);
                 _aiAssistantPanelWindow.Show();
                 _aiAssistantPanelWindow.Activate();
                 StartAiBalanceRefreshTimer();
@@ -259,6 +321,10 @@ namespace ImageColorChanger.UI
                 _ = RefreshAiBalanceStatusAsync();
                 _ = RefreshAiSpeakerListAsync(_aiSermonCoordinator?.CurrentSpeakerName ?? string.Empty);
                 _ = RefreshAiHistoryInPanelAsync();
+                if (!_aiSermonReceiveAsr)
+                {
+                    _aiAssistantPanelWindow.AppendStatus("请先选择传道人，选定后开始接收ASR。");
+                }
             }
 
             return true;
@@ -435,6 +501,7 @@ namespace ImageColorChanger.UI
             }
 
             SetAiSermonReceiveAsr(false);
+            _pendingAiSermonProjectRequest = null;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             await _aiSermonCoordinator.FinalizeActiveSessionAsync(cts.Token);
             await RefreshAiHistoryInPanelAsync();
@@ -453,6 +520,8 @@ namespace ImageColorChanger.UI
         {
             EnsureAiSermonCoordinator();
             await _aiSermonCoordinator.SetSpeakerAsync(speaker, CancellationToken.None);
+            await StartPendingAiProjectAfterSpeakerSelectionAsync();
+            SetAiSermonReceiveAsr(true);
             await RefreshAiSpeakerListAsync(speaker);
             await RefreshAiHistoryInPanelAsync();
         }
@@ -617,6 +686,14 @@ namespace ImageColorChanger.UI
         private void SubmitAsrTurnToAi(AiAsrTurnEnvelope turn)
         {
             _ = _aiSermonCoordinator.SendAsrTurnAsync(turn, CancellationToken.None);
+        }
+
+        private sealed class PendingAiSermonProjectRequest
+        {
+            public int ProjectId { get; init; }
+            public string ProjectName { get; init; } = string.Empty;
+            public bool StartAsr { get; init; }
+            public string CompletionStatus { get; init; } = string.Empty;
         }
     }
 }

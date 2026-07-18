@@ -382,7 +382,7 @@
                             Margin="6,0,0,0"
                             Click="ClearButton_Click"/>
                     <Button Content="×"
-                            ToolTip="关闭"
+                            ToolTip="隐藏面板（不结束本场）"
                             Style="{StaticResource HudIconButtonStyle}"
                             Margin="6,0,0,0"
                             Click="CloseButton_Click"/>
