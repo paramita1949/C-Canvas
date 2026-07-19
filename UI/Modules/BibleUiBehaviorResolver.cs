@@ -79,6 +79,13 @@ namespace ImageColorChanger.UI.Modules
             return wasInBibleMode && isProjectionActive && !isProjectionLocked;
         }
 
+        public static bool ShouldRestoreBibleTitleOnViewEntry(
+            bool hasDisplayedVerses,
+            bool hasTitle)
+        {
+            return hasDisplayedVerses && hasTitle;
+        }
+
         public static bool ShouldAllowBibleQuickLocateContext(
             bool isBibleMode,
             bool isActivationKey,

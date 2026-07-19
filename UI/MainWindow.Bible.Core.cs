@@ -339,11 +339,8 @@ namespace ImageColorChanger.UI
                     BibleNavigationPanel.Visibility = Visibility.Visible;
                     _currentViewMode = NavigationViewMode.Bible;
                     _isBibleMode = true;  // 进入圣经模式（关键修复！）
-                    // 切入圣经时先清空旧标题，避免显示上一次投影记录的标题。
-                    // 当前版本要求：经文需手动点击历史槽/导航后才显示。
-                    BibleChapterTitle.Text = string.Empty;
-                    ApplyBibleTitleDisplayMode(false);
-                    SyncProjectionBibleTitle();
+                    // 恢复当前主屏经文对应的标题；只有历史槽而没有当前经文时仍保持空白。
+                    RestoreBibleTitleDisplayAfterViewSwitch();
                     
                     // 如果还未初始化，则初始化
                     if (!_bibleNavigationInitialized)
@@ -378,11 +375,8 @@ namespace ImageColorChanger.UI
             _isBibleMode = true;
             _currentViewMode = NavigationViewMode.Bible;  // 设置当前视图模式为圣经
 
-            // 切入圣经时先清空旧标题，避免显示上一次投影记录的标题。
-            // 当前版本要求：经文需手动点击历史槽/导航后才显示。
-            BibleChapterTitle.Text = string.Empty;
-            ApplyBibleTitleDisplayMode(false);
-            SyncProjectionBibleTitle();
+            // 恢复当前主屏经文对应的标题；不通过历史槽自动重载经文。
+            RestoreBibleTitleDisplayAfterViewSwitch();
 
             // 清空图片显示（包括合成播放按钮）
             ClearImageDisplay();

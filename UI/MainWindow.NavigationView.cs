@@ -834,12 +834,11 @@ namespace ImageColorChanger.UI
 
         private void ClearProjectedBibleContentForSlideSwitch()
         {
-            BibleChapterTitle.Text = string.Empty;
             ApplyBibleTitleDisplayMode(false);
 
-            _mergedVerses?.Clear();
+            // 切到幻灯片只清理投影输出，保留圣经当前经文和标题供切回时恢复。
+            _projectionManager?.SetBibleTitle(BibleChapterTitle?.Text ?? string.Empty, false);
             _projectionManager?.ClearProjectionDisplay();
-            SyncProjectionBibleTitle();
         }
 
         /// <summary>

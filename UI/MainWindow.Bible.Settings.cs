@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using ImageColorChanger.Core;
 using ImageColorChanger.Database.Models.Bible;
 using ImageColorChanger.Services.Interfaces;
+using ImageColorChanger.UI.Modules;
 using SkiaSharp;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
@@ -319,7 +320,7 @@ namespace ImageColorChanger.UI
                 BibleChapterTitle.FontSize = _configManager.BibleTitleFontSize;
                 var titleColor = (WpfColor)System.Windows.Media.ColorConverter.ConvertFromString(_configManager.BibleTitleColor);
                 BibleChapterTitle.Foreground = new WpfSolidColorBrush(titleColor);
-                ApplyBibleTitleDisplayMode(true);
+                ApplyBibleTitleDisplayMode(ShouldShowCurrentBibleTitle());
 
                 // 应用经文样式到已生成的项
                 ApplyVerseStyles();
@@ -335,6 +336,19 @@ namespace ImageColorChanger.UI
                 //Debug.WriteLine($"[圣经] 应用设置失败: {ex.Message}");
                 //#endif
             }
+        }
+
+        private bool ShouldShowCurrentBibleTitle()
+        {
+            return BibleUiBehaviorResolver.ShouldRestoreBibleTitleOnViewEntry(
+                _mergedVerses?.Count > 0,
+                !string.IsNullOrWhiteSpace(BibleChapterTitle?.Text));
+        }
+
+        private void RestoreBibleTitleDisplayAfterViewSwitch()
+        {
+            ApplyBibleTitleDisplayMode(ShouldShowCurrentBibleTitle());
+            SyncProjectionBibleTitle();
         }
 
         private void ApplyBiblePinyinPreviewThemeResources()

@@ -137,6 +137,23 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.Ui
         }
 
         [Theory]
+        [InlineData(true, true, true)]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, false)]
+        public void ShouldRestoreBibleTitleOnViewEntry_RequiresCurrentVersesAndTitle(
+            bool hasDisplayedVerses,
+            bool hasTitle,
+            bool expected)
+        {
+            bool actual = BibleUiBehaviorResolver.ShouldRestoreBibleTitleOnViewEntry(
+                hasDisplayedVerses,
+                hasTitle);
+
+            Assert.Equal(expected, actual);
+        }
+
+        [Theory]
         [InlineData(true, true, false, false, true)]
         [InlineData(true, false, true, false, false)]
         [InlineData(true, false, false, true, true)]
