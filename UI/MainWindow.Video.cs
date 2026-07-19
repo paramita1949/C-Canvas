@@ -436,6 +436,9 @@ namespace ImageColorChanger.UI
 
                 // 显示视频播放区域
                 VideoContainer.Visibility = Visibility.Visible;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MediaPlayerUI] 显示视频容器: Path={videoPath}, " +
+                    $"ContainerVisible={VideoContainer.Visibility}, PlayerReady={_videoPlayerManager != null}");
                 
                 // 隐藏合成播放按钮面板（媒体文件不需要）
                 // 注意：不要单独隐藏按钮本体，否则切回图片时可能只恢复面板而导致按钮不显示
@@ -444,11 +447,18 @@ namespace ImageColorChanger.UI
                 // 先隐藏文件名，等视频轨道检测完成后再决定是否显示
                 MediaFileNameBorder.Visibility = Visibility.Collapsed;
                 
-                // 隐藏媒体控制栏（改用快捷键控制）
-                // MediaPlayerPanel.Visibility = Visibility.Visible;
+                // 控制栏只属于主窗口布局，不会随视频内容投影到投影窗口。
+                MediaPlayerPanel.Visibility = Visibility.Visible;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MediaPlayerUI] 显示底部控制栏: Visibility={MediaPlayerPanel.Visibility}, " +
+                    $"ActualSize={MediaPlayerPanel.ActualWidth:F0}x{MediaPlayerPanel.ActualHeight:F0}");
                 
                 // 强制刷新布局，确保VideoView就绪
                 VideoContainer.UpdateLayout();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MediaPlayerUI] 视频布局刷新完成: " +
+                    $"ContainerSize={VideoContainer.ActualWidth:F0}x{VideoContainer.ActualHeight:F0}, " +
+                    $"ControlSize={MediaPlayerPanel.ActualWidth:F0}x{MediaPlayerPanel.ActualHeight:F0}");
                 
                 // 构建播放列表（获取当前文件所在文件夹的所有视频文件）
                 BuildVideoPlaylist(videoPath);
@@ -456,6 +466,7 @@ namespace ImageColorChanger.UI
                 // 加载并播放视频（视频轨道检测会在播放开始后自动触发）
                 if (_videoPlayerManager != null)
                 {
+                    System.Diagnostics.Debug.WriteLine($"[MediaPlayerUI] 调用 Play: {videoPath}");
                     _videoPlayerManager.Play(videoPath);
                 }
                 

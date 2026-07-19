@@ -48,16 +48,6 @@
                           Stroke="White"/>
                 </Button>
 
-                <Button x:Name="BtnMediaStop"
-                        Width="40"
-                        Height="40"
-                        Margin="10,0,0,0"
-                        ToolTip="停止"
-                        Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
-                    <Path Data="{StaticResource IconLucideStop}"
-                          Style="{StaticResource LucideIconPathStyle}"
-                          Stroke="White"/>
-                </Button>
             </StackPanel>
 
             <Grid Grid.Column="1" Margin="20,0">
@@ -85,8 +75,21 @@
                 <Button x:Name="BtnPlayMode"
                         Width="40"
                         Height="40"
-                        ToolTip="播放模式：随机 (默认)"
+                        ToolTip="左键切换模式，右键直接选择"
                         Style="{StaticResource MaterialDesignFloatingActionMiniButton}">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="MenuMediaPlayModeRandom"
+                                      Header="随机播放" Tag="Random"
+                                      IsCheckable="True"/>
+                            <MenuItem x:Name="MenuMediaPlayModeLoopOne"
+                                      Header="单曲循环" Tag="LoopOne"
+                                      IsCheckable="True"/>
+                            <MenuItem x:Name="MenuMediaPlayModeLoopAll"
+                                      Header="歌单循环" Tag="LoopAll"
+                                      IsCheckable="True"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
                     <Path Data="{StaticResource IconLucideShuffle}"
                           Style="{StaticResource LucideIconPathStyle}"
                           Stroke="White"/>
@@ -96,9 +99,9 @@
                       Style="{StaticResource LucideIconPathStyle}"
                       Width="18"
                       Height="18"
-                           VerticalAlignment="Center"
+                      VerticalAlignment="Center"
                       Stroke="White"
-                           Margin="15,0,5,0"/>
+                      Margin="15,0,5,0"/>
 
                 <Slider x:Name="VolumeSlider"
                         Width="100"

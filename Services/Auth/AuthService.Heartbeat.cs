@@ -383,7 +383,7 @@ namespace ImageColorChanger.Services
                 var offlineDecision = _authHeartbeatPolicy.EvaluateOffline(offlineBaseline, DateTime.Now, MAX_OFFLINE_DAYS);
                 if (offlineDecision.Exceeded)
                 {
-                    _ = ex;
+                    AuthFailureLogger.Log("heartbeat", "offline_timeout", ex.Message);
 #if DEBUG
                     System.Diagnostics.Trace.WriteLine($" [AuthService] 离线基准时间: {offlineBaseline:O}");
                     System.Diagnostics.Trace.WriteLine($" [AuthService] 离线时间超过 {MAX_OFFLINE_DAYS} 天，强制退出");
@@ -407,6 +407,7 @@ namespace ImageColorChanger.Services
 #if DEBUG
                 System.Diagnostics.Trace.WriteLine($" [AuthService] 心跳网络异常且本地缓存已过期");
 #endif
+                AuthFailureLogger.Log("heartbeat", "network_error_and_local_cache_expired", ex.Message);
                 Logout();
             }
         }

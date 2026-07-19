@@ -260,13 +260,14 @@ namespace ImageColorChanger.UI
                     OnVideoPlaybackError);
                 _mediaModuleController.Attach();
 
+                Debug.WriteLine("[MediaPlayerInit] 开始创建主窗口 VideoView");
                 _mediaModuleController.InitializeMainVideoView(VideoContainer);
+                Debug.WriteLine($"[MediaPlayerInit] 主窗口 VideoView 已挂载: Exists={_mediaModuleController.MainVideoView != null}");
 
                 _videoPlayerManager.SetVolume(50);
                 VolumeSlider.Value = 50;
 
-                SetMediaPlayModeButtonContent(PlayMode.Random);
-                BtnPlayMode.ToolTip = "播放模式：随机";
+                ApplyMediaPlayMode(PlayMode.Random);
             }
             catch (Exception ex)
             {

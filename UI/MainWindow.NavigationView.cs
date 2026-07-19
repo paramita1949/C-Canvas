@@ -901,7 +901,8 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                foreach (var project in textProjects.OrderBy(p => p.Id))
+                // 仓储已经按 SortOrder 返回；不要再次按 Id 排序，否则重启后会覆盖拖拽顺序。
+                foreach (var project in textProjects)
                 {
                     _projectTreeItems.Add(new ProjectTreeItem
                     {

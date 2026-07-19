@@ -2,6 +2,7 @@ using System;
 using ImageColorChanger.Managers;
 using System.Windows;
 using System.Windows.Controls;
+using System.Diagnostics;
 using LibVLCSharp.WPF;
 
 namespace ImageColorChanger.UI.Modules
@@ -104,30 +105,68 @@ namespace ImageColorChanger.UI.Modules
             };
 
             _hostContainer = hostContainer;
-            hostContainer.Children.Add(_mainVideoView);
-
             bool mediaPlayerInitialized = false;
+            bool mediaPlayerInitializationInProgress = false;
+
+            void TryInitializeMainVideoView(string trigger)
+            {
+                if (mediaPlayerInitialized || mediaPlayerInitializationInProgress)
+                {
+                    return;
+                }
+
+                Debug.WriteLine(
+                    $"[MediaPlayerInit] Main VideoView {trigger}: " +
+                    $"Loaded={_mainVideoView.IsLoaded}, Visible={_mainVideoView.IsVisible}, " +
+                    $"Size={_mainVideoView.ActualWidth:F0}x{_mainVideoView.ActualHeight:F0}, " +
+                    $"HasMediaPlayer={_mainVideoView.MediaPlayer != null}");
+
+                if (_mainVideoView.ActualWidth <= 0 || _mainVideoView.ActualHeight <= 0)
+                {
+                    return;
+                }
+
+                mediaPlayerInitializationInProgress = true;
+                try
+                {
+                    _videoPlayerManager.InitializeMediaPlayer(_mainVideoView);
+                    _videoPlayerManager.SetMainVideoView(_mainVideoView);
+                    mediaPlayerInitialized = _mainVideoView.MediaPlayer != null;
+                    Debug.WriteLine($"[MediaPlayerInit] Main VideoView 绑定完成: Success={mediaPlayerInitialized}");
+
+                    if (mediaPlayerInitialized)
+                    {
+                        var handler = _mainVideoViewSizeChangedHandler;
+                        if (handler != null)
+                        {
+                            _mainVideoView.SizeChanged -= handler;
+                            _mainVideoViewSizeChangedHandler = null;
+                        }
+                    }
+                }
+                finally
+                {
+                    mediaPlayerInitializationInProgress = false;
+                }
+            }
 
             _mainVideoViewSizeChangedHandler = (s, e) =>
             {
                 try
                 {
-                    if (!mediaPlayerInitialized && _mainVideoView.ActualWidth > 0 && _mainVideoView.ActualHeight > 0)
-                    {
-                        _videoPlayerManager.InitializeMediaPlayer(_mainVideoView);
-                        _videoPlayerManager.SetMainVideoView(_mainVideoView);
-                        mediaPlayerInitialized = true;
-                        _mainVideoView.SizeChanged -= _mainVideoViewSizeChangedHandler;
-                        _mainVideoViewSizeChangedHandler = null;
-                    }
+                    TryInitializeMainVideoView("SizeChanged");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // 初始化失败不阻断窗口继续运行
+                    Debug.WriteLine($"[MediaPlayerInit] Main VideoView 初始化异常: {ex}");
                 }
             };
 
             _mainVideoView.SizeChanged += _mainVideoViewSizeChangedHandler;
+            _mainVideoView.Loaded += (_, _) => TryInitializeMainVideoView("Loaded");
+            hostContainer.Children.Add(_mainVideoView);
+            Debug.WriteLine($"[MediaPlayerInit] Main VideoView 已加入宿主: ChildCount={hostContainer.Children.Count}");
+            TryInitializeMainVideoView("AfterAttach");
         }
 
         /// <summary>

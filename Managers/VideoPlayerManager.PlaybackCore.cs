@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows.Threading;
+using System.Diagnostics;
 using LibVLCSharp.Shared;
 using LibVLCSharp.WPF;
 
@@ -73,11 +74,13 @@ namespace ImageColorChanger.Managers
             {
                 if (videoView == null)
                 {
+                    Debug.WriteLine("[VideoPlayerManager] MediaPlayer 绑定跳过: VideoView=null");
                     return;
                 }
 
                 if (videoView.MediaPlayer != null)
                 {
+                    Debug.WriteLine("[VideoPlayerManager] MediaPlayer 绑定跳过: VideoView 已绑定");
                     return;
                 }
 
@@ -102,9 +105,14 @@ namespace ImageColorChanger.Managers
 
                 videoView.MediaPlayer = _mediaPlayer;
                 DrainUi(DispatcherPriority.Render);
+                Debug.WriteLine(
+                    $"[VideoPlayerManager] MediaPlayer 绑定完成: " +
+                    $"VideoView={videoView.GetHashCode()}, Player={_mediaPlayer.GetHashCode()}, " +
+                    $"Size={videoView.ActualWidth:F0}x{videoView.ActualHeight:F0}");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Debug.WriteLine($"[VideoPlayerManager] MediaPlayer 绑定异常: {ex}");
             }
         }
 

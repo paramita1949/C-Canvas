@@ -330,7 +330,25 @@ jobs:
           }
         }
 
-        # Canvas-Update.zip 只承载主程序和必要音频依赖，NDI 运行时 DLL 由完整包/运行时安装器提供。
+        # 将开屏广告素材按 data/splash 原目录结构加入增量更新包。
+        $splashSourceDir = "publish\data\splash"
+        $splashUpdateDir = Join-Path $updateDir "data\splash"
+        if (!(Test-Path $splashSourceDir)) {
+          echo "❌ 错误: publish 缺少 data\splash 开屏广告目录"
+          exit 1
+        }
+
+        $splashFiles = @(Get-ChildItem -Path $splashSourceDir -File -Recurse -ErrorAction SilentlyContinue)
+        if ($splashFiles.Count -eq 0) {
+          echo "❌ 错误: publish\data\splash 中没有开屏广告文件"
+          exit 1
+        }
+
+        New-Item -ItemType Directory -Path $splashUpdateDir -Force | Out-Null
+        Copy-Item -Path "$splashSourceDir\*" -Destination $splashUpdateDir -Recurse -Force
+        echo "✅ 已添加 data\splash 开屏广告 ($($splashFiles.Count) 个文件)"
+
+        # Canvas-Update.zip 承载主程序、必要音频依赖和开屏广告；NDI 运行时 DLL 由完整包/运行时安装器提供。
         $excludedUpdateDllPatterns = @(
           "*NDI*.dll",
           "Processing.NDI*.dll",
@@ -385,6 +403,20 @@ jobs:
         # 验证更新包
         if (Test-Path $updateZipName) {
           $updateSize = (Get-Item $updateZipName).Length / 1MB
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $updateArchive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $updateZipName).Path)
+          try {
+            $splashEntries = @($updateArchive.Entries | Where-Object {
+              $_.FullName.Replace('\', '/') -like 'data/splash/*' -and $_.Name
+            })
+            if ($splashEntries.Count -eq 0) {
+              echo "❌ 增量更新包缺少 data/splash 开屏广告"
+              exit 1
+            }
+            echo "✅ 增量更新包已验证 data/splash 开屏广告 ($($splashEntries.Count) 个文件)"
+          } finally {
+            $updateArchive.Dispose()
+          }
           echo "✅ 增量更新包创建成功"
           echo "包名称: $updateZipName"
           echo "包大小: $([math]::Round($updateSize, 2)) MB"
@@ -621,7 +653,7 @@ jobs:
 
           #### 🔄 老用户 - 增量更新（推荐）
           - 📥 下载 `Canvas-Update.zip`
-          - 📂 解压并覆盖（含 `CanvasCast.exe`、`CanvasCast.dll`、`CanvasCast.deps.json`、`CanvasCast.runtimeconfig.json` 及音频依赖）
+          - 📂 解压并覆盖（含 `CanvasCast.exe`、`CanvasCast.dll`、`CanvasCast.deps.json`、`CanvasCast.runtimeconfig.json`、音频依赖及 `data/splash` 开屏广告）
           - 🔁 覆盖原程序目录中的同名文件
           - ▶️ 重启程序即可
 

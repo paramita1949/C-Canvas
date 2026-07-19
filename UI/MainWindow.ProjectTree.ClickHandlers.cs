@@ -15,7 +15,6 @@ namespace ImageColorChanger.UI
     {
         private async void ProjectTree_MouseClick(object sender, MouseButtonEventArgs e)
         {
-            MarkProjectTreeInteractionForVideoPrewarm();
             if (!TryGetTreeItemFromEvent(e, out var selectedItem))
             {
                 return;

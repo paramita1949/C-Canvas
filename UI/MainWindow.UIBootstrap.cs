@@ -19,8 +19,6 @@ namespace ImageColorChanger.UI
         private readonly CancellationTokenSource _startupDeferredWorkCts = new();
         private bool _isDeferredStartupUiWorkScheduled;
         private bool _videoPlayerDeferredInitQueued;
-        private long _lastProjectTreeInteractionUtcTicks;
-        private static readonly TimeSpan VideoPrewarmQuietWindow = TimeSpan.FromSeconds(4);
 
         private void InitializeUI()
         {
@@ -143,8 +141,6 @@ namespace ImageColorChanger.UI
                         await Task.Delay(delayMs, _startupDeferredWorkCts.Token);
                     }
 
-                    await WaitForProjectTreeIdleAsync(_startupDeferredWorkCts.Token);
-
                     if (_startupDeferredWorkCts.IsCancellationRequested)
                     {
                         StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
@@ -171,39 +167,6 @@ namespace ImageColorChanger.UI
                     StartupPerfLogger.Mark("MainWindow.VideoPlayer.DeferredInit.Cancelled");
                 }
             });
-        }
-
-        private async Task WaitForProjectTreeIdleAsync(CancellationToken token)
-        {
-            while (true)
-            {
-                token.ThrowIfCancellationRequested();
-                var idle = GetProjectTreeIdleDuration();
-                if (idle >= VideoPrewarmQuietWindow)
-                {
-                    return;
-                }
-
-                await Task.Delay(800, token);
-            }
-        }
-
-        private TimeSpan GetProjectTreeIdleDuration()
-        {
-            long ticks = Interlocked.Read(ref _lastProjectTreeInteractionUtcTicks);
-            if (ticks <= 0)
-            {
-                return TimeSpan.MaxValue;
-            }
-
-            var lastUtc = new DateTime(ticks, DateTimeKind.Utc);
-            var delta = DateTime.UtcNow - lastUtc;
-            return delta < TimeSpan.Zero ? TimeSpan.Zero : delta;
-        }
-
-        private void MarkProjectTreeInteractionForVideoPrewarm()
-        {
-            Interlocked.Exchange(ref _lastProjectTreeInteractionUtcTicks, DateTime.UtcNow.Ticks);
         }
 
         private void ForwardProjectionKeyDownFromProjection(System.Windows.Input.KeyEventArgs e)

@@ -127,8 +127,8 @@ namespace ImageColorChanger.UI
             StartupPerfLogger.Mark("MainWindow.StartupCoreReady");
             EnsureAutoDeleteSyncStarted();
             // 静默后台预热 LibVLC（不占 UI 线程），降低首次播放初始化开销。
-            StartDeferredVideoPlayerInitialization(delayMs: 2000);
-            StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Queued", "Reason=StartupCoreReady; DelayMs=2000");
+            StartDeferredVideoPlayerInitialization(delayMs: 200);
+            StartupPerfLogger.Mark("MainWindow.VideoPlayer.Prewarm.Queued", "Reason=StartupCoreReady; DelayMs=200");
             StartDeferredMediaPlaylistPrewarm();
             StartupPerfLogger.Mark("MainWindow.VideoPlaylist.Prewarm.Queued", "Reason=StartupCoreReady");
             QueueDeferredStartupFolderSync();

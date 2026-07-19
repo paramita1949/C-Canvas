@@ -58,15 +58,6 @@ namespace ImageColorChanger.UI
             _videoPlayerManager.PlayNext();
         }
 
-        private void BtnMediaStop_Click(object sender, RoutedEventArgs e)
-        {
-            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("BtnMediaStop_Click")) return;
-            
-            _videoPlayerManager.Stop();
-            MediaProgressSlider.Value = 0;
-            MediaCurrentTime.Text = "00:00";
-        }
-
         private void MediaProgressSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("MediaProgressSlider_ValueChanged")) return;
@@ -89,34 +80,46 @@ namespace ImageColorChanger.UI
             }
             _lastPlayModeClickTime = now;
             
-            // 循环切换播放模式
+            // 只在用户需要的三种模式之间循环。
             var currentMode = _videoPlayerManager.CurrentPlayMode;
-            PlayMode nextMode;
-            
-            switch (currentMode)
+            PlayMode nextMode = currentMode switch
             {
-                case PlayMode.Sequential:
-                    nextMode = PlayMode.Random;
-                    break;
-                case PlayMode.Random:
-                    nextMode = PlayMode.LoopOne;
-                    break;
-                case PlayMode.LoopOne:
-                    nextMode = PlayMode.LoopAll;
-                    break;
-                case PlayMode.LoopAll:
-                default:
-                    nextMode = PlayMode.Sequential;
-                    break;
+                PlayMode.Random => PlayMode.LoopOne,
+                PlayMode.LoopOne => PlayMode.LoopAll,
+                _ => PlayMode.Random
+            };
+
+            ApplyMediaPlayMode(nextMode);
+        }
+
+        private void MediaPlayModeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                !Enum.TryParse(menuItem.Tag?.ToString(), out PlayMode mode))
+            {
+                return;
             }
-            
-            _videoPlayerManager.SetPlayMode(nextMode);
-            SetMediaPlayModeButtonContent(nextMode);
-            
-            string[] modeNames = { "顺序", "随机", "单曲", "列表" };
-            BtnPlayMode.ToolTip = $"播放模式：{modeNames[(int)nextMode]}";
-            
-            //System.Diagnostics.Debug.WriteLine($" 播放模式已切换: {modeNames[(int)nextMode]}");
+
+            if (_videoPlayerManager == null && !EnsureVideoPlayerInitialized("MediaPlayModeMenuItem_Click")) return;
+            ApplyMediaPlayMode(mode);
+        }
+
+        private void ApplyMediaPlayMode(PlayMode mode)
+        {
+            _videoPlayerManager.SetPlayMode(mode);
+            SetMediaPlayModeButtonContent(mode);
+
+            string modeName = mode switch
+            {
+                PlayMode.LoopOne => "单曲循环",
+                PlayMode.LoopAll => "歌单循环",
+                _ => "随机播放"
+            };
+
+            BtnPlayMode.ToolTip = $"播放模式：{modeName}（左键切换，右键选择）";
+            if (MenuMediaPlayModeRandom != null) MenuMediaPlayModeRandom.IsChecked = mode == PlayMode.Random;
+            if (MenuMediaPlayModeLoopOne != null) MenuMediaPlayModeLoopOne.IsChecked = mode == PlayMode.LoopOne;
+            if (MenuMediaPlayModeLoopAll != null) MenuMediaPlayModeLoopAll.IsChecked = mode == PlayMode.LoopAll;
         }
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

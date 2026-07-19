@@ -200,6 +200,7 @@ namespace ImageColorChanger.Services
             bool allowLocalCacheFallback)
         {
             string failureReason = authResponse?.Message ?? defaultFailureReason;
+            AuthFailureLogger.Log(contextTag, authResponse?.Reason ?? "invalid_response", failureReason);
 
 #if DEBUG
             System.Diagnostics.Trace.WriteLine($" [{contextTag}] 服务器返回失败: {failureReason}");
@@ -212,6 +213,7 @@ namespace ImageColorChanger.Services
                 failureReason);
             if (decision.ShouldForceLogout)
             {
+                AuthFailureLogger.Log(contextTag, authResponse?.Reason ?? "force_logout", failureReason);
                 Logout();
                 RaiseUiMessage(decision.Title, decision.Message, UiMessageLevel.Warning);
                 return false;
@@ -241,6 +243,7 @@ namespace ImageColorChanger.Services
             }
 
             Logout();
+            AuthFailureLogger.Log(contextTag, "local_cache_expired", failureReason);
             return false;
         }
 
@@ -508,6 +511,7 @@ namespace ImageColorChanger.Services
 
         private void HandleAutoLoginExpired()
         {
+            AuthFailureLogger.Log("auto_login", "local_auth_expired", "本地登录已过期");
             ClearAuthenticatedIdentity();
             DeleteAuthData();
 #if DEBUG

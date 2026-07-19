@@ -1431,6 +1431,7 @@
                                        Padding="20,0"/>
                         </StackPanel>
                     </Grid>
+
                 </Grid>
 
                 <!--  圣经显示区域（默认隐藏，切换到圣经模式时显示） -->
@@ -1629,8 +1630,11 @@
             </Grid>
         </Grid>
 
-        <!-- ========== 媒体播放器控制栏（默认隐藏） ========== -->
-        <views:MediaPlayerSectionView x:Name="MediaPlayerSectionView" Grid.Row="2"/>
+        <!-- ========== 媒体播放器控制栏（仅主窗口显示，不进入投影窗口） ========== -->
+        <views:MediaPlayerSectionView x:Name="MediaPlayerSectionView"
+                                      Grid.Row="2"
+                                      Width="{Binding ActualWidth, ElementName=VideoContainer}"
+                                      HorizontalAlignment="Right"/>
 
         <!-- ========== Toast 通知容器（悬浮提示，显示在合成播放按钮下方） ========== -->
         <Border x:Name="ToastNotification" 
