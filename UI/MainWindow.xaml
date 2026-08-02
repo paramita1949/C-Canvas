@@ -926,6 +926,7 @@
                                      Background="#3C3C3C"
                                      BorderThickness="0"
                                      SelectionChanged="BibleEndVerse_SelectionChanged"
+                                     MouseLeftButtonUp="BibleEndVerse_MouseLeftButtonUp"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ItemContainerStyle>
                                     <Style TargetType="ListBoxItem">

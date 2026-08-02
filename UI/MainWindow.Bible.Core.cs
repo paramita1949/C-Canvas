@@ -1152,6 +1152,38 @@ namespace ImageColorChanger.UI
             AddToHistory(bookId, chapter, startVerse, endVerse);
         }
 
+        // 结束节与起始节已被同步为同一节时，第二次点击不会触发 SelectionChanged；
+        // 用鼠标抬起补充这个单节确认动作。
+        private async void BibleEndVerse_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource is not FrameworkElement source || source.DataContext == null)
+                return;
+
+            if (BibleStartVerse.SelectedItem == null || BibleEndVerse.SelectedItem == null)
+                return;
+
+            if (!int.TryParse(BibleStartVerse.SelectedItem.ToString(), out int startVerse) ||
+                !int.TryParse(BibleEndVerse.SelectedItem.ToString(), out int endVerse) ||
+                startVerse != endVerse)
+                return;
+
+            if (BibleChapterList.Tag is not int bookId ||
+                BibleChapterList.SelectedItem is not string chapterStr ||
+                !int.TryParse(chapterStr, out int chapter))
+                return;
+
+            if (TextEditorPanel.Visibility == Visibility.Visible)
+            {
+                await HandleBibleVerseSelectionInSlideModeAsync(bookId, chapter, startVerse, startVerse);
+            }
+            else
+            {
+                await LoadVerseRangeAsync(bookId, chapter, startVerse, startVerse);
+            }
+
+            AddToHistory(bookId, chapter, startVerse, startVerse);
+        }
+
 
         /// <summary>
         /// 加载指定范围的经文
