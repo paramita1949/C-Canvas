@@ -17,38 +17,87 @@ namespace ImageColorChanger.UI
             // Ctrl+滚轮 = 缩放
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
-                e.Handled = true;
+                ChangeZoomFromMouseWheel(e);
+            }
+        }
 
-                double delta = e.Delta / 120.0 * 0.05;
-                double newZoom = _currentZoom + delta;
-                newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, newZoom));
-                
-                // 关键：只使用ImageProcessor的渲染缩放，不使用UI层ScaleTransform
-                // 避免双重缩放导致的拉伸变形问题
-                if (_imageProcessor != null && !_originalMode)
+        private void ImageZoomWheelHint_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            ChangeZoomFromMouseWheel(e);
+        }
+
+        private void ChangeZoomFromMouseWheel(MouseWheelEventArgs e)
+        {
+            if (!CanChangeImageZoom())
+                return;
+
+            e.Handled = true;
+            ChangeZoomByStep(e.Delta / 120.0 * ZoomStep);
+        }
+
+        private void BtnImageZoomOut_Click(object sender, RoutedEventArgs e)
+        {
+            ChangeZoomByStep(-ZoomStep);
+        }
+
+        private void BtnImageZoomIn_Click(object sender, RoutedEventArgs e)
+        {
+            ChangeZoomByStep(ZoomStep);
+        }
+
+        private void ChangeZoomByStep(double delta)
+        {
+            if (!CanChangeImageZoom())
+                return;
+
+            double newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, _currentZoom + delta));
+
+            // 正常模式由 ImageProcessor 重新渲染，原图模式由 UI 变换缩放。
+            if (_imageProcessor != null && !_originalMode)
+            {
+                _currentZoom = newZoom;
+                _imageProcessor.ZoomRatio = newZoom;
+
+                if (_projectionManager?.IsProjecting == true)
                 {
-                    _currentZoom = newZoom; // 更新当前缩放值
-                    _imageProcessor.ZoomRatio = newZoom; // ImageProcessor会重新渲染图片
-                    
-                    // 更新投影屏幕
-                    if (_projectionManager?.IsProjecting == true)
-                    {
-                        _projectionManager.UpdateProjectionImage(
-                            _imageProcessor.CurrentImage,
-                            _isColorEffectEnabled,
-                            newZoom,
-                            _originalMode,
-                            _originalDisplayMode,
-                            _originalTopScalePercent
-                        );
-                    }
-                }
-                else
-                {
-                    // 原图模式：只使用UI层ScaleTransform（因为ImageProcessor在原图模式下不支持缩放）
-                    SetZoom(newZoom);
+                    _projectionManager.UpdateProjectionImage(
+                        _imageProcessor.CurrentImage,
+                        _isColorEffectEnabled,
+                        newZoom,
+                        _originalMode,
+                        _originalDisplayMode,
+                        _originalTopScalePercent);
                 }
             }
+            else
+            {
+                SetZoom(newZoom);
+            }
+        }
+
+        private void UpdateImageZoomControlsVisibility()
+        {
+            if (ImageZoomControlsPanel != null)
+            {
+                ImageZoomControlsPanel.Visibility = CanChangeImageZoom()
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        private bool CanChangeImageZoom()
+        {
+            if (ImageDisplay == null || ImageScrollViewer == null || VideoContainer == null)
+                return false;
+
+            return ImageDisplay.Source != null &&
+                   ImageScrollViewer.Visibility == Visibility.Visible &&
+                   VideoContainer.Visibility != Visibility.Visible;
+        }
+
+        private void ImageZoomSurface_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            UpdateImageZoomControlsVisibility();
         }
 
         private void ResetZoom()

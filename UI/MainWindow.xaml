@@ -1345,6 +1345,7 @@
                      Background="#000000"
                      BorderThickness="0"
                      PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
+                     IsVisibleChanged="ImageZoomSurface_IsVisibleChanged"
                      SizeChanged="ImageScrollViewer_SizeChanged"
                      MouseRightButtonUp="ImageScrollViewer_RightClick"
                      PreviewMouseDown="ImageArea_PreviewMouseDown">
@@ -1397,11 +1398,59 @@
                                 Panel.ZIndex="10"/>
                     </Grid>
                 </ScrollViewer>
+
+                <!-- 图片缩放按钮：固定在图片显示区域底部居中，不随图片内容滚动 -->
+                <Border x:Name="ImageZoomControlsPanel"
+                        Visibility="Collapsed"
+                        Panel.ZIndex="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,18"
+                        Padding="6,4"
+                        Background="#CC222222"
+                        BorderBrush="#66808080"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnImageZoomOut"
+                                Style="{StaticResource MenuButtonStyle}"
+                                Width="46" MinWidth="46" Height="40"
+                                Margin="0" Padding="0"
+                                Background="Transparent" BorderBrush="Transparent"
+                                ToolTip="缩小图片" Click="BtnImageZoomOut_Click">
+                            <Path Data="{StaticResource IconLucideMinus}"
+                                  Style="{StaticResource LucideIconPathStyle}"
+                                  Stroke="White" Width="20" Height="20"/>
+                        </Button>
+                        <Border x:Name="ImageZoomWheelHint"
+                                Width="50" Height="40"
+                                Background="Transparent"
+                                Cursor="SizeNS"
+                                ToolTip="滚轮缩放图片"
+                                PreviewMouseWheel="ImageZoomWheelHint_PreviewMouseWheel">
+                            <Path Data="{StaticResource IconLucideMouseWheel}"
+                                  Style="{StaticResource LucideIconPathStyle}"
+                                  Stroke="#D9FFFFFF" Width="20" Height="20"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Button x:Name="BtnImageZoomIn"
+                                Style="{StaticResource MenuButtonStyle}"
+                                Width="46" MinWidth="46" Height="40"
+                                Margin="0" Padding="0"
+                                Background="Transparent" BorderBrush="Transparent"
+                                ToolTip="放大图片" Click="BtnImageZoomIn_Click">
+                            <Path Data="{StaticResource IconLucidePlus}"
+                                  Style="{StaticResource LucideIconPathStyle}"
+                                  Stroke="White" Width="20" Height="20"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
                 
                 <!-- 视频播放区域（默认隐藏，播放视频时显示） -->
                 <Grid x:Name="VideoContainer"
                       Background="#000000"
                       Visibility="Collapsed"
+                      IsVisibleChanged="ImageZoomSurface_IsVisibleChanged"
                       MouseRightButtonUp="VideoContainer_RightClick">
                     <!-- VideoView控件将在代码中动态添加 -->
                     

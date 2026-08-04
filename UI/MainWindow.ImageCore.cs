@@ -78,6 +78,7 @@ namespace ImageColorChanger.UI
                         SetZoom(_currentZoom);
                     }
 
+                    UpdateImageZoomControlsVisibility();
                     UpdateProjection();
                     _keyframeManager?.UpdatePreviewLines();
                     UpdateFloatingCompositePlayButton();
@@ -142,6 +143,7 @@ namespace ImageColorChanger.UI
                 _currentImageId = 0;
                 _imageProcessor.ClearCurrentImage();
                 _currentZoom = 1.0;
+                UpdateImageZoomControlsVisibility();
 
                 KeyframePreviewLinesCanvas.Children.Clear();
                 ScrollbarIndicatorsCanvas.Children.Clear();
