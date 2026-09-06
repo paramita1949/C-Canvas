@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.UI
 {
@@ -93,16 +94,9 @@ namespace ImageColorChanger.UI
             return candidates.ToArray();
         }
 
-        private static BitmapImage LoadBitmap(string path)
+        private static ImageSource LoadBitmap(string path)
         {
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            bitmap.UriSource = new Uri(path, UriKind.Absolute);
-            bitmap.EndInit();
-            bitmap.Freeze();
-            return bitmap;
+            return SkiaWpfHelper.LoadBitmapSource(path);
         }
     }
 }

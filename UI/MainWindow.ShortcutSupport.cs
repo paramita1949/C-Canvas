@@ -227,6 +227,25 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
+        /// F9开启投影；投影已经开启时保持当前状态，不执行关闭操作。
+        /// </summary>
+        public bool TryOpenProjectionByHotkey()
+        {
+            if (_projectionManager == null)
+            {
+                return false;
+            }
+
+            if (_projectionManager.IsProjectionActive)
+            {
+                return true;
+            }
+
+            BtnProjection_Click(null, null);
+            return _projectionManager.IsProjectionActive;
+        }
+
+        /// <summary>
         /// F2：合成播放暂停/继续
         /// </summary>
         public async Task<bool> ToggleCompositePauseResumeByHotkeyAsync()

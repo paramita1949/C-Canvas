@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Services.Ndi;
 using ImageColorChanger.Services.Projection.Output;
+using ImageColorChanger.Utils;
 using SkiaSharp;
 using WpfColor = System.Windows.Media.Color;
 using WpfBrush = System.Windows.Media.Brush;
@@ -495,12 +496,11 @@ namespace ImageColorChanger.UI
 
             try
             {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
-                bitmap.EndInit();
-                bitmap.Freeze();
+                var bitmap = SkiaWpfHelper.LoadBitmapSource(imagePath);
+                if (bitmap == null)
+                {
+                    return;
+                }
 
                 if (bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0)
                 {

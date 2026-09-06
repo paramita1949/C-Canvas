@@ -47,6 +47,33 @@ namespace ImageColorChanger.Utils
                 return null;
             }
         }
+
+        /// <summary>
+        /// 使用 SkiaSharp 解码文件，再转换为冻结的 WPF BitmapSource。
+        /// WPF 自身缺少 WEBP 编解码器时也能通过此入口加载。
+        /// </summary>
+        public static BitmapSource LoadBitmapSource(string imagePath)
+        {
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var skBitmap = SKBitmap.Decode(imagePath);
+                return ConvertToWpfBitmap(skBitmap);
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($" [SkiaWpfHelper] 文件解码失败: {ex.Message}");
+#else
+                _ = ex;
+#endif
+                return null;
+            }
+        }
         
         /// <summary>
         /// 将WPF的BitmapSource转换为SKBitmap

@@ -5,6 +5,7 @@ using System.Linq;
 using EFCore.BulkExtensions;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
+using ImageColorChanger.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Database.Repositories
@@ -282,12 +283,10 @@ namespace ImageColorChanger.Database.Repositories
 
         private static FileType GetFileType(string extension)
         {
-            var imageExts = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif" };
             var videoExts = new[] { ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".f4v", ".rm", ".rmvb" };
             var audioExts = new[] { ".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac" };
 
-            extension = extension.ToLower();
-            if (imageExts.Contains(extension))
+            if (ImageFileSupport.IsImageExtension(extension))
             {
                 return FileType.Image;
             }

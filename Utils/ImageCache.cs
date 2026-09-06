@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ImageColorChanger.Utils
@@ -22,7 +23,7 @@ namespace ImageColorChanger.Utils
         /// </summary>
         private class CacheItem
         {
-            public BitmapImage Image { get; set; }
+            public BitmapSource Image { get; set; }
             public LinkedListNode<string> LruNode { get; set; }
             public DateTime LastAccessTime { get; set; }
         }
@@ -57,7 +58,7 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 获取图片（同步）
         /// </summary>
-        public BitmapImage Get(string imagePath)
+        public BitmapSource Get(string imagePath)
         {
             lock (_lock)
             {
@@ -80,7 +81,7 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 添加图片到缓存
         /// </summary>
-        public void Put(string imagePath, BitmapImage image)
+        public void Put(string imagePath, BitmapSource image)
         {
             if (string.IsNullOrEmpty(imagePath) || image == null)
                 return;
@@ -112,7 +113,7 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 异步加载并缓存图片
         /// </summary>
-        public async Task<BitmapImage> GetOrLoadAsync(string imagePath)
+        public async Task<BitmapSource> GetOrLoadAsync(string imagePath)
         {
             // 先尝试从缓存获取
             var cachedImage = Get(imagePath);
@@ -132,7 +133,7 @@ namespace ImageColorChanger.Utils
         /// <summary>
         /// 异步加载图片
         /// </summary>
-        private async Task<BitmapImage> LoadImageAsync(string imagePath)
+        private async Task<BitmapSource> LoadImageAsync(string imagePath)
         {
             return await Task.Run(() =>
             {
@@ -143,14 +144,7 @@ namespace ImageColorChanger.Utils
                         return null;
                     }
 
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
-                    bitmap.EndInit();
-                    bitmap.Freeze(); // 冻结以便跨线程使用
-                    
-                    return bitmap;
+                    return SkiaWpfHelper.LoadBitmapSource(imagePath);
                 }
                 catch (Exception)
                 {

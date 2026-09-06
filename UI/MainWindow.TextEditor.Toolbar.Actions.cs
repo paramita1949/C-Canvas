@@ -11,6 +11,7 @@ using ImageColorChanger.Database.Models;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.UI.Controls;
+using ImageColorChanger.Utils;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
@@ -55,7 +56,7 @@ namespace ImageColorChanger.UI
 
                 var dialog = new WpfOpenFileDialog
                 {
-                    Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
+                    Filter = ImageFileSupport.BuildImageDialogFilter(),
                     Title = "选择图片（可多选）",
                     Multiselect = true
                 };
@@ -240,7 +241,7 @@ namespace ImageColorChanger.UI
 
             var dialog = new WpfOpenFileDialog
             {
-                Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif",
+                Filter = ImageFileSupport.BuildImageDialogFilter(),
                 Title = "选择背景图"
             };
 
@@ -248,13 +249,11 @@ namespace ImageColorChanger.UI
             {
                 try
                 {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(dialog.FileName);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
+                    var bitmap = SkiaWpfHelper.LoadBitmapSource(dialog.FileName);
+                    if (bitmap == null)
+                    {
+                        throw new InvalidOperationException("图片解码失败");
+                    }
 
                     EditorCanvas.Background = new ImageBrush(bitmap) { Stretch = Stretch.Fill };
 

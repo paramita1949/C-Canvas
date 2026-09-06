@@ -267,6 +267,14 @@ namespace ImageColorChanger.Utils
         }
 
         /// <summary>
+        /// 处理F9键 - 开启投影（投影已开启时保持开启）
+        /// </summary>
+        public bool HandleF9Key()
+        {
+            return _mainWindow.TryOpenProjectionByHotkey();
+        }
+
+        /// <summary>
         /// 处理Up键 - 圣经经文按滚轮逻辑上一节
         /// </summary>
         public void HandleUpKey()

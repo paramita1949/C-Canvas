@@ -1962,6 +1962,23 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 普通图片显示区域背景色（默认：黑色）
+        /// </summary>
+        public string ImageBackgroundColor
+        {
+            get => ImageBackgroundColorCatalog.Normalize(_config.ImageBackgroundColor);
+            set
+            {
+                string normalized = ImageBackgroundColorCatalog.Normalize(value);
+                if (_config.ImageBackgroundColor != normalized)
+                {
+                    _config.ImageBackgroundColor = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 程序启动时是否自动开启 NDI 网络流
         /// </summary>
         public bool ProjectionNdiAutoStartEnabled
@@ -2452,6 +2469,11 @@ namespace ImageColorChanger.Core
         /// 圣经背景色（默认：#000000 黑色）
         /// </summary>
         public string BibleBackgroundColor { get; set; } = "#000000";
+
+        /// <summary>
+        /// 普通图片显示区域背景色（默认：黑色）
+        /// </summary>
+        public string ImageBackgroundColor { get; set; } = ImageBackgroundColorCatalog.DefaultColor;
 
         /// <summary>
         /// 圣经经文文字颜色（默认：#FF9A35 橙色 RGB(255, 154, 53)）

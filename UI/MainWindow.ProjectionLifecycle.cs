@@ -75,6 +75,7 @@ namespace ImageColorChanger.UI
             {
                 if (isActive)
                 {
+                    ApplyImageBackgroundColor(_configManager?.ImageBackgroundColor, persist: false);
                     StartProjectionNdiMirror();
                     SetProjectionButtonContent(true);
                     BtnProjection.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(144, 238, 144)); // 淡绿色

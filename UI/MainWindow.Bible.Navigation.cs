@@ -396,7 +396,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     SyncProjectionBibleTitle();
-                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer, _configManager?.BibleBackgroundColor);
                     PublishBibleFrameToNdi(new List<BibleVerse> { verse });
                     
                     //#if DEBUG
@@ -433,7 +433,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     SyncProjectionBibleTitle();
-                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer, _configManager?.BibleBackgroundColor);
                     
                     //#if DEBUG
                     //System.Diagnostics.Debug.WriteLine($" [圣经投影-VisualBrush] 投影范围: {bookId} {chapter}:{startVerse}-{endVerse}");
@@ -693,7 +693,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && BibleVerseScrollViewer != null)
                 {
                     SyncProjectionBibleTitle();
-                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer, _configManager?.BibleBackgroundColor);
                     PublishBibleFrameToNdi(versesList);
 
                     //#if DEBUG

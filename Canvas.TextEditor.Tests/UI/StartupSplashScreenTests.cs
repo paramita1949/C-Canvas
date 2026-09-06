@@ -103,7 +103,7 @@ namespace Canvas.TextEditor.Tests.UI
             Assert.Contains("splash", resolverCode);
             Assert.Contains("GetSupportedSplashImagePaths", resolverCode);
             Assert.Contains("SelectRandomSplashImagePath", resolverCode);
-            Assert.Contains("BitmapCacheOption.OnLoad", resolverCode);
+            Assert.Contains("SkiaWpfHelper.LoadBitmapSource", resolverCode);
             Assert.Contains("data\\splash\\**\\*.png", projectFile);
             Assert.Contains("data\\splash\\**\\*.jpg", projectFile);
             Assert.Contains("data\\splash\\**\\*.jpeg", projectFile);

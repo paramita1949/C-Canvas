@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
+using ImageColorChanger.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
@@ -22,7 +23,7 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 支持的图片扩展名
         /// </summary>
-        public static readonly string[] ImageExtensions = { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif" };
+        public static readonly string[] ImageExtensions = ImageFileSupport.ImageExtensions;
 
         /// <summary>
         /// 支持的视频扩展名
@@ -704,8 +705,8 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public static string GetFileDialogFilter()
         {
-            return "所有媒体|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb;*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +
-                   "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif|" +
+            return $"所有媒体|{ImageFileSupport.ImageDialogPattern};*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb;*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +
+                   $"{ImageFileSupport.BuildImageDialogFilter()}|" +
                    "视频文件|*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb|" +
                    "音频文件|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +
                    "所有文件|*.*";

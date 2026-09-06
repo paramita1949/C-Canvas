@@ -48,6 +48,7 @@ namespace ImageColorChanger.UI
             {
                 if (_projectionManager != null && _projectionManager.IsProjectionActive)
                 {
+                    _projectionManager.SetImageBackgroundColor(_configManager?.ImageBackgroundColor);
                     _projectionManager?.UpdateProjectionImage(
                         _imageProcessor.CurrentImage,
                         _isColorEffectEnabled,

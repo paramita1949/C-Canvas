@@ -13,6 +13,27 @@ namespace ImageColorChanger.Managers
     public partial class ProjectionManager
     {
         /// <summary>
+        /// 设置普通图片投影的空白区域背景色。
+        /// </summary>
+        public void SetImageBackgroundColor(string backgroundColorHex)
+        {
+            string normalized = ImageBackgroundColorCatalog.Normalize(backgroundColorHex);
+            RunOnMainDispatcher(() =>
+            {
+                var brush = CreateProjectionBackgroundBrush(normalized);
+                if (_projectionScrollViewer != null)
+                {
+                    _projectionScrollViewer.Background = brush;
+                }
+
+                if (_projectionContainer != null)
+                {
+                    _projectionContainer.Background = brush;
+                }
+            });
+        }
+
+        /// <summary>
         /// 更新投影图片 - 使用共享渲染模式
         /// </summary>
         public void UpdateProjectionImage(

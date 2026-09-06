@@ -307,6 +307,33 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(colorMenuItem);
 
+            // 图片背景色菜单
+            var imageBackgroundMenuItem = new MenuItem { Header = "背景色" };
+            string currentImageBackgroundColor = Core.ImageBackgroundColorCatalog.Normalize(_configManager?.ImageBackgroundColor);
+            foreach (var preset in Core.ImageBackgroundColorCatalog.Presets)
+            {
+                var presetItem = new MenuItem
+                {
+                    Header = preset.Name,
+                    IsCheckable = true,
+                    IsChecked = preset.Hex == currentImageBackgroundColor,
+                    Tag = preset.Hex
+                };
+                var currentPreset = preset;
+                presetItem.Click += (s, args) =>
+                {
+                    ApplyImageBackgroundColor(currentPreset.Hex);
+                    ShowStatus($"已设置图片背景色: {currentPreset.Name}");
+                };
+                imageBackgroundMenuItem.Items.Add(presetItem);
+            }
+
+            imageBackgroundMenuItem.Items.Add(new Separator());
+            var customImageBackgroundItem = new MenuItem { Header = "自定义颜色..." };
+            customImageBackgroundItem.Click += (s, args) => OpenImageBackgroundColorPicker();
+            imageBackgroundMenuItem.Items.Add(customImageBackgroundItem);
+            contextMenu.Items.Add(imageBackgroundMenuItem);
+
             // 原图模式显示切换菜单(仅在原图模式下显示)
             if (_originalMode)
             {

@@ -698,7 +698,7 @@ namespace ImageColorChanger.UI
                 if (_projectionManager != null && _projectionManager.IsProjecting && BibleVerseScrollViewer != null)
                 {
                     SyncProjectionBibleTitle();
-                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer, _configManager?.BibleBackgroundColor);
                 }
             }
             catch (Exception)
@@ -1000,7 +1000,7 @@ namespace ImageColorChanger.UI
                 {
                     // 使用 VisualBrush 投影（100%像素级一致）
                     SyncProjectionBibleTitle();
-                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer);
+                    _projectionManager.UpdateBibleProjectionWithVisualBrush(BibleVerseScrollViewer, _configManager?.BibleBackgroundColor);
                 }
                 else
                 {

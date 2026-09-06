@@ -24,6 +24,8 @@ namespace ImageColorChanger.UI
                 _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
                 _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
 
+                InitializeImageBackgroundColor();
+
                 // 加载分割图片显示模式偏好（默认置顶）
                 _splitImageDisplayModePreference = SplitImageDisplayModePreference.ResolveInitialPreference(
                     _configManager.SplitImageDisplayMode);

@@ -18,6 +18,7 @@ using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.TextEditor.Components.Notice;
 using ImageColorChanger.UI.Controls;
+using ImageColorChanger.Utils;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
@@ -1882,12 +1883,11 @@ namespace ImageColorChanger.UI
                     }
 
                     // 正常加载（无变色效果）
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(imagePath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad; // 立即加载到内存
-                    bitmap.EndInit();
-                    bitmap.Freeze(); // 冻结到GPU显存，跨线程共享
+                    var bitmap = SkiaWpfHelper.LoadBitmapSource(imagePath);
+                    if (bitmap == null)
+                    {
+                        throw new InvalidOperationException("图片解码失败");
+                    }
                     return bitmap;
                 });
                 
@@ -2469,13 +2469,7 @@ namespace ImageColorChanger.UI
                                 #endif
                                 
                                 // 加载失败，使用正常方式
-                                var bmp = new BitmapImage();
-                                bmp.BeginInit();
-                                bmp.UriSource = new Uri(regionData.ImagePath);
-                                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                                bmp.EndInit();
-                                bmp.Freeze();
-                                bitmap = bmp;
+                                bitmap = SkiaWpfHelper.LoadBitmapSource(regionData.ImagePath);
                             }
                         }
                         catch
@@ -2485,13 +2479,7 @@ namespace ImageColorChanger.UI
                             #endif
 
                             // 失败时使用正常方式
-                            var bmp = new BitmapImage();
-                            bmp.BeginInit();
-                            bmp.UriSource = new Uri(regionData.ImagePath);
-                            bmp.CacheOption = BitmapCacheOption.OnLoad;
-                            bmp.EndInit();
-                            bmp.Freeze();
-                            bitmap = bmp;
+                            bitmap = SkiaWpfHelper.LoadBitmapSource(regionData.ImagePath);
                         }
                     }
                     else
@@ -2501,13 +2489,7 @@ namespace ImageColorChanger.UI
                         #endif
                         
                         // 正常加载（无变色效果）
-                        var bmp = new BitmapImage();
-                        bmp.BeginInit();
-                        bmp.UriSource = new Uri(regionData.ImagePath);
-                        bmp.CacheOption = BitmapCacheOption.OnLoad;
-                        bmp.EndInit();
-                        bmp.Freeze(); // 冻结到GPU显存
-                        bitmap = bmp;
+                        bitmap = SkiaWpfHelper.LoadBitmapSource(regionData.ImagePath);
                     }
                     
                     // 创建 Image 控件（显示模式由统一方法应用）

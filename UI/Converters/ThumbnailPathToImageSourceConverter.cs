@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ImageColorChanger.Utils;
 
 namespace ImageColorChanger.UI.Converters
 {
@@ -21,14 +22,7 @@ namespace ImageColorChanger.UI.Converters
 
             try
             {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                bitmap.UriSource = new Uri(thumbnailPath, UriKind.Absolute);
-                bitmap.EndInit();
-                bitmap.Freeze();
-                return bitmap;
+                return SkiaWpfHelper.LoadBitmapSource(thumbnailPath);
             }
             catch
             {

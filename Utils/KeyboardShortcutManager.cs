@@ -97,6 +97,9 @@ namespace ImageColorChanger.Utils
                     await _actionHandler.HandleF3KeyAsync();
                     return true;
 
+                case Key.F9:
+                    return _actionHandler.HandleF9Key();
+
                 case Key.Up:
                     _actionHandler.HandleUpKey();
                     return true;

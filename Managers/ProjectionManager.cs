@@ -332,7 +332,7 @@ namespace ImageColorChanger.Managers
         ///  使用 VisualBrush 投影圣经经文（100%像素级一致）
         /// </summary>
         /// <param name="bibleScrollViewer">主屏幕的圣经 ScrollViewer</param>
-        public void UpdateBibleProjectionWithVisualBrush(ScrollViewer bibleScrollViewer)
+        public void UpdateBibleProjectionWithVisualBrush(ScrollViewer bibleScrollViewer, string backgroundColorHex = null)
         {
             if (_projectionWindow == null || bibleScrollViewer == null)
             {
@@ -369,6 +369,16 @@ namespace ImageColorChanger.Managers
                     {
                         // 重置容器高度
                         _projectionContainer.Height = double.NaN;
+                    }
+
+                    var projectionBackground = CreateProjectionBackgroundBrush(backgroundColorHex);
+                    if (_projectionScrollViewer != null)
+                    {
+                        _projectionScrollViewer.Background = projectionBackground;
+                    }
+                    if (_projectionContainer != null)
+                    {
+                        _projectionContainer.Background = projectionBackground;
                     }
                     
                     // 强制投影窗口更新布局，清除缓存
@@ -484,6 +494,20 @@ namespace ImageColorChanger.Managers
             catch (Exception)
             {
                 // 静默处理异常
+            }
+        }
+
+        private static System.Windows.Media.Brush CreateProjectionBackgroundBrush(string backgroundColorHex)
+        {
+            try
+            {
+                var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                    string.IsNullOrWhiteSpace(backgroundColorHex) ? "#000000" : backgroundColorHex);
+                return new System.Windows.Media.SolidColorBrush(color);
+            }
+            catch
+            {
+                return WpfBrushes.Black;
             }
         }
         

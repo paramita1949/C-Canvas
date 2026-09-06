@@ -20,6 +20,7 @@ using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Managers;
 using ImageColorChanger.Services.TextEditor.Application.Models;
 using ImageColorChanger.UI.Controls;
+using ImageColorChanger.Utils;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfOpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
@@ -1188,13 +1189,11 @@ namespace ImageColorChanger.UI
                     else
                     {
                         // 图片背景
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(slide.BackgroundImagePath);
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                        bitmap.EndInit();
-                        bitmap.Freeze();
+                        var bitmap = SkiaWpfHelper.LoadBitmapSource(slide.BackgroundImagePath);
+                        if (bitmap == null)
+                        {
+                            throw new InvalidOperationException("图片背景解码失败");
+                        }
 
                         EditorCanvas.Background = new ImageBrush(bitmap)
                         {
