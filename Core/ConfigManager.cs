@@ -1962,6 +1962,44 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 圣经下一节是否使用平滑滚动动画（默认：true；上一节始终不使用动画）
+        /// </summary>
+        public bool BibleVerseScrollAnimationEnabled
+        {
+            get => _config.BibleVerseScrollAnimationEnabled;
+            set
+            {
+                if (_config.BibleVerseScrollAnimationEnabled != value)
+                {
+                    _config.BibleVerseScrollAnimationEnabled = value;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 圣经经文滚动速度：0=慢，1=中，2=快（默认：中）
+        /// </summary>
+        public int BibleVerseScrollSpeed
+        {
+            get
+            {
+                return _config.BibleVerseScrollSpeed >= 0 && _config.BibleVerseScrollSpeed <= 2
+                    ? _config.BibleVerseScrollSpeed
+                    : 1;
+            }
+            set
+            {
+                int normalized = Math.Max(0, Math.Min(2, value));
+                if (_config.BibleVerseScrollSpeed != normalized)
+                {
+                    _config.BibleVerseScrollSpeed = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 普通图片显示区域背景色（默认：黑色）
         /// </summary>
         public string ImageBackgroundColor
@@ -2504,6 +2542,16 @@ namespace ImageColorChanger.Core
         /// 圣经标题是否固定（默认：true）
         /// </summary>
         public bool BibleFixedTitle { get; set; } = true;
+
+        /// <summary>
+        /// 圣经下一节是否使用平滑滚动动画（默认：true）
+        /// </summary>
+        public bool BibleVerseScrollAnimationEnabled { get; set; } = true;
+
+        /// <summary>
+        /// 圣经经文滚动速度：0=慢，1=中，2=快（默认：中）
+        /// </summary>
+        public int BibleVerseScrollSpeed { get; set; } = 1;
 
         /// <summary>
         /// 圣经滚动置顶偏移（默认：1，目标节显示在第2行）

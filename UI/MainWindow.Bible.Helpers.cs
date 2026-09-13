@@ -599,6 +599,7 @@ namespace ImageColorChanger.UI
 
         // 滚轮对齐相关字段
         private System.Windows.Threading.DispatcherTimer _scrollAlignTimer;
+        private System.EventHandler _scrollAlignTickHandler;
         private DateTime _lastScrollTime = DateTime.MinValue; // 上次滚动时间
         private const int SCROLL_THROTTLE_MS = 50; // 滚动节流时间（毫秒）
 
@@ -696,6 +697,8 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return;
 
+            StopBibleVerseScrollAnimation();
+
             int anchorIndex = GetBibleScrollAnchorIndex(verseIndex);
 
             // 计算目标滚动位置
@@ -712,9 +715,9 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            // 平滑滚动参数
-            int steps = 6; // 滚动步数（更快的动画）
-            int currentStep = 0;
+            int durationMilliseconds = BibleVerseScrollAnimationPolicy.GetDurationMilliseconds(
+                _configManager?.BibleVerseScrollSpeed ?? BibleVerseScrollAnimationPolicy.MediumSpeed);
+            var stopwatch = Stopwatch.StartNew();
 
             if (_scrollAlignTimer == null)
             {
@@ -723,39 +726,47 @@ namespace ImageColorChanger.UI
                     Interval = TimeSpan.FromMilliseconds(16) // 约60fps
                 };
             }
-            else
-            {
-                _scrollAlignTimer.Stop();
-                _scrollAlignTimer.Tick -= null; // 清除旧的事件处理
-            }
 
-            System.Windows.Threading.DispatcherTimer localTimer = _scrollAlignTimer;
             System.EventHandler tickHandler = null;
             
             tickHandler = (s, e) =>
             {
-                currentStep++;
-                
-                if (currentStep >= steps)
+                double progress = stopwatch.Elapsed.TotalMilliseconds / durationMilliseconds;
+                if (progress >= 1)
                 {
                     // 最后一步，精确到目标位置
                     BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
                     QueueBibleScrollCorrection(anchorIndex);
-                    localTimer.Tick -= tickHandler;
-                    localTimer.Stop();
+                    StopBibleVerseScrollAnimation();
                 }
                 else
                 {
                     // 使用缓动函数（ease-out）
-                    double progress = (double)currentStep / steps;
                     double easedProgress = 1 - Math.Pow(1 - progress, 3); // cubic ease-out
                     double newOffset = startOffset + distance * easedProgress;
                     BibleVerseScrollViewer.ScrollToVerticalOffset(newOffset);
                 }
             };
 
-            _scrollAlignTimer.Tick += tickHandler;
+            _scrollAlignTickHandler = tickHandler;
+            _scrollAlignTimer.Tick += _scrollAlignTickHandler;
             _scrollAlignTimer.Start();
+        }
+
+        private void StopBibleVerseScrollAnimation()
+        {
+            if (_scrollAlignTimer == null)
+            {
+                return;
+            }
+
+            if (_scrollAlignTickHandler != null)
+            {
+                _scrollAlignTimer.Tick -= _scrollAlignTickHandler;
+                _scrollAlignTickHandler = null;
+            }
+
+            _scrollAlignTimer.Stop();
         }
 
         /// <summary>
@@ -765,6 +776,8 @@ namespace ImageColorChanger.UI
         {
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return;
+
+            StopBibleVerseScrollAnimation();
 
             int anchorIndex = GetBibleScrollAnchorIndex(verseIndex);
 

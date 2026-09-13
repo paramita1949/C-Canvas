@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ImageColorChanger.UI.Controls;
@@ -31,6 +32,11 @@ namespace ImageColorChanger.UI
         private MenuItem MenuBibleCopyStyleShort => BibleSectionView?.MenuBibleCopyStyleShort;
         private MenuItem MenuBibleCopyStyleFull => BibleSectionView?.MenuBibleCopyStyleFull;
         private MenuItem MenuBibleCopyStyleChapter => BibleSectionView?.MenuBibleCopyStyleChapter;
+        private MenuItem MenuBibleVerseScroll => BibleSectionView?.MenuBibleVerseScroll;
+        private MenuItem MenuBibleVerseScrollEnabled => BibleSectionView?.MenuBibleVerseScrollEnabled;
+        private MenuItem MenuBibleVerseScrollSpeedSlow => BibleSectionView?.MenuBibleVerseScrollSpeedSlow;
+        private MenuItem MenuBibleVerseScrollSpeedMedium => BibleSectionView?.MenuBibleVerseScrollSpeedMedium;
+        private MenuItem MenuBibleVerseScrollSpeedFast => BibleSectionView?.MenuBibleVerseScrollSpeedFast;
         private MenuItem MenuBibleClearScreen => BibleSectionView?.MenuBibleClearScreen;
 
         private void InitializeBibleSectionBindings()
@@ -100,7 +106,74 @@ namespace ImageColorChanger.UI
                 MenuBibleCopyStyleChapter.Click += SetBibleCopyStyle_Click;
             }
 
+            if (MenuBibleVerseScrollEnabled != null)
+            {
+                MenuBibleVerseScrollEnabled.Click += BibleVerseScrollAnimation_Click;
+            }
+
+            if (MenuBibleVerseScrollSpeedSlow != null)
+            {
+                MenuBibleVerseScrollSpeedSlow.Click += BibleVerseScrollSpeed_Click;
+            }
+
+            if (MenuBibleVerseScrollSpeedMedium != null)
+            {
+                MenuBibleVerseScrollSpeedMedium.Click += BibleVerseScrollSpeed_Click;
+            }
+
+            if (MenuBibleVerseScrollSpeedFast != null)
+            {
+                MenuBibleVerseScrollSpeedFast.Click += BibleVerseScrollSpeed_Click;
+            }
+
+            RefreshBibleVerseScrollMenuState();
             _isBibleSectionEventsWired = true;
+        }
+
+        private void RefreshBibleVerseScrollMenuState()
+        {
+            if (MenuBibleVerseScrollEnabled != null)
+            {
+                MenuBibleVerseScrollEnabled.IsChecked =
+                    ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.ResolveEnabled(
+                        _configManager?.BibleVerseScrollAnimationEnabled);
+            }
+
+            UpdateBibleVerseScrollSpeedMenu();
+        }
+
+        private void UpdateBibleVerseScrollSpeedMenu()
+        {
+            int speed = _configManager?.BibleVerseScrollSpeed ?? ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.MediumSpeed;
+            if (MenuBibleVerseScrollSpeedSlow != null)
+            {
+                MenuBibleVerseScrollSpeedSlow.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.SlowSpeed;
+            }
+            if (MenuBibleVerseScrollSpeedMedium != null)
+            {
+                MenuBibleVerseScrollSpeedMedium.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.MediumSpeed;
+            }
+            if (MenuBibleVerseScrollSpeedFast != null)
+            {
+                MenuBibleVerseScrollSpeedFast.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.FastSpeed;
+            }
+        }
+
+        private void BibleVerseScrollAnimation_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configManager != null)
+            {
+                _configManager.BibleVerseScrollAnimationEnabled = MenuBibleVerseScrollEnabled?.IsChecked == true;
+            }
+        }
+
+        private void BibleVerseScrollSpeed_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configManager != null && sender is MenuItem menuItem && int.TryParse(menuItem.Tag as string, out int speed))
+            {
+                _configManager.BibleVerseScrollSpeed = speed;
+                RefreshBibleVerseScrollMenuState();
+            }
         }
     }
 }

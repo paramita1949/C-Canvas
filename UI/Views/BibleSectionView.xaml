@@ -64,7 +64,29 @@
                                   IsCheckable="True"
                                   Style="{StaticResource NoCheckMarkMenuItemStyle}"/>
                     </MenuItem>
-                    <Separator/>
+                    <MenuItem x:Name="MenuBibleVerseScroll"
+                              x:FieldModifier="public"
+                              Header="经文滚动">
+                        <MenuItem x:Name="MenuBibleVerseScrollEnabled"
+                                  x:FieldModifier="public"
+                                  Header="开启"
+                                  IsCheckable="True"/>
+                        <MenuItem x:Name="MenuBibleVerseScrollSpeedSlow"
+                                  x:FieldModifier="public"
+                                  Header="慢"
+                                  IsCheckable="True"
+                                  Tag="0"/>
+                        <MenuItem x:Name="MenuBibleVerseScrollSpeedMedium"
+                                  x:FieldModifier="public"
+                                  Header="中"
+                                  IsCheckable="True"
+                                  Tag="1"/>
+                        <MenuItem x:Name="MenuBibleVerseScrollSpeedFast"
+                                  x:FieldModifier="public"
+                                  Header="快"
+                                  IsCheckable="True"
+                                  Tag="2"/>
+                    </MenuItem>
                     <MenuItem x:Name="MenuBibleClearScreen"
                               x:FieldModifier="public"
                               Header="清屏经文"/>

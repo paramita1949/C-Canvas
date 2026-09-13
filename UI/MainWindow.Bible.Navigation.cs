@@ -298,15 +298,16 @@ namespace ImageColorChanger.UI
             }
             
             // 滚动到可见区域
-            ScrollToVerseAtIndex(targetIndex);
-        }
-
-        /// <summary>
-        /// 滚动到指定索引的经文
-        /// </summary>
-        private void ScrollToVerseAtIndex(int index)
-        {
-            ScrollToVerseInstant(index);
+            if (BibleVerseScrollAnimationPolicy.ShouldAnimate(
+                direction,
+                BibleVerseScrollAnimationPolicy.ResolveEnabled(_configManager?.BibleVerseScrollAnimationEnabled)))
+            {
+                ScrollToVerseSmooth(targetIndex);
+            }
+            else
+            {
+                ScrollToVerseInstant(targetIndex);
+            }
         }
 
         private Border FindBibleVerseBorderFromEvent(MouseButtonEventArgs e)
