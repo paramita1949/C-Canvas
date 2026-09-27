@@ -19,5 +19,11 @@ namespace ImageColorChanger.UI.Modules
 
             return 0;
         }
+
+        public static double AccumulateVerseHeight(double currentOffset, double measuredHeight, double estimatedHeight)
+        {
+            double fallback = estimatedHeight > 1d ? estimatedHeight : 110d;
+            return currentOffset + (measuredHeight > 1d ? measuredHeight : fallback);
+        }
     }
 }

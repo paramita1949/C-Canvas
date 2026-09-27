@@ -868,18 +868,19 @@ namespace ImageColorChanger.UI
             // 计算前面所有经文的累计高度
             double accumulatedHeight = headerHeight;
             int nullCount = 0;
+            double estimatedVerseHeight = EstimateBibleVerseHeight();
             
             for (int i = 0; i < verseIndex; i++)
             {
                 var container = BibleVerseList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
-                if (container != null)
-                {
-                    accumulatedHeight += container.ActualHeight;
-                }
-                else
+                double measuredHeight = container?.ActualHeight ?? 0d;
+                if (measuredHeight <= 1d)
                 {
                     nullCount++;
                 }
+
+                accumulatedHeight = BibleVerseNavigationInputPolicy.AccumulateVerseHeight(
+                    accumulatedHeight, measuredHeight, estimatedVerseHeight);
             }
 
 #if DEBUG
