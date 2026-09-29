@@ -131,7 +131,7 @@ namespace ImageColorChanger.Core
             services.AddScoped<Services.Ai.AiSermonHistoryStore>();
             services.AddSingleton<Services.Ai.AiSermonSummaryService>();
             services.AddScoped<Services.Ai.AiRealtimeUnderstandingScheduler>();
-            services.AddScoped<Services.Ai.IDeepSeekChatClient, Services.Ai.DeepSeekChatClient>();
+            services.AddScoped<Services.Ai.IDeepSeekChatClient, Services.Ai.OpenAiChatClient>();
             services.AddScoped<Services.Ai.AiSermonConversationCoordinator>(sp =>
                 new Services.Ai.AiSermonConversationCoordinator(
                     sp.GetRequiredService<Services.Ai.AiSermonContextBuilder>(),

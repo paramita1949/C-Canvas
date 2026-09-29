@@ -70,6 +70,10 @@ namespace ImageColorChanger.Services.Ai
             _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
             _summaryService = summaryService ?? throw new ArgumentNullException(nameof(summaryService));
             _asrScheduler = asrScheduler ?? throw new ArgumentNullException(nameof(asrScheduler));
+            if (_chatClient is IAiTransportDiagnosticSource diagnosticSource)
+            {
+                diagnosticSource.DiagnosticEmitted += message => DebugMessageEmitted?.Invoke(message);
+            }
             _asrScheduler.ProcessingFailed += ex => StatusChanged?.Invoke($"AI实时理解异常：{ex.Message}");
             _dialectSchemeEnabled = _config.AiSermonDialectSchemeEnabled;
             foreach (string tag in _config.AiSermonSelectedDialectTags)
@@ -150,7 +154,9 @@ namespace ImageColorChanger.Services.Ai
                 return;
             }
 
+            StatusChanged?.Invoke("正在读取幻灯片项目上下文…");
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
+            StatusChanged?.Invoke("项目上下文读取完成，正在初始化会话…");
             bool createdNewSession = false;
 
             await _sessionInitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -213,6 +219,7 @@ namespace ImageColorChanger.Services.Ai
             StatusChanged?.Invoke($"已绑定项目：{context.ProjectName}");
             if (createdNewSession)
             {
+                StatusChanged?.Invoke("正在查询 AI 账户状态…");
                 await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);
             }
 
@@ -533,6 +540,7 @@ namespace ImageColorChanger.Services.Ai
                 StatusChanged?.Invoke("正在整理提示词…");
                 var request = new AiChatRequest
                 {
+                    ConversationId = _session?.ConversationId ?? Guid.NewGuid().ToString("N"),
                     Messages = BuildMessagesForRequest(name),
                     UserId = _session == null ? "canvas-sermon" : $"canvas-sermon-{_session.ProjectId}",
                     EnableScriptureTool = true
@@ -541,6 +549,7 @@ namespace ImageColorChanger.Services.Ai
                 EmitDetailedPromptPreview(request.Messages);
 
                 bool receivedAnyDelta = false;
+                StatusChanged?.Invoke($"AI 请求协议：{GetProtocolDisplayName()}，正在发送…");
                 StatusChanged?.Invoke("正在发送提示词…");
                 var result = await _chatClient.StreamChatAsync(
                     request,
@@ -1206,6 +1215,13 @@ namespace ImageColorChanger.Services.Ai
                 BalanceStatusChanged?.Invoke("余额：读取失败，消耗：待计算");
                 DebugMessageEmitted?.Invoke($"余额查询失败：{ex.Message}");
             }
+        }
+
+        private string GetProtocolDisplayName()
+        {
+            return string.Equals(_config.AiSermonProtocol, AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
+                ? "OpenAI Responses"
+                : "OpenAI Completions";
         }
 
         private async Task<bool> EnsureBalanceAllowsWorkAsync(CancellationToken cancellationToken)

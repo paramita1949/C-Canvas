@@ -57,6 +57,34 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         }
 
         [Fact]
+        public void SpeakerSelection_WithoutPendingSlide_StartsLiveCaptionOnlyWhenItIsNotRunning()
+        {
+            string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
+            string method = Slice(
+                source,
+                "private async Task ApplyAiSpeakerAsync(string speaker)",
+                "private async Task DeleteAiSpeakerAsync(string speaker)");
+
+            Assert.Contains("bool hasPendingProject = _pendingAiSermonProjectRequest != null", method, StringComparison.Ordinal);
+            Assert.Contains("if (!hasPendingProject", method, StringComparison.Ordinal);
+            Assert.Contains("_liveCaptionEngine?.IsRunning != true", method, StringComparison.Ordinal);
+            Assert.Contains("StartLiveCaption(_liveCaptionCurrentSource);", method, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void SpeakerSelection_ReportsLifecycleFailureToPanel()
+        {
+            string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
+            string method = Slice(
+                source,
+                "private async Task ApplyAiSpeakerAsync(string speaker)",
+                "private async Task DeleteAiSpeakerAsync(string speaker)");
+
+            Assert.Contains("catch (Exception ex)", method, StringComparison.Ordinal);
+            Assert.Contains("AI操作失败：{ex.Message}", method, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void SlideAiEntryPoints_UseUnifiedQueueInsteadOfStartingProjectDirectly()
         {
             string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
@@ -105,6 +133,46 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
             Assert.Contains("if (!_aiSermonCoordinator.HasActiveSession)", method, StringComparison.Ordinal);
             Assert.Contains("_pendingAiSermonProjectRequest = request;", method, StringComparison.Ordinal);
             Assert.Contains("请选择传道人后开始AI解读", method, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void QueueHelper_ReportsSpeakerListStageInsteadOfPretendingToReadProjectContext()
+        {
+            string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
+            string method = Slice(
+                source,
+                "private async Task QueueOrStartAiProjectAsync(",
+                "private async Task StartAiProjectRequestAsync(");
+
+            Assert.Contains("正在加载传道人列表", method, StringComparison.Ordinal);
+            Assert.Contains("传道人列表加载完成", method, StringComparison.Ordinal);
+            Assert.DoesNotContain("正在读取项目上下文", method, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void SlideAiEntry_ReportsStagesAndSurfacesExceptions()
+        {
+            string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
+            string analyzeMethod = Slice(
+                source,
+                "private async Task AnalyzeTextProjectWithAiAsync(ProjectTreeItem item, bool startAsr)",
+                "private async Task SetTextProjectAsAiSermonContextAsync(ProjectTreeItem item)");
+            Assert.Contains("ReportAiProjectDiagnostic(\"已触发\")", analyzeMethod, StringComparison.Ordinal);
+            Assert.Contains("catch (Exception ex)", analyzeMethod, StringComparison.Ordinal);
+            Assert.Contains("ReportAiProjectDiagnostic($\"解读失败：{ex.Message}\")", analyzeMethod, StringComparison.Ordinal);
+            Assert.Contains("AppendStatus(status)", source, StringComparison.Ordinal);
+            Assert.Contains("ShowStatus(status)", source, StringComparison.Ordinal);
+            Assert.Contains("Debug.WriteLine", source, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void SlideAiContextMenu_UsesObservedAsyncHandler()
+        {
+            string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.ProjectTree.ContextMenu.cs"));
+            Assert.Contains("CreateAsyncIconMenuItem", source, StringComparison.Ordinal);
+            Assert.Contains("await onClick()", source, StringComparison.Ordinal);
+            Assert.Contains("catch (Exception ex)", source, StringComparison.Ordinal);
+            Assert.Contains("System.Diagnostics.Debug.WriteLine", source, StringComparison.Ordinal);
         }
 
         private static string Slice(string source, string startMarker, string endMarker)

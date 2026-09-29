@@ -1,11 +1,59 @@
 using ImageColorChanger.UI;
 using ImageColorChanger.Services.Ai;
+using ImageColorChanger.Core;
 using System.Text.RegularExpressions;
 
 namespace ImageColorChanger.CanvasTextEditor.Tests.UI
 {
     public sealed class AiAssistantPanelWindowStatusTests
     {
+        [Fact]
+        public void BuildAiProfileMenuOptions_MapsSavedProfilesAndNeverUsesHardcodedModels()
+        {
+            var profiles = new[]
+            {
+                new AiConnectionProfile
+                {
+                    Id = "profile-qwen",
+                    Name = "我的通义配置",
+                    ProviderId = "qwen",
+                    Protocol = AiProviderProtocol.OpenAiCompletions,
+                    ModelId = "qwen-plus",
+                    ModelDisplayName = "Qwen Plus"
+                },
+                new AiConnectionProfile
+                {
+                    Id = "profile-deepseek",
+                    Name = "",
+                    ProviderId = "deepseek",
+                    Protocol = AiProviderProtocol.OpenAiResponses,
+                    ModelId = "deepseek-reasoner"
+                }
+            };
+
+            var options = AiAssistantPanelWindow.BuildAiProfileMenuOptions(profiles);
+
+            Assert.Equal(2, options.Count);
+            Assert.Equal("profile-qwen", options[0].ProfileId);
+            Assert.Equal("我的通义配置", options[0].DisplayName);
+            Assert.Contains("qwen-plus", options[0].Details, StringComparison.Ordinal);
+            Assert.Equal("deepseek-reasoner", options[1].DisplayName);
+            Assert.Contains("Responses", options[1].Details, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void BuildAiProfileMenuOptions_EmptyOrInvalidProfilesDoNotInventChoices()
+        {
+            var options = AiAssistantPanelWindow.BuildAiProfileMenuOptions(new[]
+            {
+                null,
+                new AiConnectionProfile { Name = "无标识配置", ModelId = "qwen-plus" }
+            });
+
+            Assert.Empty(options);
+            Assert.Empty(AiAssistantPanelWindow.BuildAiProfileMenuOptions(null));
+        }
+
         [Theory]
         [InlineData("DeepSeek请求已发送，处理中…")]
         [InlineData("DeepSeek已返回结果。")]

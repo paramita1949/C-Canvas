@@ -29,18 +29,37 @@ namespace ImageColorChanger.UI
 
         private async Task AnalyzeTextProjectWithAiAsync(ProjectTreeItem item, bool startAsr)
         {
-            if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+            ReportAiProjectDiagnostic("已触发");
+            try
             {
-                return;
-            }
+                if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.AiPanel))
+                {
+                    ReportAiProjectDiagnostic("权限检查未通过");
+                    return;
+                }
 
-            if (item == null || (item.Type != TreeItemType.Project && item.Type != TreeItemType.TextProject))
+                ReportAiProjectDiagnostic("权限检查通过");
+                if (item == null || (item.Type != TreeItemType.Project && item.Type != TreeItemType.TextProject))
+                {
+                    ReportAiProjectDiagnostic("请选择幻灯片项目");
+                    return;
+                }
+
+                await QueueOrStartAiProjectAsync(item, startAsr, completionStatus: string.Empty);
+            }
+            catch (Exception ex)
             {
-                ShowStatus("请选择幻灯片项目");
-                return;
+                ReportAiProjectDiagnostic($"解读失败：{ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AiSermon] 项目解读入口异常：{ex}");
             }
+        }
 
-            await QueueOrStartAiProjectAsync(item, startAsr, completionStatus: string.Empty);
+        private void ReportAiProjectDiagnostic(string message)
+        {
+            string status = $"AI解读：{message}";
+            _aiAssistantPanelWindow?.AppendStatus(status);
+            ShowStatus(status);
+            System.Diagnostics.Debug.WriteLine($"[AiSermon] {status}");
         }
 
         private async Task SetTextProjectAsAiSermonContextAsync(ProjectTreeItem item)
@@ -67,10 +86,11 @@ namespace ImageColorChanger.UI
             bool startAsr,
             string completionStatus)
         {
+            ReportAiProjectDiagnostic("正在初始化面板");
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
             _aiAssistantPanelWindow.SetProjectTitle(item.Name);
-            _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
+            _aiAssistantPanelWindow.RefreshActiveAiProfile();
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
             StartAiBalanceRefreshTimer();
@@ -87,14 +107,16 @@ namespace ImageColorChanger.UI
             {
                 _pendingAiSermonProjectRequest = request;
                 SetAiSermonReceiveAsr(false);
+                ReportAiProjectDiagnostic("正在加载传道人列表");
                 await RefreshAiSpeakerListAsync();
-                string status = $"已读取项目：{request.ProjectName}，请选择传道人后开始AI解读。";
+                string status = $"传道人列表加载完成。已读取项目：{request.ProjectName}，请选择传道人后开始AI解读。";
                 _aiAssistantPanelWindow.AppendStatus(status);
                 ShowStatus(status);
                 return;
             }
 
             _pendingAiSermonProjectRequest = null;
+            ReportAiProjectDiagnostic("正在启动项目会话");
             await StartAiProjectRequestAsync(request);
         }
 
@@ -102,9 +124,11 @@ namespace ImageColorChanger.UI
         {
             if (request == null)
             {
+                ReportAiProjectDiagnostic("项目请求为空");
                 return;
             }
 
+            ReportAiProjectDiagnostic("正在发送项目解读请求");
             await _aiSermonCoordinator.StartProjectAsync(request.ProjectId, CancellationToken.None);
             SyncAiOutputModeFromCoordinator();
             await RefreshAiSpeakerListAsync();
@@ -175,7 +199,7 @@ namespace ImageColorChanger.UI
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
             SetAiSermonReceiveAsr(_aiSermonCoordinator?.HasActiveSession == true);
-            _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
+            _aiAssistantPanelWindow.RefreshActiveAiProfile();
             _aiAssistantPanelWindow.Show();
             _aiAssistantPanelWindow.Activate();
             StartAiBalanceRefreshTimer();
@@ -214,7 +238,7 @@ namespace ImageColorChanger.UI
             _aiAssistantPanelWindow.DebugModeChanged += enabled => _aiSermonDebugEnabled = enabled;
             _aiAssistantPanelWindow.ModelChanged += model =>
             {
-                _aiAssistantPanelWindow.SetModelName(model);
+                _aiAssistantPanelWindow.RefreshActiveAiProfile();
                 ShowStatus($"AI模型已切换：{model}");
             };
             _aiAssistantPanelWindow.SpeakerApplied += speaker => _ = ApplyAiSpeakerAsync(speaker);
@@ -304,7 +328,7 @@ namespace ImageColorChanger.UI
 
             EnsureAiSermonPanel();
             EnsureAiSermonCoordinator();
-            _aiAssistantPanelWindow.SetModelName(_configManager.DeepSeekModel);
+            _aiAssistantPanelWindow.RefreshActiveAiProfile();
 
             if (_aiAssistantPanelWindow.IsVisible)
             {
@@ -518,12 +542,29 @@ namespace ImageColorChanger.UI
 
         private async Task ApplyAiSpeakerAsync(string speaker)
         {
-            EnsureAiSermonCoordinator();
-            await _aiSermonCoordinator.SetSpeakerAsync(speaker, CancellationToken.None);
-            await StartPendingAiProjectAfterSpeakerSelectionAsync();
-            SetAiSermonReceiveAsr(true);
-            await RefreshAiSpeakerListAsync(speaker);
-            await RefreshAiHistoryInPanelAsync();
+            try
+            {
+                EnsureAiSermonCoordinator();
+                bool hasPendingProject = _pendingAiSermonProjectRequest != null;
+                await _aiSermonCoordinator.SetSpeakerAsync(speaker, CancellationToken.None);
+                await StartPendingAiProjectAfterSpeakerSelectionAsync();
+                SetAiSermonReceiveAsr(true);
+
+                if (!hasPendingProject && _liveCaptionEngine?.IsRunning != true)
+                {
+                    _configManager.LiveCaptionRealtimeEnabled = true;
+                    StartLiveCaption(_liveCaptionCurrentSource);
+                }
+
+                await RefreshAiSpeakerListAsync(speaker);
+                await RefreshAiHistoryInPanelAsync();
+            }
+            catch (Exception ex)
+            {
+                string status = $"AI操作失败：{ex.Message}";
+                _aiAssistantPanelWindow?.AppendStatus(status);
+                ShowStatus(status);
+            }
         }
 
         private async Task DeleteAiSpeakerAsync(string speaker)
@@ -685,7 +726,21 @@ namespace ImageColorChanger.UI
 
         private void SubmitAsrTurnToAi(AiAsrTurnEnvelope turn)
         {
-            _ = _aiSermonCoordinator.SendAsrTurnAsync(turn, CancellationToken.None);
+            _ = ObserveAsrSubmissionAsync(turn);
+        }
+
+        private async Task ObserveAsrSubmissionAsync(AiAsrTurnEnvelope turn)
+        {
+            try
+            {
+                await _aiSermonCoordinator.SendAsrTurnAsync(turn, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                string status = $"AI实时输入失败：{ex.Message}";
+                _aiAssistantPanelWindow?.AppendStatus(status);
+                ShowStatus(status);
+            }
         }
 
         private sealed class PendingAiSermonProjectRequest

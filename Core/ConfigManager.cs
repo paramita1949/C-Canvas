@@ -131,6 +131,7 @@ namespace ImageColorChanger.Core
                     }
 
                     bool migrated = MigrateLegacyNdiConfig();
+                    migrated = MigrateLegacyAiProviderConfig(json) || migrated;
                     if (migrated)
                     {
                         SaveConfig();

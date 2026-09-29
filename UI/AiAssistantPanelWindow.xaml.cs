@@ -14,6 +14,13 @@ using WpfColorConverter = System.Windows.Media.ColorConverter;
 
 namespace ImageColorChanger.UI
 {
+    public sealed class AiPanelProfileMenuOption
+    {
+        public string ProfileId { get; init; } = string.Empty;
+        public string DisplayName { get; init; } = string.Empty;
+        public string Details { get; init; } = string.Empty;
+    }
+
     public partial class AiAssistantPanelWindow : Window
     {
         private const string AiSermonPanelPlacementKey = "ai.sermon.panel";
@@ -54,7 +61,8 @@ namespace ImageColorChanger.UI
         {
             _configManager = configManager ?? throw new ArgumentNullException(nameof(configManager));
             InitializeComponent();
-            SetModelName(_configManager.DeepSeekModel);
+            RefreshActiveAiProfile();
+            Activated += (_, _) => RefreshActiveAiProfile();
             LoadDialectSchemeFromConfig();
             SyncWriteThresholdUiFromConfig();
             SyncPanelOpacityUiFromConfig();
@@ -170,17 +178,127 @@ namespace ImageColorChanger.UI
             return aiReceiveAsr && realtimeConnected ? "ASR已连接" : "ASR未启用";
         }
 
-        public void SetModelName(string modelName)
+        public void RefreshActiveAiProfile()
         {
+            AiConnectionProfile activeProfile = _configManager.GetActiveAiProfile();
+            string displayName = GetProfileDisplayName(activeProfile);
             Dispatcher.Invoke(() =>
             {
-                string value = string.IsNullOrWhiteSpace(modelName)
-                    ? "DeepSeek"
-                    : modelName.Trim();
-                ModelNameText.Text = value;
-                UpdateModelOptionVisual(value);
-                BalanceStatusText.Visibility = IsGeminiModel(value) ? Visibility.Collapsed : Visibility.Visible;
+                ModelNameText.Text = displayName;
+                BalanceStatusText.Visibility = IsDeepSeekProfile(activeProfile) ? Visibility.Visible : Visibility.Collapsed;
             });
+        }
+
+        public static IReadOnlyList<AiPanelProfileMenuOption> BuildAiProfileMenuOptions(
+            IEnumerable<AiConnectionProfile> profiles)
+        {
+            return (profiles ?? Enumerable.Empty<AiConnectionProfile>())
+                .Where(profile => profile != null && !string.IsNullOrWhiteSpace(profile.Id))
+                .Select(profile =>
+                {
+                    AiProviderPreset provider = AiProviderCatalog.Find(profile.ProviderId);
+                    string providerName = string.IsNullOrWhiteSpace(provider?.DisplayName)
+                        ? (string.IsNullOrWhiteSpace(profile.ProviderId) ? "自定义接口" : profile.ProviderId.Trim())
+                        : provider.DisplayName;
+                    string modelName = FirstNonEmpty(profile.ModelDisplayName, profile.ModelId, "未设置模型");
+                    if (!string.IsNullOrWhiteSpace(profile.ModelId) &&
+                        !string.Equals(modelName, profile.ModelId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        modelName = $"{modelName} ({profile.ModelId.Trim()})";
+                    }
+                    string displayName = FirstNonEmpty(profile.Name, profile.ModelDisplayName, profile.ModelId, providerName);
+                    string protocolName = string.Equals(profile.Protocol, AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
+                        ? "Responses"
+                        : "Chat Completions";
+
+                    return new AiPanelProfileMenuOption
+                    {
+                        ProfileId = profile.Id,
+                        DisplayName = displayName,
+                        Details = $"{providerName} · {protocolName} · {modelName}"
+                    };
+                })
+                .ToArray();
+        }
+
+        private static string GetProfileDisplayName(AiConnectionProfile profile)
+        {
+            AiProviderPreset provider = AiProviderCatalog.Find(profile?.ProviderId);
+            return FirstNonEmpty(profile?.Name, profile?.ModelDisplayName, profile?.ModelId, provider?.DisplayName, "AI配置未命名");
+        }
+
+        private static string FirstNonEmpty(params string[] values)
+        {
+            return values?.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? string.Empty;
+        }
+
+        private static bool IsDeepSeekProfile(AiConnectionProfile profile)
+        {
+            return string.Equals(profile?.ProviderId, "deepseek", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void RefreshAiProfileMenu()
+        {
+            IReadOnlyList<AiConnectionProfile> profiles = _configManager.GetAiProfiles();
+            AiConnectionProfile activeProfile = _configManager.GetActiveAiProfile();
+            IReadOnlyList<AiPanelProfileMenuOption> options = BuildAiProfileMenuOptions(profiles);
+
+            ModelNameText.Text = GetProfileDisplayName(activeProfile);
+            BalanceStatusText.Visibility = IsDeepSeekProfile(activeProfile) ? Visibility.Visible : Visibility.Collapsed;
+            ModelProfileOptionsPanel.Children.Clear();
+
+            foreach (AiPanelProfileMenuOption option in options)
+            {
+                bool isActive = string.Equals(option.ProfileId, activeProfile.Id, StringComparison.Ordinal);
+                var item = new Border
+                {
+                    Tag = option.ProfileId,
+                    Padding = new Thickness(9, 7, 9, 7),
+                    Margin = new Thickness(0, 0, 0, 3),
+                    CornerRadius = new CornerRadius(5),
+                    Background = isActive ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                var content = new StackPanel();
+                content.Children.Add(new TextBlock
+                {
+                    Text = option.DisplayName,
+                    Foreground = CreateBrush("#EAF9FF"),
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold
+                });
+                content.Children.Add(new TextBlock
+                {
+                    Text = option.Details,
+                    Foreground = CreateBrush("#9ABBD2"),
+                    FontSize = 10,
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+                item.Child = content;
+                item.MouseEnter += (_, _) =>
+                {
+                    if (!isActive) item.Background = CreateBrush("#1C4160");
+                };
+                item.MouseLeave += (_, _) =>
+                {
+                    item.Background = isActive ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
+                };
+                item.MouseLeftButtonUp += ProfileMenuItem_MouseLeftButtonUp;
+                ModelProfileOptionsPanel.Children.Add(item);
+            }
+
+            if (options.Count == 0)
+            {
+                ModelProfileOptionsPanel.Children.Add(new TextBlock
+                {
+                    Text = "暂无已保存配置，请先到 AI 配置中心添加。",
+                    Foreground = CreateBrush("#9ABBD2"),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 230,
+                    Margin = new Thickness(8, 6, 8, 6)
+                });
+            }
         }
 
         public void SetBalanceStatus(string status)
@@ -192,7 +310,7 @@ namespace ImageColorChanger.UI
 
             Dispatcher.Invoke(() =>
             {
-                if (IsGeminiModel(_configManager.DeepSeekModel))
+                if (!IsDeepSeekProfile(_configManager.GetActiveAiProfile()))
                 {
                     BalanceStatusText.Visibility = Visibility.Collapsed;
                     return;
@@ -201,27 +319,6 @@ namespace ImageColorChanger.UI
                 BalanceStatusText.Visibility = Visibility.Visible;
                 BalanceStatusText.Text = status.Trim();
             });
-        }
-
-        private void UpdateModelOptionVisual(string modelName)
-        {
-            if (ModelOptionFlash == null || ModelOptionPro == null || ModelOptionGeminiFlash == null)
-            {
-                return;
-            }
-
-            bool isFlash = string.Equals(modelName, "deepseek-v4-flash", StringComparison.OrdinalIgnoreCase);
-            bool isPro = string.Equals(modelName, "deepseek-v4-pro", StringComparison.OrdinalIgnoreCase);
-            bool isGeminiFlash = string.Equals(modelName, "gemini-3.5-flash", StringComparison.OrdinalIgnoreCase);
-            ModelOptionFlash.Background = isFlash ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
-            ModelOptionPro.Background = isPro ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
-            ModelOptionGeminiFlash.Background = isGeminiFlash ? CreateBrush("#2F8CD7") : System.Windows.Media.Brushes.Transparent;
-        }
-
-        private static bool IsGeminiModel(string modelName)
-        {
-            return !string.IsNullOrWhiteSpace(modelName) &&
-                   modelName.Trim().StartsWith("gemini-", StringComparison.OrdinalIgnoreCase);
         }
 
         public void SetSpeakerNames(IEnumerable<string> speakerNames, string currentSpeaker = "")
@@ -784,35 +881,26 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            RefreshAiProfileMenu();
             ModelPopup.IsOpen = true;
         }
 
-        private void ModelOptionFlash_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void ProfileMenuItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            ApplyModelSelection("deepseek-v4-flash");
-        }
+            string profileId = (sender as FrameworkElement)?.Tag as string;
+            if (string.IsNullOrWhiteSpace(profileId) || !_configManager.SetActiveAiProfile(profileId))
+            {
+                return;
+            }
 
-        private void ModelOptionPro_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            ApplyModelSelection("deepseek-v4-pro");
-        }
-
-        private void ModelOptionGeminiFlash_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            ApplyModelSelection("gemini-3.5-flash");
-        }
-
-        private void ApplyModelSelection(string model)
-        {
-            string next = string.IsNullOrWhiteSpace(model) ? "deepseek-v4-flash" : model.Trim();
-            _configManager.DeepSeekModel = next;
-            SetModelName(next);
+            AiConnectionProfile activeProfile = _configManager.GetActiveAiProfile();
+            RefreshActiveAiProfile();
             if (ModelPopup != null)
             {
                 ModelPopup.IsOpen = false;
             }
 
-            ModelChanged?.Invoke(next);
+            ModelChanged?.Invoke(activeProfile.ModelId);
         }
 
         private void CollapseButton_Click(object sender, RoutedEventArgs e)

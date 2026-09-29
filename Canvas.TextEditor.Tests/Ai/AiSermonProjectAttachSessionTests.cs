@@ -58,6 +58,8 @@ namespace Canvas.TextEditor.Tests.Ai
                     .ToListAsync();
 
                 Assert.Single(sessions);
+                Assert.False(string.IsNullOrWhiteSpace(chat.Requests.First().ConversationId));
+                Assert.Equal(chat.Requests.First().ConversationId, chat.Requests.Last().ConversationId);
                 Assert.Equal(7, sessions[0].ProjectId);
                 Assert.Equal("主日信息", sessions[0].Title);
                 Assert.Contains(messages, message => message.SessionId == sessions[0].Id && message.Name == "asr");
@@ -95,6 +97,10 @@ namespace Canvas.TextEditor.Tests.Ai
 
                 await coordinator.StartProjectAsync(7);
 
+                Assert.Contains("正在读取幻灯片项目上下文…", statuses);
+                Assert.Contains("项目上下文读取完成，正在初始化会话…", statuses);
+                Assert.Contains("正在查询 AI 账户状态…", statuses);
+                Assert.Contains("AI 请求协议：OpenAI Completions，正在发送…", statuses);
                 Assert.Contains("正在整理提示词…", statuses);
                 Assert.Contains("正在发送提示词…", statuses);
                 Assert.Contains("已收到反馈，正在生成摘要…", statuses);

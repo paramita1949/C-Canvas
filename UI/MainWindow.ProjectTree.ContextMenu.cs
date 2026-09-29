@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.UI.Modules;
@@ -380,7 +381,7 @@ namespace ImageColorChanger.UI
             contextMenu.MinWidth = 188;
             contextMenu.FontSize = 14;
 
-            var aiAnalyzeItem = CreateIconMenuItem("AI解读", "IconLucideSparkles", async () => await AnalyzeTextProjectWithAiAsync(item, startAsr: false));
+            var aiAnalyzeItem = CreateAsyncIconMenuItem("AI解读", "IconLucideSparkles", () => AnalyzeTextProjectWithAiAsync(item, startAsr: false));
             ApplyPremiumMenuItemState(aiAnalyzeItem, Services.Licensing.PremiumFeature.AiPanel);
             contextMenu.Items.Add(aiAnalyzeItem);
             contextMenu.Items.Add(new Separator());
@@ -470,6 +471,27 @@ namespace ImageColorChanger.UI
 
             var item = new MenuItem { Header = header };
             item.Click += (_, _) => onClick?.Invoke();
+            return item;
+        }
+
+        private MenuItem CreateAsyncIconMenuItem(string text, string iconResourceKey, Func<Task> onClick)
+        {
+            var item = CreateIconMenuItem(text, iconResourceKey, null);
+            item.Click += async (_, _) =>
+            {
+                try
+                {
+                    if (onClick != null)
+                    {
+                        await onClick();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowStatus($"AI解读失败：{ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[ProjectTree] 异步菜单执行异常：{ex}");
+                }
+            };
             return item;
         }
 

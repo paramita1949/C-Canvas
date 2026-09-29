@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.1.0.0</Version>
-    <FileVersion>6.1.0.0</FileVersion>
-    <AssemblyVersion>6.1.0.0</AssemblyVersion>
+    <Version>6.1.1.0</Version>
+    <FileVersion>6.1.1.0</FileVersion>
+    <AssemblyVersion>6.1.1.0</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -49,6 +49,11 @@
     <EmbeddedResource Remove="artifacts\**" />
     <None Remove="artifacts\**" />
     <Page Remove="artifacts\**" />
+    <!-- 验证事务目录只保存补丁、回滚副本和日志，不得作为应用源码参与编译 -->
+    <Compile Remove="release-txn\**" />
+    <EmbeddedResource Remove="release-txn\**" />
+    <None Remove="release-txn\**" />
+    <Page Remove="release-txn\**" />
     <Compile Remove="Canvas.TextEditor.Tests\**" />
     <EmbeddedResource Remove="Canvas.TextEditor.Tests\**" />
     <None Remove="Canvas.TextEditor.Tests\**" />

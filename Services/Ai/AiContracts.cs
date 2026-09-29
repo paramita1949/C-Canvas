@@ -12,6 +12,7 @@ namespace ImageColorChanger.Services.Ai
 
     public sealed class AiChatRequest
     {
+        public string ConversationId { get; init; } = Guid.NewGuid().ToString("N");
         public IReadOnlyList<AiConversationMessage> Messages { get; init; } = Array.Empty<AiConversationMessage>();
         public string UserId { get; init; } = string.Empty;
         public bool EnableScriptureTool { get; init; } = true;
@@ -71,6 +72,7 @@ namespace ImageColorChanger.Services.Ai
 
     public sealed class AiSermonSessionState
     {
+        public string ConversationId { get; } = Guid.NewGuid().ToString("N");
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public string ProjectContext { get; set; } = string.Empty;
