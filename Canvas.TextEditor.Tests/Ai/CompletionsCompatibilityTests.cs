@@ -27,6 +27,7 @@ public sealed class CompletionsCompatibilityTests
             config.AiSermonProviderId = provider;
             config.AiSermonProtocol = AiProviderProtocol.OpenAiCompletions;
             config.AiSermonBaseUrl = baseUrl;
+            config.AiSermonChatCompletionsEndpoint = baseUrl.TrimEnd('/') + "/chat/completions";
             config.AiSermonApiKey = "test-key";
             config.AiSermonModel = "glm-5.3-flash";
 
@@ -115,10 +116,19 @@ public sealed class CompletionsCompatibilityTests
             var config = new ConfigManager(path);
             config.AiSermonProviderId = provider;
             config.AiSermonProtocol = AiProviderProtocol.OpenAiCompletions;
-            config.AiSermonBaseUrl = "https://opencode.ai/zen/go/v1";
+            string baseUrl = provider switch
+            {
+                "opencode-go" => "https://opencode.ai/zen/go/v1",
+                "opencode-zen" => "https://opencode.ai/zen/v1",
+                "custom" => "https://opencode.ai/zen/go/v1",
+                _ => "https://api.deepseek.com"
+            };
+            config.AiSermonBaseUrl = baseUrl;
+            config.AiSermonChatCompletionsEndpoint = baseUrl + "/chat/completions";
             config.AiSermonApiKey = "test-key";
             config.AiSermonModel = model;
-            using var http = new HttpClient(new StrictHandler());
+            using var http = new HttpClient(new StrictHandler(
+                expectsSessionHeader: provider == "opencode-go" || provider == "custom"));
             using var client = new OpenAiChatClient(config, http);
             var result = await client.StreamChatAsync(new AiChatRequest { UserId = user }, _ => { }, CancellationToken.None);
             Assert.Equal("ok", result.Content);
@@ -126,7 +136,7 @@ public sealed class CompletionsCompatibilityTests
         finally { System.IO.File.Delete(path); }
     }
 
-    private sealed class StrictHandler : HttpMessageHandler
+    private sealed class StrictHandler(bool expectsSessionHeader) : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
@@ -134,7 +144,7 @@ public sealed class CompletionsCompatibilityTests
             if (json.RootElement.TryGetProperty("user_id", out _))
                 return new HttpResponseMessage(HttpStatusCode.BadRequest)
                 { Content = new StringContent("{\"error\":{\"param\":\"user_id\",\"message\":\"unknown field user_id\"}}") };
-            Assert.True(request.Headers.Contains("x-opencode-session"));
+            Assert.Equal(expectsSessionHeader, request.Headers.Contains("x-opencode-session"));
             Assert.True(json.RootElement.GetProperty("stream").GetBoolean());
             Assert.True(json.RootElement.TryGetProperty("tools", out _));
             return new HttpResponseMessage(HttpStatusCode.OK)

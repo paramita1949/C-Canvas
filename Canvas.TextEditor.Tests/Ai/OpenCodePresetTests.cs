@@ -7,15 +7,17 @@ namespace Canvas.TextEditor.Tests.Ai;
 public sealed class OpenCodePresetTests
 {
     [Theory]
-    [InlineData("opencode-zen", "https://opencode.ai/zen/v1", "按量付费")]
-    [InlineData("opencode-go", "https://opencode.ai/zen/go/v1", "编程订阅")]
-    public void OpenCode_PresetProvidesDistinctConnectionDefaults(string id, string url, string label)
+    [InlineData("opencode-zen", "https://opencode.ai/zen/v1", "按量付费", "gpt-5.6-luna")]
+    [InlineData("opencode-go", "https://opencode.ai/zen/go/v1", "编程订阅", "glm-5.3-flash")]
+    public void OpenCode_PresetProvidesDistinctConnectionDefaults(string id, string url, string label, string firstModel)
     {
         var preset = AiProviderCatalog.Find(id);
         Assert.NotNull(preset);
         Assert.Equal(url, preset.BaseUrl);
         Assert.Equal(AiProviderProtocol.OpenAiCompletions, preset.Protocol);
-        Assert.Equal("deepseek-v4.1-flash", preset.RecommendedModels.First());
+        Assert.Equal(firstModel, preset.RecommendedModels.First());
+        Assert.Contains(firstModel, preset.RecommendedModels);
+        Assert.Contains(id == "opencode-go" ? "deepseek-v4.1-flash" : "deepseek-v4-pro", preset.RecommendedModels);
         Assert.Equal("聚合与网关", preset.Group);
         Assert.Contains(label, preset.DisplayName);
         Assert.Same(preset, AiProviderCatalog.Find(id.ToUpperInvariant()));

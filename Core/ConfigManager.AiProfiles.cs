@@ -12,6 +12,8 @@ namespace ImageColorChanger.Core
         public string ProviderId { get; set; } = "deepseek";
         public string Protocol { get; set; } = AiProviderProtocol.OpenAiCompletions;
         public string BaseUrl { get; set; } = string.Empty;
+        public string ChatCompletionsEndpoint { get; set; } = string.Empty;
+        public string ResponsesEndpoint { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;
         public string ModelId { get; set; } = string.Empty;
         public string ModelDisplayName { get; set; } = string.Empty;
@@ -28,6 +30,8 @@ namespace ImageColorChanger.Core
                 ProviderId = ProviderId,
                 Protocol = Protocol,
                 BaseUrl = BaseUrl,
+                ChatCompletionsEndpoint = ChatCompletionsEndpoint,
+                ResponsesEndpoint = ResponsesEndpoint,
                 ApiKey = ApiKey,
                 ModelId = ModelId,
                 ModelDisplayName = ModelDisplayName,
@@ -86,6 +90,8 @@ namespace ImageColorChanger.Core
                 ProviderId = "custom",
                 Protocol = AiProviderProtocol.OpenAiCompletions,
                 BaseUrl = string.Empty,
+                ChatCompletionsEndpoint = string.Empty,
+                ResponsesEndpoint = string.Empty,
                 ApiKey = string.Empty,
                 ModelId = string.Empty,
                 LastTestStatus = "未测试"
@@ -101,6 +107,9 @@ namespace ImageColorChanger.Core
 
             EnsureAiProfiles();
             AiConnectionProfile next = profile.Clone();
+            next.ProviderId = AiProviderCatalog.NormalizeProviderId(next.ProviderId);
+            next.Protocol = AiProviderCatalog.NormalizeProtocol(next.ProviderId, next.Protocol, next.ModelId);
+            NormalizeProfileEndpoints(next);
             int index = _config.AiProfiles.FindIndex(item => string.Equals(item.Id, next.Id, StringComparison.Ordinal));
             if (index >= 0)
             {
@@ -182,8 +191,13 @@ namespace ImageColorChanger.Core
                     Id = "deepseek-main",
                     Name = "DeepSeek 主配置",
                     ProviderId = string.IsNullOrWhiteSpace(_config.AiSermonProviderId) ? "deepseek" : _config.AiSermonProviderId,
-                    Protocol = AiProviderProtocol.IsSupported(_config.AiSermonProtocol) ? _config.AiSermonProtocol : AiProviderProtocol.OpenAiCompletions,
+                    Protocol = AiProviderCatalog.NormalizeProtocol(
+                        string.IsNullOrWhiteSpace(_config.AiSermonProviderId) ? "deepseek" : _config.AiSermonProviderId,
+                        _config.AiSermonProtocol,
+                        AiSermonModel),
                     BaseUrl = string.IsNullOrWhiteSpace(_config.AiSermonBaseUrl) ? _config.DeepSeekBaseUrl : _config.AiSermonBaseUrl,
+                    ChatCompletionsEndpoint = _config.AiSermonChatCompletionsEndpoint,
+                    ResponsesEndpoint = _config.AiSermonResponsesEndpoint,
                     ApiKey = string.IsNullOrWhiteSpace(_config.AiSermonApiKey) ? _config.DeepSeekApiKey : _config.AiSermonApiKey,
                     ModelId = AiSermonModel,
                     LastTestStatus = "未测试"
@@ -193,6 +207,9 @@ namespace ImageColorChanger.Core
 
             foreach (AiConnectionProfile profile in _config.AiProfiles)
             {
+                profile.ProviderId = AiProviderCatalog.NormalizeProviderId(profile.ProviderId);
+                profile.Protocol = AiProviderCatalog.NormalizeProtocol(profile.ProviderId, profile.Protocol, profile.ModelId);
+                NormalizeProfileEndpoints(profile);
                 profile.AvailableModels ??= new List<AiModelOption>();
             }
 
@@ -205,12 +222,15 @@ namespace ImageColorChanger.Core
 
         private void ApplyActiveProfileToLegacyFields(AiConnectionProfile profile)
         {
-            _config.AiSermonProviderId = profile.ProviderId ?? "custom";
-            _config.AiSermonProtocol = AiProviderProtocol.IsSupported(profile.Protocol)
-                ? profile.Protocol
-                : AiProviderProtocol.OpenAiCompletions;
+            _config.AiSermonProviderId = AiProviderCatalog.NormalizeProviderId(profile.ProviderId);
+            _config.AiSermonProtocol = AiProviderCatalog.NormalizeProtocol(
+                _config.AiSermonProviderId,
+                profile.Protocol,
+                profile.ModelId);
             _config.AiSermonApiKey = profile.ApiKey ?? string.Empty;
             _config.AiSermonBaseUrl = profile.BaseUrl ?? string.Empty;
+            _config.AiSermonChatCompletionsEndpoint = profile.ChatCompletionsEndpoint ?? string.Empty;
+            _config.AiSermonResponsesEndpoint = profile.ResponsesEndpoint ?? string.Empty;
             _config.AiSermonModel = profile.ModelId ?? string.Empty;
 
             if (string.Equals(profile.ProviderId, "deepseek", StringComparison.OrdinalIgnoreCase))
@@ -218,6 +238,31 @@ namespace ImageColorChanger.Core
                 _config.DeepSeekApiKey = _config.AiSermonApiKey;
                 _config.DeepSeekBaseUrl = _config.AiSermonBaseUrl;
                 _config.DeepSeekModel = _config.AiSermonModel;
+            }
+        }
+
+        private static void NormalizeProfileEndpoints(AiConnectionProfile profile)
+        {
+            if (string.IsNullOrWhiteSpace(profile.ChatCompletionsEndpoint))
+            {
+                AiProviderPreset preset = AiProviderCatalog.Find(profile.ProviderId);
+                bool usesPresetBaseUrl = preset != null
+                    && (string.IsNullOrWhiteSpace(profile.BaseUrl)
+                        || string.Equals(profile.BaseUrl.Trim().TrimEnd('/'), preset.BaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                profile.ChatCompletionsEndpoint = usesPresetBaseUrl && !string.IsNullOrWhiteSpace(preset.ChatCompletionsEndpoint)
+                    ? preset.ChatCompletionsEndpoint
+                    : string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(profile.ResponsesEndpoint))
+            {
+                AiProviderPreset preset = AiProviderCatalog.Find(profile.ProviderId);
+                bool usesPresetBaseUrl = preset != null
+                    && (string.IsNullOrWhiteSpace(profile.BaseUrl)
+                        || string.Equals(profile.BaseUrl.Trim().TrimEnd('/'), preset.BaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                profile.ResponsesEndpoint = usesPresetBaseUrl && !string.IsNullOrWhiteSpace(preset.ResponsesEndpoint)
+                    ? preset.ResponsesEndpoint
+                    : string.Empty;
             }
         }
     }

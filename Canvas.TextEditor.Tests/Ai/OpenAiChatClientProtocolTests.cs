@@ -20,6 +20,7 @@ namespace Canvas.TextEditor.Tests.Ai
             config.AiSermonProtocol = AiProviderProtocol.OpenAiResponses;
             config.AiSermonApiKey = "test-key";
             config.AiSermonBaseUrl = "https://example.test/v1";
+            config.AiSermonResponsesEndpoint = "https://example.test/v1/responses";
             config.AiSermonModel = "gpt-test";
 
             var handler = new CaptureResponseHandler(
@@ -63,6 +64,8 @@ namespace Canvas.TextEditor.Tests.Ai
                 profile.ProviderId = "qwen";
                 profile.Protocol = AiProviderProtocol.OpenAiResponses;
                 profile.BaseUrl = "https://profile.example/v1";
+                profile.ChatCompletionsEndpoint = "https://profile.example/v1/chat/completions";
+                profile.ResponsesEndpoint = "https://profile.example/v1/responses";
                 profile.ApiKey = "profile-key";
                 profile.ModelId = "qwen-plus-custom";
                 config.SaveAiProfile(profile);
@@ -92,6 +95,7 @@ namespace Canvas.TextEditor.Tests.Ai
             config.AiSermonProtocol = AiProviderProtocol.OpenAiCompletions;
             config.AiSermonApiKey = "test-key";
             config.AiSermonBaseUrl = "https://example.test";
+            config.AiSermonChatCompletionsEndpoint = "https://example.test/chat/completions";
             config.AiSermonModel = "deepseek-flash";
 
             var handler = new CaptureResponseHandler("data: [DONE]\n\n");
@@ -115,10 +119,11 @@ namespace Canvas.TextEditor.Tests.Ai
         public async Task StreamChatAsync_ResponsesProtocol_ParsesCompletedUsageWithoutDoneSentinel()
         {
             var config = new ConfigManager(System.IO.Path.GetTempFileName());
-            config.AiSermonProviderId = "deepseek";
+            config.AiSermonProviderId = "custom";
             config.AiSermonProtocol = AiProviderProtocol.OpenAiResponses;
             config.AiSermonApiKey = "test-key";
             config.AiSermonBaseUrl = "https://example.test";
+            config.AiSermonResponsesEndpoint = "https://example.test/responses";
             config.AiSermonModel = "deepseek-flash";
 
             var handler = new CaptureResponseHandler(

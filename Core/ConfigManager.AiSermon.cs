@@ -27,6 +27,8 @@ namespace ImageColorChanger.Core
                 bool hasProtocol = root.TryGetProperty("AiSermonProtocol", out _);
                 bool hasApiKey = root.TryGetProperty("AiSermonApiKey", out _);
                 bool hasBaseUrl = root.TryGetProperty("AiSermonBaseUrl", out _);
+                bool hasChatCompletionsEndpoint = root.TryGetProperty("AiSermonChatCompletionsEndpoint", out _);
+                bool hasResponsesEndpoint = root.TryGetProperty("AiSermonResponsesEndpoint", out _);
                 bool hasModel = root.TryGetProperty("AiSermonModel", out _);
                 bool changed = false;
 
@@ -50,6 +52,22 @@ namespace ImageColorChanger.Core
                 if (!hasBaseUrl)
                 {
                     _config.AiSermonBaseUrl = _config.DeepSeekBaseUrl ?? string.Empty;
+                    changed = true;
+                }
+                string providerId = AiProviderCatalog.NormalizeProviderId(_config.AiSermonProviderId);
+                AiProviderPreset preset = AiProviderCatalog.Find(providerId);
+                if (!hasChatCompletionsEndpoint && preset != null
+                    && string.Equals((_config.AiSermonBaseUrl ?? string.Empty).Trim().TrimEnd('/'),
+                        preset.BaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.AiSermonChatCompletionsEndpoint = preset.ChatCompletionsEndpoint ?? string.Empty;
+                    changed = true;
+                }
+                if (!hasResponsesEndpoint && preset != null
+                    && string.Equals((_config.AiSermonBaseUrl ?? string.Empty).Trim().TrimEnd('/'),
+                        preset.BaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+                {
+                    _config.AiSermonResponsesEndpoint = preset.ResponsesEndpoint ?? string.Empty;
                     changed = true;
                 }
                 if (!hasModel)
@@ -90,14 +108,10 @@ namespace ImageColorChanger.Core
 
         public string AiSermonProtocol
         {
-            get => AiProviderProtocol.IsSupported(_config.AiSermonProtocol)
-                ? _config.AiSermonProtocol.Trim().ToLowerInvariant()
-                : AiProviderProtocol.OpenAiCompletions;
+            get => AiProviderCatalog.NormalizeProtocol(AiSermonProviderId, _config.AiSermonProtocol, AiSermonModel);
             set
             {
-                string next = AiProviderProtocol.IsSupported(value)
-                    ? value.Trim().ToLowerInvariant()
-                    : AiProviderProtocol.OpenAiCompletions;
+                string next = AiProviderCatalog.NormalizeProtocol(AiSermonProviderId, value, AiSermonModel);
                 if (!string.Equals(_config.AiSermonProtocol, next, StringComparison.Ordinal))
                 {
                     _config.AiSermonProtocol = next;
@@ -160,6 +174,18 @@ namespace ImageColorChanger.Core
                     SaveConfig();
                 }
             }
+        }
+
+        public string AiSermonChatCompletionsEndpoint
+        {
+            get => (_config.AiSermonChatCompletionsEndpoint ?? string.Empty).Trim().TrimEnd('/');
+            set => _config.AiSermonChatCompletionsEndpoint = (value ?? string.Empty).Trim().TrimEnd('/');
+        }
+
+        public string AiSermonResponsesEndpoint
+        {
+            get => (_config.AiSermonResponsesEndpoint ?? string.Empty).Trim().TrimEnd('/');
+            set => _config.AiSermonResponsesEndpoint = (value ?? string.Empty).Trim().TrimEnd('/');
         }
 
         public string AiSermonModel
@@ -457,6 +483,8 @@ namespace ImageColorChanger.Core
         public string AiSermonProtocol { get; set; } = AiProviderProtocol.OpenAiCompletions;
         public string AiSermonApiKey { get; set; } = "";
         public string AiSermonBaseUrl { get; set; } = "https://api.deepseek.com";
+        public string AiSermonChatCompletionsEndpoint { get; set; } = "https://api.deepseek.com/chat/completions";
+        public string AiSermonResponsesEndpoint { get; set; } = "";
         public string AiSermonModel { get; set; } = "deepseek-flash";
         public string DeepSeekApiKey { get; set; } = "";
         public string GeminiApiKey { get; set; } = "";

@@ -66,6 +66,8 @@ public sealed class AiStreamFailureTests
             config.AiSermonProtocol = protocol;
             config.AiSermonApiKey = "fixture-key";
             config.AiSermonBaseUrl = "https://example.test/v1";
+            config.AiSermonChatCompletionsEndpoint = "https://example.test/v1/chat/completions";
+            config.AiSermonResponsesEndpoint = "https://example.test/v1/responses";
             config.AiSermonModel = "fixture-model";
             Http = new HttpClient(new Handler(stream));
             Client = new OpenAiChatClient(config, Http);

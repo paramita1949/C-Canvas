@@ -48,10 +48,12 @@ namespace ImageColorChanger.UI
             RefreshProfileList();
             ProfileListBox.SelectedItem = _profiles.FirstOrDefault(profile => profile.Id == activeProfile.Id);
             ProviderComboBox.SelectedItem = preset;
-            SelectProtocol(activeProfile.Protocol);
             BaseUrlTextBox.Text = activeProfile.BaseUrl;
+            ChatCompletionsEndpointTextBox.Text = activeProfile.ChatCompletionsEndpoint;
+            ResponsesEndpointTextBox.Text = activeProfile.ResponsesEndpoint;
             ApiKeyBox.Password = activeProfile.ApiKey;
             PopulateModels(preset, activeProfile.AvailableModels, activeProfile.ModelId);
+            PopulateProtocols(preset, activeProfile.Protocol, activeProfile.ModelId);
             ProfileNameTextBox.Text = string.IsNullOrWhiteSpace(activeProfile.Name) ? BuildProfileName(preset) : activeProfile.Name;
             DetailStatusText.Text = "● 已启用";
             UpdateRequestPreview();
@@ -98,6 +100,8 @@ namespace ImageColorChanger.UI
             ProfileListBox.SelectedItem = _profiles.FirstOrDefault(profile => profile.Id == "draft");
             SelectProvider(custom);
             BaseUrlTextBox.Text = string.Empty;
+            ChatCompletionsEndpointTextBox.Text = string.Empty;
+            ResponsesEndpointTextBox.Text = string.Empty;
             ApiKeyBox.Password = string.Empty;
             PopulateModels(custom, Array.Empty<AiModelOption>(), string.Empty);
             ProfileNameTextBox.Text = "新建配置";
@@ -130,10 +134,12 @@ namespace ImageColorChanger.UI
             _isDraft = false;
             AiProviderPreset preset = AiProviderCatalog.Find(profile.ProviderId) ?? AiProviderCatalog.Find("custom");
             ProviderComboBox.SelectedItem = preset;
-            SelectProtocol(profile.Protocol);
             BaseUrlTextBox.Text = profile.BaseUrl;
+            ChatCompletionsEndpointTextBox.Text = profile.ChatCompletionsEndpoint;
+            ResponsesEndpointTextBox.Text = profile.ResponsesEndpoint;
             ApiKeyBox.Password = profile.ApiKey;
             PopulateModels(preset, profile.AvailableModels, profile.ModelId);
+            PopulateProtocols(preset, profile.Protocol, profile.ModelId);
             ProfileNameTextBox.Text = string.IsNullOrWhiteSpace(profile.Name) ? BuildProfileName(preset) : profile.Name;
             DetailStatusText.Text = string.Equals(profile.Id, _configManager.ActiveAiProfileId, StringComparison.Ordinal) ? "● 已启用" : "○ 可用";
             UpdateRequestPreview();
@@ -177,8 +183,10 @@ namespace ImageColorChanger.UI
 
             _isRefreshing = true;
             BaseUrlTextBox.Text = preset.BaseUrl;
-            SelectProtocol(preset.Protocol);
+            ChatCompletionsEndpointTextBox.Text = preset.ChatCompletionsEndpoint;
+            ResponsesEndpointTextBox.Text = preset.ResponsesEndpoint;
             PopulateModels(preset, Array.Empty<AiModelOption>(), preset.RecommendedModels.FirstOrDefault());
+            PopulateProtocols(preset, preset.Protocol, GetSelectedModel());
             UpdateRequestPreview();
             _isRefreshing = false;
         }
@@ -194,7 +202,29 @@ namespace ImageColorChanger.UI
             UpdateRequestPreview();
         }
 
+        private void AiModelComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isRefreshing || ProviderComboBox.SelectedItem is not AiProviderPreset preset)
+            {
+                return;
+            }
+
+            string currentProtocol = GetSelectedProtocol();
+            _isRefreshing = true;
+            PopulateProtocols(preset, currentProtocol, GetSelectedModel());
+            _isRefreshing = false;
+            UpdateRequestPreview();
+        }
+
         private void BaseUrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!_isRefreshing)
+            {
+                UpdateRequestPreview();
+            }
+        }
+
+        private void EndpointTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!_isRefreshing)
             {
@@ -271,6 +301,8 @@ namespace ImageColorChanger.UI
             profile.ProviderId = preset.Id;
             profile.Protocol = GetSelectedProtocol();
             profile.BaseUrl = BaseUrlTextBox.Text?.Trim() ?? string.Empty;
+            profile.ChatCompletionsEndpoint = ChatCompletionsEndpointTextBox.Text?.Trim() ?? string.Empty;
+            profile.ResponsesEndpoint = ResponsesEndpointTextBox.Text?.Trim() ?? string.Empty;
             profile.ModelId = GetSelectedModel();
             profile.ModelDisplayName = GetSelectedModelDisplayName();
             profile.AvailableModels = GetCurrentModels();
@@ -296,7 +328,7 @@ namespace ImageColorChanger.UI
         private void SelectProvider(AiProviderPreset preset)
         {
             ProviderComboBox.SelectedItem = preset;
-            SelectProtocol(preset?.Protocol);
+            PopulateProtocols(preset, preset?.Protocol, preset?.RecommendedModels.FirstOrDefault());
         }
 
         private void PopulateModels(
@@ -373,6 +405,23 @@ namespace ImageColorChanger.UI
             return (ProtocolComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? AiProviderProtocol.OpenAiCompletions;
         }
 
+        private void PopulateProtocols(AiProviderPreset preset, string preferredProtocol, string modelId)
+        {
+            ProtocolComboBox.Items.Clear();
+            foreach (string protocol in AiProviderCatalog.GetSupportedProtocols(preset?.Id, modelId))
+            {
+                ProtocolComboBox.Items.Add(new ComboBoxItem
+                {
+                    Tag = protocol,
+                    Content = string.Equals(protocol, AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
+                        ? "OpenAI Responses"
+                        : "OpenAI Chat Completions"
+                });
+            }
+
+            SelectProtocol(AiProviderCatalog.NormalizeProtocol(preset?.Id, preferredProtocol, modelId));
+        }
+
         private string GetSelectedProtocolDisplay()
         {
             return (ProtocolComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "OpenAI Chat Completions";
@@ -391,9 +440,15 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string baseUrl = (BaseUrlTextBox?.Text ?? string.Empty).Trim().TrimEnd('/');
-            string path = string.Equals(GetSelectedProtocol(), AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase) ? "/responses" : "/chat/completions";
-            RequestPreviewText.Text = string.IsNullOrWhiteSpace(baseUrl) ? $"POST {path}" : $"POST {baseUrl}{path}";
+            string endpoint = string.Equals(GetSelectedProtocol(), AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
+                ? (ResponsesEndpointTextBox?.Text ?? string.Empty).Trim()
+                : (ChatCompletionsEndpointTextBox?.Text ?? string.Empty).Trim();
+            string protocolName = string.Equals(GetSelectedProtocol(), AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
+                ? "Responses"
+                : "Chat Completions";
+            RequestPreviewText.Text = string.IsNullOrWhiteSpace(endpoint)
+                ? $"POST [{protocolName} 地址未配置]"
+                : $"POST {endpoint}";
         }
 
         private static string BuildProfileName(AiProviderPreset preset)

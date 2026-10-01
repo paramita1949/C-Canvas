@@ -94,18 +94,23 @@ namespace ImageColorChanger.Services.Ai
 
             var payload = BuildCompletionsPayload(request);
             string json = JsonSerializer.Serialize(payload, _jsonOptions);
-            using var message = new HttpRequestMessage(HttpMethod.Post, $"{_config.AiSermonBaseUrl}/chat/completions");
+            string endpoint = AiProviderCatalog.ResolveEndpoint(
+                _config.AiSermonProviderId,
+                AiProviderProtocol.OpenAiCompletions,
+                _config.AiSermonChatCompletionsEndpoint,
+                _config.AiSermonResponsesEndpoint);
+            using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             ApplyOpenCodeHeaders(message, request);
             message.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            EmitDiagnostic($"POST /chat/completions：请求已提交，等待响应头（model={model}）");
+            EmitDiagnostic($"POST /chat/completions：请求已提交，等待响应头（endpoint={endpoint}, model={model}）");
 
             using var response = await _httpClient.SendAsync(
                 message,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false);
-            EmitDiagnostic($"POST /chat/completions：已收到响应头（HTTP {(int)response.StatusCode}）");
+            EmitDiagnostic($"POST /chat/completions：已收到响应头（endpoint={endpoint}, HTTP {(int)response.StatusCode}）");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -346,18 +351,23 @@ namespace ImageColorChanger.Services.Ai
         {
             var payload = BuildResponsesPayload(request, model);
             string json = JsonSerializer.Serialize(payload, _jsonOptions);
-            using var message = new HttpRequestMessage(HttpMethod.Post, $"{_config.AiSermonBaseUrl}/responses");
+            string endpoint = AiProviderCatalog.ResolveEndpoint(
+                _config.AiSermonProviderId,
+                AiProviderProtocol.OpenAiResponses,
+                _config.AiSermonChatCompletionsEndpoint,
+                _config.AiSermonResponsesEndpoint);
+            using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
             message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
             ApplyOpenCodeHeaders(message, request);
             message.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            EmitDiagnostic($"POST /responses：请求已提交，等待响应头（model={model}）");
+            EmitDiagnostic($"POST /responses：请求已提交，等待响应头（endpoint={endpoint}, model={model}）");
 
             using var response = await _httpClient.SendAsync(
                 message,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false);
-            EmitDiagnostic($"POST /responses：已收到响应头（HTTP {(int)response.StatusCode}）");
+            EmitDiagnostic($"POST /responses：已收到响应头（endpoint={endpoint}, HTTP {(int)response.StatusCode}）");
 
             if (!response.IsSuccessStatusCode)
             {

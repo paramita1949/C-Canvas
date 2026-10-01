@@ -92,6 +92,8 @@ public sealed class OpenCodeTransportTests
             config.AiSermonProviderId = "custom";
             config.AiSermonProtocol = protocol;
             config.AiSermonBaseUrl = url;
+            config.AiSermonChatCompletionsEndpoint = url.TrimEnd('/') + "/chat/completions";
+            config.AiSermonResponsesEndpoint = url.TrimEnd('/') + "/responses";
             config.AiSermonApiKey = "test-key";
             config.AiSermonModel = "deepseek-v4.1-flash";
             var handler = new CaptureHandler();
