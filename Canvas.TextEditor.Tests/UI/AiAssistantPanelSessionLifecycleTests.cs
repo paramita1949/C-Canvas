@@ -150,6 +150,24 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         }
 
         [Fact]
+        public void QueuedSlideProject_AppendsSimpleSpeakerReminderToPanelTimeline()
+        {
+            string mainWindowSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
+            string queueMethod = Slice(
+                mainWindowSource,
+                "private async Task QueueOrStartAiProjectAsync(",
+                "private async Task StartAiProjectRequestAsync(");
+            string panelSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "AiAssistantPanelWindow.xaml.cs"));
+            string timelineMethod = Slice(
+                panelSource,
+                "public static bool ShouldAppendStatusToTimeline(string status)",
+                "public static string ExtractCollapsedScriptureText(string status)");
+
+            Assert.Contains("_aiAssistantPanelWindow.AppendStatus(\"请选择传道人或者添加传道人\");", queueMethod, StringComparison.Ordinal);
+            Assert.Contains("string.Equals(text, \"请选择传道人或者添加传道人\", StringComparison.Ordinal)", timelineMethod, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void SlideAiEntry_ReportsStagesAndSurfacesExceptions()
         {
             string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));

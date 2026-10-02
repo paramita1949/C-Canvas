@@ -498,7 +498,8 @@ namespace ImageColorChanger.UI
             string text = status.Trim();
             return text.StartsWith("AI缓存", StringComparison.Ordinal)
                 || string.Equals(text, "ASR已连接", StringComparison.Ordinal)
-                || string.Equals(text, "ASR未启用", StringComparison.Ordinal);
+                || string.Equals(text, "ASR未启用", StringComparison.Ordinal)
+                || string.Equals(text, "请选择传道人或者添加传道人", StringComparison.Ordinal);
         }
 
         public static string ExtractCollapsedScriptureText(string status)

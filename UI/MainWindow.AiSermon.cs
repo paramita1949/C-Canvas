@@ -110,7 +110,7 @@ namespace ImageColorChanger.UI
                 ReportAiProjectDiagnostic("正在加载传道人列表");
                 await RefreshAiSpeakerListAsync();
                 string status = $"传道人列表加载完成。已读取项目：{request.ProjectName}，请选择传道人后开始AI解读。";
-                _aiAssistantPanelWindow.AppendStatus(status);
+                _aiAssistantPanelWindow.AppendStatus("请选择传道人或者添加传道人");
                 ShowStatus(status);
                 return;
             }
