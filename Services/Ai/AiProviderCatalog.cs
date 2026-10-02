@@ -43,6 +43,26 @@ namespace ImageColorChanger.Services.Ai
                 : ChatCompletionsEndpoint;
         }
 
+        public string GetBaseUrl(string protocol)
+        {
+            string endpoint = (GetEndpoint(protocol) ?? string.Empty).Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                return (BaseUrl ?? string.Empty).Trim().TrimEnd('/');
+            }
+
+            string[] endpointSuffixes = { "/chat/completions", "/responses" };
+            foreach (string suffix in endpointSuffixes)
+            {
+                if (endpoint.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return endpoint[..^suffix.Length].TrimEnd('/');
+                }
+            }
+
+            return (BaseUrl ?? string.Empty).Trim().TrimEnd('/');
+        }
+
         public AiModelPreset FindModel(string modelId)
         {
             return RecommendedModelPresets.FirstOrDefault(model =>
@@ -299,6 +319,54 @@ namespace ImageColorChanger.Services.Ai
             return normalized + (string.Equals(protocol, AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
                 ? "/responses"
                 : "/chat/completions");
+        }
+
+        public static string ResolveEndpointFromBaseUrl(string providerId, string protocol, string baseUrl)
+        {
+            string normalizedProtocol = NormalizeProtocol(providerId, protocol);
+            string normalizedBaseUrl = (baseUrl ?? string.Empty).Trim().TrimEnd('/');
+            AiProviderPreset preset = Find(providerId);
+            bool usesBuiltInPreset = preset != null
+                && !string.Equals(preset.Id, "custom", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(preset.Id, "compatible", StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(normalizedBaseUrl)
+                    || string.Equals(
+                        normalizedBaseUrl,
+                        (preset.BaseUrl ?? string.Empty).Trim().TrimEnd('/'),
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (usesBuiltInPreset)
+            {
+                return (preset.GetEndpoint(normalizedProtocol) ?? string.Empty).Trim().TrimEnd('/');
+            }
+
+            return BuildLegacyEndpoint(normalizedBaseUrl, normalizedProtocol);
+        }
+
+        public static string ResolveBaseUrlFromProtocol(string providerId, string protocol, string baseUrl)
+        {
+            AiProviderPreset preset = Find(providerId);
+            string normalizedBaseUrl = (baseUrl ?? string.Empty).Trim().TrimEnd('/');
+            if (preset == null
+                || string.Equals(preset.Id, "custom", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(preset.Id, "compatible", StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedBaseUrl;
+            }
+
+            string normalizedProtocol = NormalizeProtocol(providerId, protocol);
+            string[] knownBaseUrls = preset.SupportedProtocols
+                .Select(preset.GetBaseUrl)
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+                .Select(candidate => candidate.Trim().TrimEnd('/'))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            bool isPresetBaseUrl = string.IsNullOrWhiteSpace(normalizedBaseUrl)
+                || knownBaseUrls.Any(candidate => string.Equals(candidate, normalizedBaseUrl, StringComparison.OrdinalIgnoreCase));
+
+            return isPresetBaseUrl
+                ? preset.GetBaseUrl(normalizedProtocol)
+                : normalizedBaseUrl;
         }
 
         public static string NormalizeProtocol(string providerId, string protocol)

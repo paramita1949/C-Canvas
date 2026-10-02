@@ -12,6 +12,14 @@
                 <ResourceDictionary Source="UI/Resources/Styles/MainWindow.BaseStyles.xaml" />
                 <ResourceDictionary Source="UI/Resources/Styles/CommonWindow.Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <!--
+                MaterialDesign 的默认 ComboBoxItem 样式会在容器尚未挂入
+                ItemsControl 时，通过 FindAncestor 读取对齐属性，产生 WPF
+                Data Error 4。显式 ItemContainerStyle 的控件之外，所有
+                ComboBoxItem 统一使用不含 Ancestor 绑定的安全模板兜底。
+            -->
+            <Style TargetType="{x:Type ComboBoxItem}"
+                   BasedOn="{StaticResource CanvasComboBoxItemAlignmentStyle}"/>
             <Color x:Key="ColorGlobalIcon">#917878</Color>
             <SolidColorBrush x:Key="BrushGlobalIcon" Color="{StaticResource ColorGlobalIcon}"/>
             <converters:ThumbnailPathToImageSourceConverter x:Key="ThumbnailPathToImageSourceConverter"/>

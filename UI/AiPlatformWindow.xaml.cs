@@ -49,11 +49,10 @@ namespace ImageColorChanger.UI
             ProfileListBox.SelectedItem = _profiles.FirstOrDefault(profile => profile.Id == activeProfile.Id);
             ProviderComboBox.SelectedItem = preset;
             BaseUrlTextBox.Text = activeProfile.BaseUrl;
-            ChatCompletionsEndpointTextBox.Text = activeProfile.ChatCompletionsEndpoint;
-            ResponsesEndpointTextBox.Text = activeProfile.ResponsesEndpoint;
             ApiKeyBox.Password = activeProfile.ApiKey;
             PopulateModels(preset, activeProfile.AvailableModels, activeProfile.ModelId);
             PopulateProtocols(preset, activeProfile.Protocol, activeProfile.ModelId);
+            SyncBaseUrlToSelectedProtocol(preset);
             ProfileNameTextBox.Text = string.IsNullOrWhiteSpace(activeProfile.Name) ? BuildProfileName(preset) : activeProfile.Name;
             DetailStatusText.Text = "● 已启用";
             UpdateRequestPreview();
@@ -69,11 +68,13 @@ namespace ImageColorChanger.UI
         {
             _profiles.Clear();
             IReadOnlyList<AiConnectionProfile> savedProfiles = _configManager.GetAiProfiles();
+            string activeProfileId = _configManager.ActiveAiProfileId;
             foreach (AiConnectionProfile profile in savedProfiles)
             {
                 _profiles.Add(new AiProfileSummary
                 {
                     Id = profile.Id,
+                    IsActive = string.Equals(profile.Id, activeProfileId, StringComparison.Ordinal),
                     DisplayName = string.IsNullOrWhiteSpace(profile.Name) ? BuildProfileName(AiProviderCatalog.Find(profile.ProviderId)) : profile.Name,
                     Summary = GetProtocolShortName(profile.Protocol) + Environment.NewLine + profile.ModelId,
                     CanDelete = savedProfiles.Count > 1
@@ -100,8 +101,6 @@ namespace ImageColorChanger.UI
             ProfileListBox.SelectedItem = _profiles.FirstOrDefault(profile => profile.Id == "draft");
             SelectProvider(custom);
             BaseUrlTextBox.Text = string.Empty;
-            ChatCompletionsEndpointTextBox.Text = string.Empty;
-            ResponsesEndpointTextBox.Text = string.Empty;
             ApiKeyBox.Password = string.Empty;
             PopulateModels(custom, Array.Empty<AiModelOption>(), string.Empty);
             ProfileNameTextBox.Text = "新建配置";
@@ -135,11 +134,10 @@ namespace ImageColorChanger.UI
             AiProviderPreset preset = AiProviderCatalog.Find(profile.ProviderId) ?? AiProviderCatalog.Find("custom");
             ProviderComboBox.SelectedItem = preset;
             BaseUrlTextBox.Text = profile.BaseUrl;
-            ChatCompletionsEndpointTextBox.Text = profile.ChatCompletionsEndpoint;
-            ResponsesEndpointTextBox.Text = profile.ResponsesEndpoint;
             ApiKeyBox.Password = profile.ApiKey;
             PopulateModels(preset, profile.AvailableModels, profile.ModelId);
             PopulateProtocols(preset, profile.Protocol, profile.ModelId);
+            SyncBaseUrlToSelectedProtocol(preset);
             ProfileNameTextBox.Text = string.IsNullOrWhiteSpace(profile.Name) ? BuildProfileName(preset) : profile.Name;
             DetailStatusText.Text = string.Equals(profile.Id, _configManager.ActiveAiProfileId, StringComparison.Ordinal) ? "● 已启用" : "○ 可用";
             UpdateRequestPreview();
@@ -182,11 +180,10 @@ namespace ImageColorChanger.UI
             }
 
             _isRefreshing = true;
-            BaseUrlTextBox.Text = preset.BaseUrl;
-            ChatCompletionsEndpointTextBox.Text = preset.ChatCompletionsEndpoint;
-            ResponsesEndpointTextBox.Text = preset.ResponsesEndpoint;
+            BaseUrlTextBox.Text = preset.GetBaseUrl(preset.Protocol);
             PopulateModels(preset, Array.Empty<AiModelOption>(), preset.RecommendedModels.FirstOrDefault());
             PopulateProtocols(preset, preset.Protocol, GetSelectedModel());
+            SyncBaseUrlToSelectedProtocol(preset);
             UpdateRequestPreview();
             _isRefreshing = false;
         }
@@ -198,7 +195,13 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string protocol = GetSelectedProtocol();
+            if (ProviderComboBox.SelectedItem is AiProviderPreset preset)
+            {
+                _isRefreshing = true;
+                SyncBaseUrlToSelectedProtocol(preset);
+                _isRefreshing = false;
+            }
+
             UpdateRequestPreview();
         }
 
@@ -217,14 +220,6 @@ namespace ImageColorChanger.UI
         }
 
         private void BaseUrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (!_isRefreshing)
-            {
-                UpdateRequestPreview();
-            }
-        }
-
-        private void EndpointTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!_isRefreshing)
             {
@@ -301,8 +296,7 @@ namespace ImageColorChanger.UI
             profile.ProviderId = preset.Id;
             profile.Protocol = GetSelectedProtocol();
             profile.BaseUrl = BaseUrlTextBox.Text?.Trim() ?? string.Empty;
-            profile.ChatCompletionsEndpoint = ChatCompletionsEndpointTextBox.Text?.Trim() ?? string.Empty;
-            profile.ResponsesEndpoint = ResponsesEndpointTextBox.Text?.Trim() ?? string.Empty;
+            ApplyEndpointSelection(profile, preset);
             profile.ModelId = GetSelectedModel();
             profile.ModelDisplayName = GetSelectedModelDisplayName();
             profile.AvailableModels = GetCurrentModels();
@@ -433,6 +427,21 @@ namespace ImageColorChanger.UI
                 ?? ProtocolComboBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
         }
 
+        private void SyncBaseUrlToSelectedProtocol(AiProviderPreset preset)
+        {
+            if (preset == null || BaseUrlTextBox == null)
+            {
+                return;
+            }
+
+            string protocol = GetSelectedProtocol();
+            string resolvedBaseUrl = AiProviderCatalog.ResolveBaseUrlFromProtocol(preset.Id, protocol, BaseUrlTextBox.Text);
+            if (!string.Equals(BaseUrlTextBox.Text?.Trim().TrimEnd('/'), resolvedBaseUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                BaseUrlTextBox.Text = resolvedBaseUrl;
+            }
+        }
+
         private void UpdateRequestPreview()
         {
             if (RequestPreviewText == null)
@@ -440,15 +449,40 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            string endpoint = string.Equals(GetSelectedProtocol(), AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
-                ? (ResponsesEndpointTextBox?.Text ?? string.Empty).Trim()
-                : (ChatCompletionsEndpointTextBox?.Text ?? string.Empty).Trim();
+            string endpoint = ProviderComboBox?.SelectedItem is AiProviderPreset preset
+                ? AiProviderCatalog.ResolveEndpointFromBaseUrl(preset.Id, GetSelectedProtocol(), BaseUrlTextBox?.Text)
+                : string.Empty;
             string protocolName = string.Equals(GetSelectedProtocol(), AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase)
                 ? "Responses"
                 : "Chat Completions";
             RequestPreviewText.Text = string.IsNullOrWhiteSpace(endpoint)
                 ? $"POST [{protocolName} 地址未配置]"
                 : $"POST {endpoint}";
+        }
+
+        private void ApplyEndpointSelection(AiConnectionProfile profile, AiProviderPreset preset)
+        {
+            bool isCustom = string.Equals(preset.Id, "custom", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(preset.Id, "compatible", StringComparison.OrdinalIgnoreCase);
+            if (!isCustom)
+            {
+                profile.ChatCompletionsEndpoint = preset.ChatCompletionsEndpoint ?? string.Empty;
+                profile.ResponsesEndpoint = preset.ResponsesEndpoint ?? string.Empty;
+                return;
+            }
+
+            string selectedEndpoint = AiProviderCatalog.ResolveEndpointFromBaseUrl(
+                preset.Id,
+                profile.Protocol,
+                profile.BaseUrl);
+            if (string.Equals(profile.Protocol, AiProviderProtocol.OpenAiResponses, StringComparison.OrdinalIgnoreCase))
+            {
+                profile.ResponsesEndpoint = selectedEndpoint;
+            }
+            else
+            {
+                profile.ChatCompletionsEndpoint = selectedEndpoint;
+            }
         }
 
         private static string BuildProfileName(AiProviderPreset preset)
@@ -464,6 +498,7 @@ namespace ImageColorChanger.UI
         public sealed class AiProfileSummary : INotifyPropertyChanged
         {
             public string Id { get; set; } = string.Empty;
+            public bool IsActive { get; set; }
             private string _displayName = string.Empty;
             public string DisplayName
             {

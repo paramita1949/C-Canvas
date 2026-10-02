@@ -24,6 +24,9 @@ namespace Canvas.TextEditor.Tests.UI
             Assert.Contains("Click=\"DeleteProfileButton_Click\"", xaml, StringComparison.Ordinal);
             Assert.Contains("Tag=\"{Binding Id}\"", xaml, StringComparison.Ordinal);
             Assert.Contains("IsEnabled=\"{Binding CanDelete}\"", xaml, StringComparison.Ordinal);
+            Assert.Contains("ProfileActiveDotStyle", xaml, StringComparison.Ordinal);
+            Assert.Contains("Binding IsActive", xaml, StringComparison.Ordinal);
+            Assert.Contains("Text=\"●\" Style=\"{StaticResource ProfileActiveDotStyle}\"", xaml, StringComparison.Ordinal);
             int myProfilesIndex = xaml.IndexOf("Text=\"我的配置\"", StringComparison.Ordinal);
             int deleteIndex = xaml.IndexOf("x:Name=\"DeleteProfileButton\"", StringComparison.Ordinal);
             int detailIndex = xaml.IndexOf("x:Name=\"ProfileNameTextBox\"", StringComparison.Ordinal);
@@ -110,6 +113,23 @@ namespace Canvas.TextEditor.Tests.UI
             Assert.Contains("PopulateModels(preset, activeProfile.AvailableModels, activeProfile.ModelId)", codeBehind, StringComparison.Ordinal);
             Assert.Contains("PopulateModels(preset, profile.AvailableModels, profile.ModelId)", codeBehind, StringComparison.Ordinal);
             Assert.Contains("profile.AvailableModels = GetCurrentModels()", codeBehind, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void AiPlatformWindow_UsesSingleBaseUrlAndExplicitComboBoxItemAlignment()
+        {
+            string xaml = File.ReadAllText(FindWorkspaceFile("UI/AiPlatformWindow.xaml"));
+            string codeBehind = File.ReadAllText(FindWorkspaceFile("UI/AiPlatformWindow.xaml.cs"));
+
+            Assert.Equal(1, xaml.Split("x:Name=\"BaseUrlTextBox\"", StringSplitOptions.None).Length - 1);
+            Assert.DoesNotContain("x:Name=\"ChatCompletionsEndpointTextBox\"", xaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("x:Name=\"ResponsesEndpointTextBox\"", xaml, StringComparison.Ordinal);
+            Assert.Contains("<Setter Property=\"HorizontalContentAlignment\" Value=\"Stretch\"", xaml, StringComparison.Ordinal);
+            Assert.Contains("<Setter Property=\"VerticalContentAlignment\" Value=\"Center\"", xaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("ChatCompletionsEndpointTextBox", codeBehind, StringComparison.Ordinal);
+            Assert.DoesNotContain("ResponsesEndpointTextBox", codeBehind, StringComparison.Ordinal);
+            Assert.Contains("ResolveEndpointFromBaseUrl", codeBehind, StringComparison.Ordinal);
+            Assert.Contains("IsActive = string.Equals(profile.Id, activeProfileId", codeBehind, StringComparison.Ordinal);
         }
 
         private static string FindWorkspaceFile(string relativePath)

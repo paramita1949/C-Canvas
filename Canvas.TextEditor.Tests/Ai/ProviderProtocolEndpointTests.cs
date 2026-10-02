@@ -101,6 +101,43 @@ public sealed class ProviderProtocolEndpointTests
     }
 
     [Fact]
+    public void ResolveEndpointFromBaseUrl_ForPresetUsesIndependentProtocolAddress()
+    {
+        string endpoint = AiProviderCatalog.ResolveEndpointFromBaseUrl(
+            "zhipu",
+            AiProviderProtocol.OpenAiResponses,
+            "https://open.bigmodel.cn/api/paas/v4");
+
+        Assert.Equal("https://open.bigmodel.cn/api/v1/responses", endpoint);
+    }
+
+    [Fact]
+    public void Preset_BaseUrlFollowsSelectedProtocol()
+    {
+        AiProviderPreset preset = AiProviderCatalog.Find("zhipu");
+
+        Assert.NotNull(preset);
+        Assert.Equal(
+            "https://open.bigmodel.cn/api/paas/v4",
+            preset.GetBaseUrl(AiProviderProtocol.OpenAiCompletions));
+        Assert.Equal(
+            "https://open.bigmodel.cn/api/v1",
+            preset.GetBaseUrl(AiProviderProtocol.OpenAiResponses));
+    }
+
+    [Theory]
+    [InlineData(AiProviderProtocol.OpenAiCompletions, "https://gateway.example/v1", "https://gateway.example/v1/chat/completions")]
+    [InlineData(AiProviderProtocol.OpenAiResponses, "https://gateway.example/v1", "https://gateway.example/v1/responses")]
+    [InlineData(AiProviderProtocol.OpenAiResponses, "https://gateway.example/custom/responses", "https://gateway.example/custom/responses")]
+    public void ResolveEndpointFromBaseUrl_ForCustomBuildsOnlyTheSelectedProtocol(
+        string protocol,
+        string baseUrl,
+        string expected)
+    {
+        Assert.Equal(expected, AiProviderCatalog.ResolveEndpointFromBaseUrl("custom", protocol, baseUrl));
+    }
+
+    [Fact]
     public void BaseUrlChange_DoesNotRewriteIndependentProtocolEndpoints()
     {
         string path = Path.Combine(Path.GetTempPath(), $"canvas-ai-base-url-{Guid.NewGuid():N}.json");

@@ -235,6 +235,7 @@
                                 <ComboBox x:Name="FontFamilyComboBox"
                                           Grid.Column="1"
                                           Height="28"
+                                          ItemContainerStyle="{StaticResource CanvasComboBoxItemAlignmentStyle}"
                                           DisplayMemberPath="DisplayName"
                                           SelectedValuePath="Value"
                                           VerticalContentAlignment="Center"

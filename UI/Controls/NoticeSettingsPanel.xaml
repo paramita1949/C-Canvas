@@ -243,6 +243,7 @@
                     <ComboBox x:Name="DurationComboBox"
                               Width="84"
                               Height="30"
+                              ItemContainerStyle="{StaticResource CanvasComboBoxItemAlignmentStyle}"
                               SelectionChanged="DurationComboBox_SelectionChanged">
                         <ComboBoxItem Content="1 分钟" Tag="1"/>
                         <ComboBoxItem Content="2 分钟" Tag="2"/>

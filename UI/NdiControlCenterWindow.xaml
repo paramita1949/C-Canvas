@@ -621,6 +621,7 @@
                                     </Grid.ColumnDefinitions>
                                     <ComboBox x:Name="AudioSourceComboBox"
                                               Style="{StaticResource CompactComboBoxStyle}"
+                                              ItemContainerStyle="{StaticResource CanvasComboBoxItemAlignmentStyle}"
                                               SelectedValuePath="Tag"
                                               SelectionChanged="AudioSourceComboBox_SelectionChanged">
                                         <ComboBoxItem Content="系统声音" Tag="system"/>
@@ -629,6 +630,7 @@
                                     <ComboBox x:Name="AudioDeviceComboBox"
                                               Grid.Column="2"
                                               Style="{StaticResource CompactComboBoxStyle}"
+                                              ItemContainerStyle="{StaticResource CanvasComboBoxItemAlignmentStyle}"
                                               DisplayMemberPath="Name"
                                               SelectedValuePath="Id"
                                               SelectionChanged="AudioDeviceComboBox_SelectionChanged"/>
