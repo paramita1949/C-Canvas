@@ -58,6 +58,7 @@ namespace ImageColorChanger.Services
             "http://106.14.145.43:23413",         // 优先3（代理服务器 - HTTP 备用）
             "http://139.159.157.28:45852",       // 优先4（代理服务器 - HTTP 备用）
             "http://139.159.157.28:45853",       // 优先5（代理服务器 - HTTP 备用）
+            "https://pan.yongmu.com.cn/raw",      // 官方网盘直连（/raw 路径）
             "https://pan.019890311.xyz/raw",      // 优先2（备用 - 特殊：文件在/raw路径下）
             "https://pan.jiucai.org.cn/raw",      // 优先3（备用 - 特殊：文件在/raw路径下）
             "https://pan.xian.edu.kg/raw",         // 优先4（备用 - 特殊：文件在/raw路径下）
@@ -338,8 +339,12 @@ namespace ImageColorChanger.Services
                         {
                             var result = await CheckForUpdatesInternalAsync(cts.Token);
 
-                            // 成功获取到结果（无论是有新版本还是已是最新版本）
-                            return result;
+                            // 只有成功获取到更新信息时才结束本次检查。
+                            // null 可能表示当前镜像不可用或 latest.txt 获取失败，必须继续尝试后续镜像。
+                            if (result != null)
+                            {
+                                return result;
+                            }
                         }
                     }
                     catch (OperationCanceledException)
