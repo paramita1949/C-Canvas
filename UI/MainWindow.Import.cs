@@ -366,15 +366,40 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var versionInfo = UpdateService.GetLastCheckedVersionInfo();
-                if (versionInfo == null)
+                // 手动检查升级必须有明确反馈：等待期间给出等待光标，结束后无论结果都弹窗说明。
+                var previousCursor = System.Windows.Input.Mouse.OverrideCursor;
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+                VersionInfo versionInfo;
+                try
                 {
-                    versionInfo = await UpdateService.CheckForUpdatesAsync();
+                    versionInfo = UpdateService.GetLastCheckedVersionInfo();
+                    if (versionInfo == null)
+                    {
+                        versionInfo = await UpdateService.CheckForUpdatesAsync();
+                    }
+                }
+                finally
+                {
+                    System.Windows.Input.Mouse.OverrideCursor = previousCursor;
                 }
 
                 if (versionInfo == null)
                 {
-                    ShowStatus("当前已是最新版本");
+                    // 区分“真的已是最新”和“所有地址都连不上”，避免把网络故障说成已是最新版本。
+                    if (UpdateService.LastCheckFailedToReachAnyEndpoint)
+                    {
+                        ShowUpdateCheckMessage(
+                            $"检查更新失败：无法连接升级服务器。\n\n已尝试 {UpdateService.GetDownloadBaseUrls().Count} 个下载地址，请检查网络连接后重试。",
+                            "检查更新失败",
+                            MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    ShowUpdateCheckMessage(
+                        $"当前已是最新版本（V{UpdateService.GetCurrentVersion()}）。",
+                        "检查更新",
+                        MessageBoxImage.Information);
                     return;
                 }
 
@@ -386,8 +411,25 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                ShowStatus($"检查更新失败: {ex.Message}");
+                ShowUpdateCheckMessage(
+                    $"检查更新失败：\n\n{ex.Message}\n\n请检查网络连接后重试。",
+                    "检查更新失败",
+                    MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// 手动检查升级的弹窗反馈（成功/无更新/失败都给出明确提示）。
+        /// </summary>
+        private void ShowUpdateCheckMessage(string message, string title, MessageBoxImage icon)
+        {
+            if (IsLoaded)
+            {
+                System.Windows.MessageBox.Show(this, message, title, MessageBoxButton.OK, icon);
+                return;
+            }
+
+            System.Windows.MessageBox.Show(message, title, MessageBoxButton.OK, icon);
         }
 
         /// <summary>

@@ -51,24 +51,13 @@ namespace ImageColorChanger.Services
     /// </summary>
     public class UpdateService
     {
-        // 多个下载地址（按优先级排序 - 优先使用代理服务器）
-        private static readonly string[] DOWNLOAD_BASE_URLS = new[]
-        {
-            "http://106.14.145.43:23414",         // 优先2（代理服务器 - HTTP 备用）
-            "http://106.14.145.43:23413",         // 优先3（代理服务器 - HTTP 备用）
-            "http://139.159.157.28:45852",       // 优先4（代理服务器 - HTTP 备用）
-            "http://139.159.157.28:45853",       // 优先5（代理服务器 - HTTP 备用）
-            "https://pan.019890311.xyz/raw",      // 优先2（备用 - 特殊：文件在/raw路径下）
-            "https://pan.jiucai.org.cn/raw",      // 优先3（备用 - 特殊：文件在/raw路径下）
-            "https://pan.xian.edu.kg/raw",         // 优先4（备用 - 特殊：文件在/raw路径下）
-            "https://updata.jiucai.org.cn",       // 优先5（备用）
-            "https://updata.pan.xian.edu.kg",     // 优先6（备用）
-            "https://canvas.019890311.xyz",       // 优先7（备用）
-            "https://pub-64a8ccc2b61d44e2a8ebb27ee3f2f35c.r2.dev" // 优先8（备用）
-        };
+        // 唯一永久升级地址：只保留 pan.019890311.xyz，客户端不再内置任何 IP 或其它域名镜像。
+        // 网站版本策略下发时覆盖该地址；下发为空或失败时始终回落到这个永久域名。
+        public const string PermanentDownloadBaseUrl = "https://pan.019890311.xyz/raw";
 
-        // 当前使用的基础URL（动态选择）
-        private static string _currentBaseUrl = DOWNLOAD_BASE_URLS[0];
+        private static readonly object DownloadEndpointGate = new();
+        private static string[] _downloadBaseUrls = new[] { PermanentDownloadBaseUrl };
+        private static string _currentBaseUrl = PermanentDownloadBaseUrl;
 
         private static string LATEST_VERSION_URL => _currentBaseUrl + "/latest.txt";
         private static readonly string[] VERSION_DIR_PREFIXES = new[] { "v", "V" };
@@ -106,8 +95,20 @@ namespace ImageColorChanger.Services
             "*.exe"
         };
         
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly UpdateEndpointSelector EndpointSelector = new();
+        private static HttpClient _httpClient = CreateDefaultHttpClient();
         private const int RollbackRequestTimeoutSeconds = 6;
+
+        // 升级检查的时限保护：整体检查与单地址探测都有上限，避免长时间卡在某个地址上无反馈。
+        private const int DefaultUpdateCheckOverallTimeoutSeconds = 20;
+        private const int DefaultHealthProbeOverallTimeoutSeconds = 8;
+        private const int DefaultHealthProbeTimeoutSeconds = 4;
+        private static int _updateCheckOverallTimeoutSeconds = DefaultUpdateCheckOverallTimeoutSeconds;
+        private static int _healthProbeOverallTimeoutSeconds = DefaultHealthProbeOverallTimeoutSeconds;
+        private static int _healthProbeTimeoutSeconds = DefaultHealthProbeTimeoutSeconds;
+
+        // 单次 latest.txt/files.txt 请求的超时（内部实现共用同一个值）。
+        private const int MetadataRequestTimeoutSeconds = 8;
         
         // 保存最新检查到的版本信息（用于显示更新提示）
         private static VersionInfo? _lastCheckedVersionInfo = null;
@@ -121,14 +122,100 @@ namespace ImageColorChanger.Services
                 System.Net.SecurityProtocolType.Tls12 |
                 System.Net.SecurityProtocolType.Tls13;
 
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Canvas-Cast-Updater");
-            _httpClient.Timeout = TimeSpan.FromMinutes(5);
+        }
+
+        private static HttpClient CreateDefaultHttpClient()
+        {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "Canvas-Cast-Updater");
+            client.Timeout = TimeSpan.FromMinutes(5);
+            return client;
+        }
+
+        /// <summary>测试注入用：替换内部 HttpClient（传 null 恢复默认）。</summary>
+        internal static void SetHttpClientForTests(HttpClient? client)
+        {
+            _httpClient = client ?? CreateDefaultHttpClient();
+        }
+
+        /// <summary>测试注入用：缩短升级检查各段超时（传 null 恢复默认值），保证测试快速且确定。</summary>
+        internal static void SetTimeoutsForTests(int? updateCheckOverallSeconds = null, int? healthProbeOverallSeconds = null, int? healthProbeSeconds = null)
+        {
+            _updateCheckOverallTimeoutSeconds = updateCheckOverallSeconds ?? DefaultUpdateCheckOverallTimeoutSeconds;
+            _healthProbeOverallTimeoutSeconds = healthProbeOverallSeconds ?? DefaultHealthProbeOverallTimeoutSeconds;
+            _healthProbeTimeoutSeconds = healthProbeSeconds ?? DefaultHealthProbeTimeoutSeconds;
+        }
+
+        /// <summary>测试注入用：清空“最近一次检查到的版本”缓存，避免静态状态串场。</summary>
+        internal static void ClearLastCheckedVersionInfoForTests()
+        {
+            _lastCheckedVersionInfo = null;
         }
         
         /// <summary>
         /// 获取最后一次检查到的版本信息（如果有新版本）
         /// </summary>
         public static VersionInfo? GetLastCheckedVersionInfo() => _lastCheckedVersionInfo;
+
+        /// <summary>
+        /// 最近一次升级检查是否所有地址都不可达。
+        /// true 表示没有任何地址返回过响应（网络/服务器问题），false 表示“已是最新版本”这类正常结论。
+        /// </summary>
+        public static bool LastCheckFailedToReachAnyEndpoint { get; private set; }
+
+        public static IReadOnlyList<string> GetDownloadBaseUrls()
+        {
+            return GetDownloadBaseUrlsSnapshot();
+        }
+
+        public static void SetDownloadBaseUrls(IEnumerable<string>? baseUrls)
+        {
+            var normalized = (baseUrls ?? Array.Empty<string>())
+                .Select(NormalizeDownloadBaseUrl)
+                .Where(url => !string.IsNullOrEmpty(url))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            lock (DownloadEndpointGate)
+            {
+                // 空列表不再关闭升级链路，而是回到唯一永久地址，保证客户端始终有一个可用升级源。
+                var effective = normalized.Length > 0 ? normalized : new[] { PermanentDownloadBaseUrl };
+                _downloadBaseUrls = effective;
+                _currentBaseUrl = effective[0];
+            }
+
+            // 地址集合变了，之前的健康记录不再适用。
+            EndpointSelector.Reset();
+        }
+
+        private static string[] GetDownloadBaseUrlsSnapshot()
+        {
+            lock (DownloadEndpointGate)
+            {
+                return _downloadBaseUrls.ToArray();
+            }
+        }
+
+        /// <summary>按“最近可用地址优先、失败地址靠后”的顺序取候选地址快照。</summary>
+        internal static IReadOnlyList<string> GetOrderedDownloadBaseUrlsSnapshot()
+        {
+            return EndpointSelector.Order(GetDownloadBaseUrlsSnapshot());
+        }
+
+        private static string NormalizeDownloadBaseUrl(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+            {
+                return string.Empty;
+            }
+
+            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            {
+                return string.Empty;
+            }
+
+            return uri.AbsoluteUri.TrimEnd('/');
+        }
 
         /// <summary>
         /// 获取可回退版本列表（仅返回小于等于当前版本且存在 files.txt 的版本）
@@ -141,11 +228,12 @@ namespace ImageColorChanger.Services
             foreach (var listFile in VERSION_LIST_FILES)
             {
                 var listLoaded = false;
-                for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+                var baseUrls = GetDownloadBaseUrlsSnapshot();
+                for (int i = 0; i < baseUrls.Length; i++)
                 {
                     try
                     {
-                        var url = $"{DOWNLOAD_BASE_URLS[i]}/{listFile}";
+                        var url = $"{baseUrls[i]}/{listFile}";
                         var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
                         if (string.IsNullOrWhiteSpace(content))
                         {
@@ -175,11 +263,12 @@ namespace ImageColorChanger.Services
             }
 
             // latest 兜底
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            var latestBaseUrls = GetDownloadBaseUrlsSnapshot();
+            for (int i = 0; i < latestBaseUrls.Length; i++)
             {
                 try
                 {
-                    var latest = await TryGetStringWithTimeoutAsync($"{DOWNLOAD_BASE_URLS[i]}/latest.txt", RollbackRequestTimeoutSeconds);
+                    var latest = await TryGetStringWithTimeoutAsync($"{latestBaseUrls[i]}/latest.txt", RollbackRequestTimeoutSeconds);
                     var normalized = NormalizeVersion(latest);
                     if (!string.IsNullOrEmpty(normalized))
                     {
@@ -240,14 +329,14 @@ namespace ImageColorChanger.Services
                 return null;
             }
 
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            foreach (var baseUrl in GetOrderedDownloadBaseUrlsSnapshot())
             {
-                var baseUrl = DOWNLOAD_BASE_URLS[i];
                 foreach (var url in BuildReadmeUrls(baseUrl, normalized))
                 {
                     var content = await TryGetStringWithTimeoutAsync(url, RollbackRequestTimeoutSeconds);
                     if (!string.IsNullOrWhiteSpace(content))
                     {
+                        EndpointSelector.MarkSuccess(baseUrl);
                         return content;
                     }
                 }
@@ -316,73 +405,191 @@ namespace ImageColorChanger.Services
         /// </summary>
         public static async Task<VersionInfo?> CheckForUpdatesAsync()
         {
-            // 尝试所有下载地址（境外服务器，采用渐进式超时策略）
-            Exception? lastException = null;
+            LastCheckFailedToReachAnyEndpoint = false;
 
-            // 每个地址的超时时间（秒）- 考虑境外网络延迟
-            var timeouts = new[] { 30, 20, 20 };
-
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            // 候选地址按“最近可用优先、失败地址靠后”排序，避免每次都从卡住的地址开始。
+            var candidates = GetOrderedDownloadBaseUrlsSnapshot();
+            if (candidates.Count == 0)
             {
-                var baseUrl = DOWNLOAD_BASE_URLS[i];
-                var timeout = i < timeouts.Length ? timeouts[i] : 20;
+                LastCheckFailedToReachAnyEndpoint = true;
+                return null;
+            }
+
+            // 整个检查（含健康探测）共用一个硬上限，保证手动“检查升级”一定能在有限时间内给出反馈。
+            var overallDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(_updateCheckOverallTimeoutSeconds);
+
+            // 先并行探测各地址的 latest.txt，抢到第一个可用地址；这样不会串行卡死在单个地址上。
+            var healthyBaseUrl = await ResolveHealthyBaseUrlAsync(candidates, CancellationToken.None);
+
+            var attemptOrder = new List<string>();
+            if (!string.IsNullOrEmpty(healthyBaseUrl))
+            {
+                attemptOrder.Add(healthyBaseUrl);
+            }
+
+            attemptOrder.AddRange(candidates.Where(url =>
+                !string.Equals(url, healthyBaseUrl, StringComparison.OrdinalIgnoreCase)));
+
+            // 每个地址的超时时间（秒）
+            var timeouts = new[] { 12, 8, 8 };
+            var reachedAnyEndpoint = false;
+
+            for (int i = 0; i < attemptOrder.Count; i++)
+            {
+                if (DateTime.UtcNow >= overallDeadline)
+                {
+                    break;
+                }
+
+                var baseUrl = attemptOrder[i];
 
                 // 每个地址重试2次
                 for (int retry = 0; retry < 2; retry++)
                 {
+                    var remaining = overallDeadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        break;
+                    }
+
+                    // 单地址超时同时受整体预算约束，避免重试把总耗时放大到不可控。
+                    var plannedTimeout = i < timeouts.Length ? timeouts[i] : 8;
+                    var timeout = Math.Max(1, Math.Min(plannedTimeout, (int)Math.Ceiling(remaining.TotalSeconds)));
+                    var timeoutBudget = TimeSpan.FromSeconds(timeout);
+                    var attemptStartedAt = DateTime.UtcNow;
+
                     try
                     {
                         _currentBaseUrl = baseUrl;
                         // 为每个地址设置独立超时
-                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
+                        using (var cts = new CancellationTokenSource(timeoutBudget))
                         {
-                            var result = await CheckForUpdatesInternalAsync(cts.Token);
+                            var (result, reachable) = await CheckForUpdatesInternalAsync(cts.Token);
+
+                            if (!reachable)
+                            {
+                                // 该地址没有任何有效响应（超时/连不上/没有 latest.txt）：进入冷却，换下一个地址。
+                                EndpointSelector.MarkFailure(baseUrl);
+
+                                // 已经等满本次请求的实际预算说明是“卡住”而不是“快速失败”，重试同一个地址没有意义。
+                                var effectiveBudget = TimeSpan.FromSeconds(Math.Min(timeout, MetadataRequestTimeoutSeconds));
+                                var stalled = DateTime.UtcNow - attemptStartedAt >= effectiveBudget - TimeSpan.FromSeconds(1);
+                                if (retry == 1 || stalled)
+                                    break;
+
+                                await Task.Delay(500);
+                                continue;
+                            }
 
                             // 成功获取到结果（无论是有新版本还是已是最新版本）
+                            EndpointSelector.MarkSuccess(baseUrl);
+                            reachedAnyEndpoint = true;
                             return result;
                         }
                     }
                     catch (OperationCanceledException)
                     {
-                        lastException = new TimeoutException($"请求超时({timeout}秒)");
+                        EndpointSelector.MarkFailure(baseUrl);
 
                         // 如果是最后一次重试，跳出重试循环，尝试下一个地址
                         if (retry == 1)
                             break;
 
-                        // 否则等待2秒后重试当前地址
-                        await Task.Delay(2000);
+                        // 否则短暂等待后重试当前地址
+                        await Task.Delay(500);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        lastException = ex;
+                        EndpointSelector.MarkFailure(baseUrl);
                         // 网络错误，跳出重试循环，尝试下一个地址
                         break;
                     }
                 }
             }
 
-            // 所有地址都失败
+            // 所有地址都失败：调用方可据此区分“已是最新版本”和“网络/服务器不可达”。
+            LastCheckFailedToReachAnyEndpoint = !reachedAnyEndpoint;
             return null;
         }
 
         /// <summary>
-        /// 检查是否有新版本（内部实现）
+        /// 并行探测候选地址的 latest.txt，返回第一个可用地址；全部失败返回 null。
+        /// 单地址时直接返回该地址，避免额外探测开销。
         /// </summary>
-        private static async Task<VersionInfo?> CheckForUpdatesInternalAsync(CancellationToken cancellationToken = default)
+        private static async Task<string?> ResolveHealthyBaseUrlAsync(IReadOnlyList<string> candidates, CancellationToken cancellationToken)
         {
-            // 下载 latest.txt 获取最新版本号
-            var latestVersion = await TryGetStringWithTimeoutAsync(LATEST_VERSION_URL, 8, cancellationToken);
-            if (string.IsNullOrWhiteSpace(latestVersion))
+            if (candidates.Count == 0)
             {
                 return null;
+            }
+
+            if (candidates.Count == 1)
+            {
+                return candidates[0];
+            }
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linked.CancelAfter(TimeSpan.FromSeconds(_healthProbeOverallTimeoutSeconds));
+            var token = linked.Token;
+
+            var probes = candidates
+                .Select(async baseUrl =>
+                {
+                    var latest = await TryGetStringWithTimeoutAsync($"{baseUrl}/latest.txt", _healthProbeTimeoutSeconds, token);
+                    return (baseUrl, version: NormalizeVersion(latest ?? string.Empty));
+                })
+                .ToList();
+
+            while (probes.Count > 0)
+            {
+                var finished = await Task.WhenAny(probes);
+                probes.Remove(finished);
+
+                (string baseUrl, string? version) probe;
+                try
+                {
+                    probe = await finished;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(probe.version))
+                {
+                    EndpointSelector.MarkSuccess(probe.baseUrl);
+                    return probe.baseUrl;
+                }
+
+                if (!token.IsCancellationRequested)
+                {
+                    EndpointSelector.MarkFailure(probe.baseUrl);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 检查是否有新版本（内部实现）。
+        /// 返回 (版本信息, 是否读到了该地址的 latest.txt)：
+        /// 第二个值用于区分“确实已是最新版本”和“该地址根本连不上/没有 latest.txt”，
+        /// 否则超时会被当作“已是最新版本”，UI 就会给出错误反馈。
+        /// </summary>
+        private static async Task<(VersionInfo? versionInfo, bool reachable)> CheckForUpdatesInternalAsync(CancellationToken cancellationToken = default)
+        {
+            // 下载 latest.txt 获取最新版本号
+            var latestVersion = await TryGetStringWithTimeoutAsync(LATEST_VERSION_URL, MetadataRequestTimeoutSeconds, cancellationToken);
+            if (string.IsNullOrWhiteSpace(latestVersion))
+            {
+                return (null, false);
             }
             latestVersion = NormalizeVersion(latestVersion);
 
             // 验证版本号格式（支持3位或4位版本号，如 5.3.5 或 5.8.6.3）
             if (string.IsNullOrEmpty(latestVersion))
             {
-                return null;
+                return (null, false);
             }
 
             // 比较版本号
@@ -391,7 +598,7 @@ namespace ImageColorChanger.Services
             if (CompareVersions(latestVersion, currentVersion) > 0)
             {
                 // 获取更新文件列表
-                var files = await GetUpdateFilesListAsync(latestVersion);
+                var files = await GetUpdateFilesListAsync(latestVersion, cancellationToken);
                 
                 var versionInfo = new VersionInfo
                 {
@@ -403,12 +610,12 @@ namespace ImageColorChanger.Services
                 // 保存版本信息供UI使用
                 _lastCheckedVersionInfo = versionInfo;
                 
-                return versionInfo;
+                return (versionInfo, true);
             }
             
             // 没有新版本，清除缓存
             _lastCheckedVersionInfo = null;
-            return null;
+            return (null, true);
         }
 
         /// <summary>
@@ -482,17 +689,27 @@ namespace ImageColorChanger.Services
         /// <summary>
         /// 获取更新文件列表
         /// </summary>
-        private static async Task<List<UpdateFileInfo>> GetUpdateFilesListAsync(string version)
+        private static async Task<List<UpdateFileInfo>> GetUpdateFilesListAsync(string version, CancellationToken cancellationToken = default)
         {
             var files = new List<UpdateFileInfo>();
             
             try
             {
-                // 优先尝试从服务器获取文件列表
+                // 优先尝试从服务器获取文件列表（同样按“最近可用地址优先”排序）
                 string? filesList = null;
-                foreach (var filesListUrl in BuildFilesListUrls(_currentBaseUrl, version))
+                var baseUrls = GetOrderedDownloadBaseUrlsSnapshot();
+                foreach (var baseUrl in baseUrls)
                 {
-                    filesList = await TryGetStringWithTimeoutAsync(filesListUrl, 8);
+                    foreach (var filesListUrl in BuildFilesListUrls(baseUrl, version))
+                    {
+                        filesList = await TryGetStringWithTimeoutAsync(filesListUrl, MetadataRequestTimeoutSeconds, cancellationToken);
+                        if (!string.IsNullOrWhiteSpace(filesList))
+                        {
+                            _currentBaseUrl = baseUrl;
+                            EndpointSelector.MarkSuccess(baseUrl);
+                            break;
+                        }
+                    }
                     if (!string.IsNullOrWhiteSpace(filesList))
                     {
                         break;
@@ -524,12 +741,12 @@ namespace ImageColorChanger.Services
             catch (HttpRequestException)
             {
                 // HTTP请求异常（网络错误、SSL错误等），尝试自动发现文件
-                files = await DiscoverFilesAsync(version);
+                files = await DiscoverFilesAsync(version, cancellationToken);
             }
             catch (Exception)
             {
                 // 其他异常（超时、格式错误等），尝试自动发现文件
-                files = await DiscoverFilesAsync(version);
+                files = await DiscoverFilesAsync(version, cancellationToken);
             }
             
             return files;
@@ -538,7 +755,7 @@ namespace ImageColorChanger.Services
         /// <summary>
         /// 自动发现版本文件夹中的文件（按优先级尝试地址，找到文件后立即返回）
         /// </summary>
-        private static async Task<List<UpdateFileInfo>> DiscoverFilesAsync(string version)
+        private static async Task<List<UpdateFileInfo>> DiscoverFilesAsync(string version, CancellationToken cancellationToken = default)
         {
             var files = new List<UpdateFileInfo>();
             
@@ -547,10 +764,17 @@ namespace ImageColorChanger.Services
                 .Where(f => !f.Contains("*"))
                 .ToList();
             
-            // 按优先级尝试下载地址，一旦找到文件就立即返回
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            // 按健康优先顺序尝试下载地址，一旦找到文件就立即返回
+            var baseUrls = GetOrderedDownloadBaseUrlsSnapshot();
+            for (int i = 0; i < baseUrls.Count; i++)
             {
-                var baseUrl = DOWNLOAD_BASE_URLS[i];
+                // 升级检查的整体预算用尽时不再继续探测，避免把反馈时间拖长。
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var baseUrl = baseUrls[i];
                 var basePaths = BuildVersionBasePaths(baseUrl, version);
                 var addressHasError = false;
                 
@@ -562,10 +786,11 @@ namespace ImageColorChanger.Services
                         var fileUrl = basePath + fileName;
                         try
                         {
-                            // 使用HEAD请求检查文件是否存在（设置超时）
-                            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                            // 使用HEAD请求检查文件是否存在（设置超时，并受升级检查整体预算约束）
+                            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                             using (var request = new HttpRequestMessage(HttpMethod.Head, fileUrl))
                             {
+                                cts.CancelAfter(TimeSpan.FromSeconds(10));
                                 var response = await _httpClient.SendAsync(request, cts.Token);
                                 if (response.IsSuccessStatusCode)
                                 {
@@ -605,6 +830,7 @@ namespace ImageColorChanger.Services
                 // 如果这个地址有网络错误，记录并继续尝试下一个地址
                 if (addressHasError && files.Count == 0)
                 {
+                    EndpointSelector.MarkFailure(baseUrl);
                     continue;
                 }
                 
@@ -612,6 +838,7 @@ namespace ImageColorChanger.Services
                 // 下载时会自动轮询多个地址
                 if (files.Count > 0)
                 {
+                    EndpointSelector.MarkSuccess(baseUrl);
                     return files;
                 }
             }
@@ -634,12 +861,11 @@ namespace ImageColorChanger.Services
         /// <returns>返回 (是否成功, 下载的字节数)</returns>
         private static async Task<(bool success, long bytesDownloaded)> DownloadFileWithMultiSourceAsync(string fileName, string version, string filePath, long totalBytes, long currentDownloadedBytes, IProgress<(long, long)>? progress)
         {
-            // 尝试所有下载地址
-            Exception? lastException = null;
-            
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            // 尝试所有下载地址（最近可用地址优先，失败地址靠后）
+            var baseUrls = GetOrderedDownloadBaseUrlsSnapshot();
+            for (int i = 0; i < baseUrls.Count; i++)
             {
-                var baseUrl = DOWNLOAD_BASE_URLS[i];
+                var baseUrl = baseUrls[i];
                 var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, version, fileName);
 
                 foreach (var downloadUrl in downloadCandidates)
@@ -673,12 +899,12 @@ namespace ImageColorChanger.Services
                                         progress?.Report((newDownloadedBytes, totalBytes));
                                     }
                                 }
+                                EndpointSelector.MarkSuccess(baseUrl);
                                 return (true, fileDownloadedBytes); // 下载成功，返回下载的字节数
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
-                            lastException = ex;
                         
                             // 如果是最后一次重试，跳出重试循环，尝试下一个地址
                             if (retry == 1)
@@ -689,6 +915,9 @@ namespace ImageColorChanger.Services
                         }
                     }
                 }
+
+                // 该地址的所有候选 URL 都失败，进入冷却期，下次优先使用其它地址。
+                EndpointSelector.MarkFailure(baseUrl);
             }
             
             // 所有地址都失败
@@ -723,9 +952,10 @@ namespace ImageColorChanger.Services
                 {
                     // 尝试从多个地址获取文件大小（使用HEAD请求，只获取响应头）
                     var sizeResolved = false;
-                    for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+                    var baseUrls = GetDownloadBaseUrlsSnapshot();
+                    for (int i = 0; i < baseUrls.Length; i++)
                     {
-                        var baseUrl = DOWNLOAD_BASE_URLS[i];
+                        var baseUrl = baseUrls[i];
                         var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, versionInfo.Version, file.FileName);
 
                         foreach (var downloadUrl in downloadCandidates)
@@ -1173,9 +1403,10 @@ exit
 
         private static async Task<bool> HasFilesListAsync(string version)
         {
-            for (int i = 0; i < DOWNLOAD_BASE_URLS.Length; i++)
+            var baseUrls = GetDownloadBaseUrlsSnapshot();
+            for (int i = 0; i < baseUrls.Length; i++)
             {
-                foreach (var url in BuildFilesListUrls(DOWNLOAD_BASE_URLS[i], version))
+                foreach (var url in BuildFilesListUrls(baseUrls[i], version))
                 {
                     try
                     {

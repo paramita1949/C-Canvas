@@ -94,6 +94,7 @@ namespace ImageColorChanger.Services
                         {
                             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                             LastPolicy = ParseVersionPolicyDecision(responseJson);
+                            UpdateService.SetDownloadBaseUrls(LastPolicy.UpdateBaseUrls);
                             return LastPolicy;
                         }
                     }
@@ -144,7 +145,8 @@ namespace ImageColorChanger.Services
                     RecommendedBelow = GetFirstString(policy, "recommended_below", "min_supported_version"),
                     RequiredBelow = GetFirstString(policy, "required_below", "force_upgrade_below"),
                     Title = GetFirstString(policy, "title", "notice_title"),
-                    Message = GetFirstString(policy, "message", "notice_content")
+                    Message = GetFirstString(policy, "message", "notice_content"),
+                    UpdateBaseUrls = GetStringArray(policy, "update_base_urls", "download_base_urls")
                 };
             }
             catch
@@ -187,6 +189,44 @@ namespace ImageColorChanger.Services
             }
 
             return string.Empty;
+        }
+
+        private static List<string> GetStringArray(JsonElement element, params string[] names)
+        {
+            var values = new List<string>();
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                return values;
+            }
+
+            foreach (var name in names)
+            {
+                if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var item in value.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var text = item.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(text) && !values.Contains(text, StringComparer.OrdinalIgnoreCase))
+                    {
+                        values.Add(text);
+                    }
+                }
+
+                if (values.Count > 0)
+                {
+                    break;
+                }
+            }
+
+            return values;
         }
 
         private static string SafeGet(Func<string> provider)

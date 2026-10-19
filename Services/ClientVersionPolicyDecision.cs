@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ImageColorChanger.Services
 {
@@ -18,6 +19,7 @@ namespace ImageColorChanger.Services
         public string RequiredBelow { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
+        public List<string> UpdateBaseUrls { get; set; } = new();
 
         public bool RequiresUpgrade =>
             string.Equals(Action, "required", StringComparison.OrdinalIgnoreCase) ||

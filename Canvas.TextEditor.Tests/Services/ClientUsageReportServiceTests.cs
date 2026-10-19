@@ -70,6 +70,41 @@ namespace Canvas.TextEditor.Tests.Services
         }
 
         [Fact]
+        public async Task ReportStartupAsync_ParsesDynamicUpdateBaseUrls()
+        {
+            var handler = new CaptureHandler(_ => JsonResponse("""
+                {
+                  "success": true,
+                  "policy": {
+                    "action": "none",
+                    "update_base_urls": [
+                      "https://download.example.test/canvas",
+                      "http://10.0.0.5:8080/releases/"
+                    ]
+                  }
+                }
+                """));
+            var reporter = new ClientUsageReportService(
+                new HttpClient(handler),
+                () => "hwid-sha256",
+                () => "6.0.8.2",
+                () => "Windows 11",
+                () => "Church-PC",
+                new[] { "https://example.test/api/client/version/report" });
+
+            var decision = await reporter.ReportStartupAsync();
+
+            Assert.Equal(
+                new[]
+                {
+                    "https://download.example.test/canvas",
+                    "http://10.0.0.5:8080/releases/"
+                },
+                decision.UpdateBaseUrls);
+            Assert.Equal(decision.UpdateBaseUrls, reporter.LastPolicy.UpdateBaseUrls);
+        }
+
+        [Fact]
         public async Task ReportStartupAsync_SwallowsNetworkFailures()
         {
             var handler = new CaptureHandler(_ => throw new HttpRequestException("offline"));
