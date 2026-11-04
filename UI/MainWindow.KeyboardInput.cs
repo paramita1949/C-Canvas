@@ -14,6 +14,13 @@ namespace ImageColorChanger.UI
         /// </summary>
         private async void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // 窗口的隧道路由早于编辑框；IME 候选键不能先被全局导航/快捷键吞掉。
+            if (e.Key == Key.ImeProcessed || IsLyricsImeCompositionActive()) return;
+            if (TryHandleLyricsImageShortcut(e))
+            {
+                e.Handled = true;
+                return;
+            }
 #if DEBUG
             // System.Diagnostics.Debug.WriteLine($" [KeyDown] Key={e.Key}, 投影={_projectionManager?.IsProjectionActive ?? false}");
 #endif

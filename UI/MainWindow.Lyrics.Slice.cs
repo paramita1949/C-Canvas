@@ -142,23 +142,6 @@ namespace ImageColorChanger.UI
             }
             else
             {
-                if (LyricsTextBox != null)
-                {
-                    // 退出切片时恢复纯歌词（不带编号与视觉空行）
-                    string plain = BuildPlainLyricsTextFromSliceItems();
-                    if (string.IsNullOrWhiteSpace(plain))
-                    {
-                        var lines = (LyricsTextBox.Text ?? string.Empty)
-                            .Replace("\r\n", "\n")
-                            .Replace('\r', '\n')
-                            .Split('\n')
-                            .Where(line => !string.IsNullOrWhiteSpace(line));
-                        plain = string.Join(Environment.NewLine, lines);
-                    }
-
-                    LyricsTextBox.Text = plain;
-                }
-
                 _lyricsSliceItems.Clear();
                 _lyricsCurrentSliceIndex = 0;
                 if (LyricsSliceList != null)
@@ -205,10 +188,8 @@ namespace ImageColorChanger.UI
             }
 
             string editorText = LyricsTextBox?.Text ?? string.Empty;
-            string raw = (_lyricsSliceLinesPerPage > 0 && _lyricsSingleRawTextInitialized)
-                ? (_lyricsSingleRawText ?? string.Empty)
-                : editorText;
-            var rows = LyricsSlicePlanner.NormalizeContentLines(raw);
+            string raw = editorText;
+            var rows = LyricsSlicePlanner.NormalizeContentLines(raw, stripDisplayPrefixes: false);
             int desiredIndex = preserveIndex ? _lyricsCurrentSliceIndex : 0;
             _lyricsSliceItems.Clear();
 
@@ -257,24 +238,9 @@ namespace ImageColorChanger.UI
             }
 
             UpdateLyricsSliceStateText();
-            if (applyMainScreenSpacing && _lyricsSliceLinesPerPage > 0)
-            {
-                // 仅 1/2/3/4 规则下应用主界面切片可视化。
-                ApplySliceSpacingToMainScreenText();
-            }
-
-            if (_lyricsSliceItems.Count > 0)
-            {
-                try
-                {
-                    _isUpdatingSliceFromCaret = true;
-                    MoveLyricsEditorCaretToSliceStart(_lyricsCurrentSliceIndex);
-                }
-                finally
-                {
-                    _isUpdatingSliceFromCaret = false;
-                }
-            }
+            // 参数保留给既有调用方。编号在切片列表显示，派生刷新绝不改写输入原文或 caret。
+            _ = applyMainScreenSpacing;
+            SyncSliceSelectionFromEditorCaret();
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
             {
@@ -320,7 +286,7 @@ namespace ImageColorChanger.UI
                     continue;
                 }
 
-                string normalized = LyricsSlicePlanner.StripDisplayPrefix(line);
+                string normalized = line.Trim();
                 if (normalized.Length == 0)
                 {
                     // 非空行但清洗后为空时，忽略，不作为分割点。
@@ -382,37 +348,16 @@ namespace ImageColorChanger.UI
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single && _lyricsSliceItems.Count > 0)
             {
                 int index = Math.Clamp(_lyricsCurrentSliceIndex, 0, _lyricsSliceItems.Count - 1);
-                return StripSliceVisualNumbering(_lyricsSliceItems[index].Text ?? "");
+                return _lyricsSliceItems[index].Text ?? "";
             }
 
             string text = LyricsTextBox?.Text ?? "";
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
             {
-                return StripSliceVisualNumbering(text);
+                return text;
             }
 
             return text;
-        }
-
-        private static string StripSliceVisualNumbering(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return string.Empty;
-            }
-
-            var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-            var normalized = lines
-                .Select(line => line?.Trim() ?? string.Empty)
-                .Where(line => !string.IsNullOrWhiteSpace(line))
-                .Select(RemoveSliceNumberPrefix);
-
-            return string.Join(Environment.NewLine, normalized);
-        }
-
-        private static string RemoveSliceNumberPrefix(string line)
-        {
-            return LyricsSlicePlanner.StripDisplayPrefix(line);
         }
 
         private void BtnLyricsSliceRule1_Click(object sender, RoutedEventArgs e) => SetLyricsSliceRule(1, fromCustom: false);
@@ -432,28 +377,6 @@ namespace ImageColorChanger.UI
             _lyricsSliceLinesPerPage = 0;
             _lyricsCurrentSliceIndex = 0;
             ApplySingleSliceProjectionFontSizeByCurrentRule();
-            if (!_lyricsSingleRawTextInitialized)
-            {
-                _lyricsSingleRawText = BuildPlainLyricsTextFromSliceItems();
-                _lyricsSingleRawTextInitialized = true;
-            }
-
-            if (LyricsTextBox != null)
-            {
-                string restore = _lyricsSingleRawText ?? string.Empty;
-                if (!string.Equals(LyricsTextBox.Text ?? string.Empty, restore, StringComparison.Ordinal))
-                {
-                    try
-                    {
-                        _isApplyingSliceVisualSpacing = true;
-                        LyricsTextBox.Text = restore;
-                    }
-                    finally
-                    {
-                        _isApplyingSliceVisualSpacing = false;
-                    }
-                }
-            }
             GenerateLyricsSlicesFromSingleText(preserveIndex: false, applyMainScreenSpacing: false);
             UpdateLyricsSliceUiState();
             ShowStatus("已切回默认单画面（空白行为切片点）");
@@ -525,7 +448,8 @@ namespace ImageColorChanger.UI
 
         private void LyricsTextBox_SelectionChanged(object sender, RoutedEventArgs e)
         {
-            if (sender != LyricsTextBox || _isUpdatingSliceFromCaret || _isApplyingSliceVisualSpacing)
+            if (sender != LyricsTextBox || _isLoadingLyricsProject || IsLyricsImeCompositionActive()
+                || _isUpdatingSliceFromCaret || _isApplyingSliceVisualSpacing)
             {
                 return;
             }
@@ -551,7 +475,8 @@ namespace ImageColorChanger.UI
 
         private void SyncSliceSelectionFromEditorCaret()
         {
-            if (LyricsTextBox == null || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || _lyricsSliceItems.Count == 0)
+            if (_isLoadingLyricsProject || IsLyricsImeCompositionActive()
+                || LyricsTextBox == null || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || _lyricsSliceItems.Count == 0)
             {
                 return;
             }
@@ -750,37 +675,6 @@ namespace ImageColorChanger.UI
             target = Math.Clamp(target, 0, max);
             innerViewer.ScrollToVerticalOffset(target);
             return true;
-        }
-
-        private void ApplySliceSpacingToMainScreenText()
-        {
-            if (LyricsTextBox == null || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single)
-            {
-                return;
-            }
-
-            // 主屏显示编号，仅用于定位；投影与持久化在其他流程中会清洗掉编号前缀。
-            string spaced = string.Join(
-                Environment.NewLine + Environment.NewLine,
-                _lyricsSliceItems.Select((x, i) =>
-                {
-                    string body = x.Text ?? string.Empty;
-                    return $"{i + 1}. {body}";
-                }));
-            if (string.Equals(LyricsTextBox.Text ?? string.Empty, spaced, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            try
-            {
-                _isApplyingSliceVisualSpacing = true;
-                LyricsTextBox.Text = spaced;
-            }
-            finally
-            {
-                _isApplyingSliceVisualSpacing = false;
-            }
         }
 
         internal string BuildPlainLyricsTextFromSliceItems()

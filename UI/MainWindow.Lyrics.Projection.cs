@@ -36,6 +36,8 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (IsLyricsImeCompositionActive()) return;
+
             if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
             {
                 return;

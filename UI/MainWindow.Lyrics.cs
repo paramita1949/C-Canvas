@@ -76,9 +76,7 @@ namespace ImageColorChanger.UI
         private readonly List<LyricsSplitContentData> _lyricsSplitPages = new();
         private int _lyricsCurrentPageIndex = 0;
         private bool _isLoadingLyricsProject = false; // 防止加载过程触发即时保存
-        private bool _isNormalizingLyricsWhitespaceLine = false; // 防止清理空白行时触发递归 TextChanged
         private bool _isApplyingSliceVisualSpacing = false; // 防止切片视觉空行应用时递归触发
-        private bool _lyricsWhitespaceNormalizeQueued = false; // 防止空白行规范化重复排队
         private bool _lyricsSliceRegenerateQueued = false; // 防止切片重算重复排队
         private bool _lyricsProjectionRenderQueued = false; // 防止文本输入时重复触发投影渲染
         private string _lyricsSingleRawText = string.Empty; // 单画面原文快照
@@ -1341,6 +1339,10 @@ namespace ImageColorChanger.UI
             _lyricsTextWatermarkFontSize = ResolveLyricsTextWatermarkFontSize();
             _lyricsTextWatermarkColorHex = ResolveLyricsTextWatermarkColorHex();
 
+            // 先确认加载成功，失败时不能进入无法保存、也无法用 F6 退出的空白态。
+            LoadOrCreateLyricsProject();
+            if (_currentLyricsProject == null) return;
+
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             VideoContainer.Visibility = Visibility.Collapsed;
@@ -1349,14 +1351,15 @@ namespace ImageColorChanger.UI
             // 显示歌词编辑面板
             LyricsEditorPanel.Visibility = Visibility.Visible;
 
-            // 加载或创建歌词项目
-            LoadOrCreateLyricsProject();
             UpdateLyricsSliceUiState();
 
             // 聚焦到文本框
+            int epoch = _lyricsInputEpoch;
             Dispatcher.InvokeAsync(() =>
             {
-                GetActiveLyricsEditor().Focus();
+                // 快速退出/重新进入时，旧入场任务不能重新抢占图片界面的焦点。
+                if (epoch == _lyricsInputEpoch && _isLyricsMode && IsActive && LyricsEditorPanel?.Visibility == Visibility.Visible)
+                    GetActiveLyricsEditor()?.Focus();
             }, System.Windows.Threading.DispatcherPriority.Loaded);
 
             // 隐藏合成播放按钮面板（歌词模式不需要）
@@ -1411,6 +1414,11 @@ namespace ImageColorChanger.UI
             // 保存当前内容
             SaveLyricsProject("ExitLyricsMode");
 
+            CompleteLyricsModeExit();
+        }
+
+        private void CompleteLyricsModeExit()
+        {
             // 隐藏歌词编辑面板
             LyricsEditorPanel.Visibility = Visibility.Collapsed;
 
@@ -1969,16 +1977,11 @@ namespace ImageColorChanger.UI
         private void LyricsTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isLoadingLyricsProject) return;
-            if (sender is WpfTextBox textBox && TryNormalizeWhitespaceOnlyLines(textBox))
-            {
-                // 文本被规范化后会再次触发 TextChanged，后续流程在下一次事件中执行
-                return;
-            }
+            if (IsLyricsImeCompositionActive()) return;
 
             if (sender == LyricsTextBox
                 && _lyricsSplitMode == (int)ViewSplitMode.Single
-                && !_isApplyingSliceVisualSpacing
-                && _lyricsSliceLinesPerPage <= 0)
+                && !_isApplyingSliceVisualSpacing)
             {
                 _lyricsSingleRawText = LyricsTextBox?.Text ?? string.Empty;
                 _lyricsSingleRawTextInitialized = true;
@@ -2017,7 +2020,7 @@ namespace ImageColorChanger.UI
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 _lyricsProjectionRenderQueued = false;
-                if (!_isLyricsMode || _projectionManager == null || !_projectionManager.IsProjecting)
+                if (IsLyricsImeCompositionActive() || !_isLyricsMode || _projectionManager == null || !_projectionManager.IsProjecting)
                 {
                     return;
                 }
@@ -2033,83 +2036,6 @@ namespace ImageColorChanger.UI
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
-        private bool TryNormalizeWhitespaceOnlyLines(WpfTextBox textBox)
-        {
-            if (textBox == null || _isNormalizingLyricsWhitespaceLine)
-            {
-                return false;
-            }
-
-            if (textBox == LyricsTextBox && _lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
-            {
-                // 切片模式下主屏允许视觉空行，不在这里自动清理
-                return false;
-            }
-
-            string original = textBox.Text ?? string.Empty;
-            if (original.Length == 0)
-            {
-                return false;
-            }
-
-            var lines = original.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-            bool hasWhitespaceOnlyLine = lines.Any(line =>
-                line.Length > 0 &&
-                line.All(char.IsWhiteSpace));
-            if (!hasWhitespaceOnlyLine)
-            {
-                return false;
-            }
-
-            // 仅清理“由空格/Tab构成”的行，保留用户按回车产生的真正空行，避免光标被拉回上一行。
-            string normalized = string.Join(
-                Environment.NewLine,
-                lines.Where(line => !(line.Length > 0 && line.All(char.IsWhiteSpace))));
-            if (normalized == original)
-            {
-                return false;
-            }
-
-            if (_lyricsWhitespaceNormalizeQueued)
-            {
-                return true;
-            }
-
-            int caret = textBox.CaretIndex;
-            _lyricsWhitespaceNormalizeQueued = true;
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                _lyricsWhitespaceNormalizeQueued = false;
-                if (textBox == null)
-                {
-                    return;
-                }
-
-                try
-                {
-                    string current = textBox.Text ?? string.Empty;
-                    if (!string.Equals(current, original, StringComparison.Ordinal))
-                    {
-                        return;
-                    }
-
-                    _isNormalizingLyricsWhitespaceLine = true;
-                    textBox.Text = normalized;
-                    textBox.CaretIndex = Math.Clamp(caret, 0, normalized.Length);
-                }
-                catch
-                {
-                    // 文本容器处于不稳定期时跳过本次规范化，避免影响主流程
-                }
-                finally
-                {
-                    _isNormalizingLyricsWhitespaceLine = false;
-                }
-            }), System.Windows.Threading.DispatcherPriority.Background);
-
-            return true;
-        }
-
         private void QueueLyricsSliceRegeneration()
         {
             if (_lyricsSliceRegenerateQueued)
@@ -2121,7 +2047,7 @@ namespace ImageColorChanger.UI
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 _lyricsSliceRegenerateQueued = false;
-                if (!_isLyricsMode || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || LyricsTextBox == null)
+                if (IsLyricsImeCompositionActive() || !_isLyricsMode || !_lyricsSliceModeEnabled || _lyricsSplitMode != (int)ViewSplitMode.Single || LyricsTextBox == null)
                 {
                     return;
                 }
@@ -2211,6 +2137,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
+            if (e.Key == Key.ImeProcessed || IsLyricsImeCompositionActive()) return;
             var key = ResolveEffectiveKey(e);
 
             if (Keyboard.Modifiers == ModifierKeys.Control && sender is WpfTextBox editor)
@@ -2235,14 +2162,14 @@ namespace ImageColorChanger.UI
 
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single && Keyboard.Modifiers == ModifierKeys.None)
             {
-                if (e.Key == Key.PageDown || e.Key == Key.Down)
+                if (e.Key == Key.PageDown)
                 {
                     GoToLyricsSlice(NormalizeSliceIndexForLoop(_lyricsCurrentSliceIndex + 1));
                     e.Handled = true;
                     return;
                 }
 
-                if (e.Key == Key.PageUp || e.Key == Key.Up)
+                if (e.Key == Key.PageUp)
                 {
                     GoToLyricsSlice(NormalizeSliceIndexForLoop(_lyricsCurrentSliceIndex - 1));
                     e.Handled = true;
@@ -2382,19 +2309,8 @@ namespace ImageColorChanger.UI
             editor.SelectionLength = 0;
             editor.CaretIndex = caret;
 
-            // 某些输入链路会在当前按键结束后重设选区，下一帧再收口一次。
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (editor == null)
-                {
-                    return;
-                }
+            // 不排队回写旧 caret：后续选区和 IME 组合位置由原生 TextBox 拥有。
 
-                int nextCaret = Math.Clamp(caret, 0, editor.Text?.Length ?? 0);
-                editor.SelectionStart = nextCaret;
-                editor.SelectionLength = 0;
-                editor.CaretIndex = nextCaret;
-            }), System.Windows.Threading.DispatcherPriority.Input);
         }
 
         private static bool TryGetLyricsClipboardText(out string text)
@@ -2448,10 +2364,12 @@ namespace ImageColorChanger.UI
 
         internal bool TryHandleLyricsNavigationHotKeys(Key key, ModifierKeys modifiers)
         {
-            if (!_isLyricsMode)
+            if (!_isLyricsMode || IsLyricsImeCompositionActive())
             {
                 return false;
             }
+            if ((key == Key.Down || key == Key.Up)
+                && Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase) return false;
 
             bool noModifier = modifiers == ModifierKeys.None;
             if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single && noModifier)
@@ -3223,6 +3141,8 @@ namespace ImageColorChanger.UI
         /// <summary>加载新入口前清空全部编辑区和持久化快照，避免上张图片的分屏/切片残留。</summary>
         private void ResetLyricsEditorForProjectLoad()
         {
+            _lyricsInputEpoch++;
+            _lyricsComposingEditors?.Clear();
             LyricsTextBox.Text = string.Empty;
             LyricsSplitTextBox1.Text = string.Empty;
             LyricsSplitTextBox2.Text = string.Empty;
@@ -3294,16 +3214,22 @@ namespace ImageColorChanger.UI
         /// </summary>
         internal void SaveLyricsProject(string reason = "Unknown", bool suppressUserError = false)
         {
+            TrySaveLyricsProject(reason, suppressUserError);
+        }
+
+        private bool TrySaveLyricsProject(string reason = "Unknown", bool suppressUserError = false)
+        {
+            if (IsLyricsImeCompositionActive()) return false;
             if (_currentLyricsProject == null)
             {
                 LogLyricsSaveDebug($"[Skip] reason={reason}, project=null");
-                return;
+                return false;
             }
 
             if (_isLoadingLyricsProject)
             {
                 LogLyricsSaveDebug($"[Skip] reason={reason}, loading=true, projectId={_currentLyricsProject.Id}");
-                return;
+                return false;
             }
 
             try
@@ -3399,6 +3325,8 @@ namespace ImageColorChanger.UI
                         LogLyricsSaveDebug($"[Repair] reason={reason}, projectId={_currentLyricsProject.Id}, mismatchDetected=true");
                     }
                 }
+                if (savedSnapshot == null || !string.Equals(savedSnapshot.Content, expectedContent, StringComparison.Ordinal))
+                    throw new InvalidOperationException("保存内容校验失败，歌词仍保留在编辑器中，请重试保存。");
                 int savedContentLen = (savedSnapshot?.Content ?? "").Length;
                 bool savedAsModePayload = (savedSnapshot?.Content ?? "").StartsWith(LyricsModeContentPrefix, StringComparison.Ordinal);
                 LogLyricsSaveDebug(
@@ -3407,6 +3335,7 @@ namespace ImageColorChanger.UI
 //#if DEBUG
 //                Debug.WriteLine($"[歌词] 保存成功: {_currentLyricsProject.Name}");
 //#endif
+                return true;
             }
             catch (Exception ex)
             {
@@ -3419,6 +3348,7 @@ namespace ImageColorChanger.UI
                 {
                     WpfMessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+                return false;
             }
         }
 
@@ -3430,36 +3360,16 @@ namespace ImageColorChanger.UI
 
         private string GetSingleLyricsContentForPersistence()
         {
+            // 所有切片规则都保持可编辑原文；即时保存不等待后台重算或读取旧快照。
             string text = LyricsTextBox?.Text ?? string.Empty;
-            if (!(_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single))
+            // 兼容入口加载保留的原文缓存，但它只能从编辑器更新，不能反向覆盖编辑器。
+            if (!IsLyricsImeCompositionActive()
+                && (!_lyricsSingleRawTextInitialized || !string.Equals(_lyricsSingleRawText, text, StringComparison.Ordinal)))
             {
-                return text;
+                _lyricsSingleRawText = text;
+                _lyricsSingleRawTextInitialized = true;
             }
-
-            // 固定 1/2/3/4 显示时，主编辑区是可视化文本，持久化应使用原文快照。
-            if (_lyricsSliceLinesPerPage > 0 && _lyricsSingleRawTextInitialized)
-            {
-                return _lyricsSingleRawText ?? string.Empty;
-            }
-
-            // 默认模式（空白行切片）直接保存编辑区原文，保留空白行。
-            if (_lyricsSliceLinesPerPage <= 0)
-            {
-                return text;
-            }
-
-            string plain = BuildPlainLyricsTextFromSliceItems();
-            if (!string.IsNullOrWhiteSpace(plain))
-            {
-                return plain;
-            }
-
-            var lines = text.Replace("\r\n", "\n").Replace('\r', '\n')
-                .Split('\n')
-                .Where(line => !string.IsNullOrWhiteSpace(line))
-                .Select(LyricsSlicePlanner.StripDisplayPrefix)
-                .Where(line => !string.IsNullOrWhiteSpace(line));
-            return string.Join(Environment.NewLine, lines);
+            return text;
         }
 
         private string GetLyricsDbPathSafe()

@@ -97,6 +97,13 @@ namespace ImageColorChanger.UI
             textBox.TextChanged += LyricsTextBox_TextChanged;
             textBox.SelectionChanged += LyricsTextBox_SelectionChanged;
             textBox.PreviewKeyDown += LyricsTextBox_PreviewKeyDown;
+            textBox.AddHandler(TextCompositionManager.PreviewTextInputStartEvent,
+                new TextCompositionEventHandler(LyricsEditor_CompositionStarted), true);
+            textBox.AddHandler(TextCompositionManager.PreviewTextInputUpdateEvent,
+                new TextCompositionEventHandler(LyricsEditor_CompositionStarted), true);
+            textBox.AddHandler(TextCompositionManager.PreviewTextInputEvent,
+                new TextCompositionEventHandler(LyricsEditor_CompositionCompleted), true);
+            textBox.LostKeyboardFocus += LyricsEditor_LostKeyboardFocus;
             textBox.PreviewMouseWheel += LyricsTextBox_PreviewMouseWheel;
             textBox.GotFocus += LyricsEditor_GotFocus;
             AttachLyricsEditorContextMenu(textBox);

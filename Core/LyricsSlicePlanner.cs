@@ -13,13 +13,13 @@ namespace ImageColorChanger.Core
             public string Text { get; init; } = string.Empty;
         }
 
-        public static IReadOnlyList<string> NormalizeContentLines(string rawText)
+        public static IReadOnlyList<string> NormalizeContentLines(string rawText, bool stripDisplayPrefixes = true)
         {
             return (rawText ?? string.Empty)
                 .Replace("\r\n", "\n")
                 .Replace('\r', '\n')
                 .Split('\n')
-                .Select(StripDisplayPrefix)
+                .Select(line => stripDisplayPrefixes ? StripDisplayPrefix(line) : line)
                 .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToList();
         }
