@@ -139,6 +139,7 @@ namespace ImageColorChanger.UI
                         return;
                     }
 
+                    SetLyricsEntryByImage(_currentImageId);
                     EnterLyricsMode();
                 }
             };

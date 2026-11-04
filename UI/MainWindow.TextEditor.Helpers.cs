@@ -52,6 +52,7 @@ namespace ImageColorChanger.UI
     {
         #region 辅助方法
 
+        private TextBoxPointerSelectionController _textBoxPointerSelection;
 
         /// <summary>
         /// 将文本框添加到画布
@@ -60,6 +61,21 @@ namespace ImageColorChanger.UI
         {
             _textBoxes.Add(textBox);
             EditorCanvas.Children.Add(textBox);
+
+            _textBoxPointerSelection ??= new TextBoxPointerSelectionController(EditorCanvas, target =>
+            {
+                SelectSingleTextBox(target);
+                UpdateToolbarFromSelection();
+                ShowTextBoxFloatingToolbar(target);
+            });
+            textBox.PointerSelectionMenuProvider = point => _textBoxPointerSelection.CreateSelectionMenu(
+                textBox.TranslatePoint(point, EditorCanvas));
+            textBox.PointerSelectionPreviewClear = _textBoxPointerSelection.ClearPreview;
+            textBox.RequestBringToFront += (s, e) =>
+            {
+                BringTextBoxToFront(textBox);
+                MarkContentAsModified();
+            };
 
             // 监听选中事件
             textBox.SelectionChanged += (s, isSelected) =>
@@ -77,7 +93,6 @@ namespace ImageColorChanger.UI
                     }
                     else
                     {
-                        BringTextBoxToFront(textBox);
                         SelectSingleTextBox(textBox);
                     }
 
@@ -177,7 +192,7 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 将当前选中的文本框提升到最上层，避免重叠文本框阻挡交互。
+        /// 独立的置顶命令；普通选择和悬停不改变持久层级。
         /// </summary>
         private void BringTextBoxToFront(DraggableTextBox target)
         {
@@ -262,6 +277,10 @@ namespace ImageColorChanger.UI
                 foreach (var tb in _textBoxes)
                 {
                     bool shouldSelect = tb == target;
+                    if (!shouldSelect && tb.IsInEditMode)
+                    {
+                        tb.ExitEditMode();
+                    }
                     if (tb.IsSelected != shouldSelect)
                     {
                         tb.SetSelected(shouldSelect);

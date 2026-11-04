@@ -93,6 +93,15 @@ namespace ImageColorChanger.UI
         private string _lyricsTextWatermarkColorHex = string.Empty;
         private string _lyricsThemeName = "黑色";
         private string _lyricsThemeBackgroundHex = "#000000";
+        private LyricsEntryKind _lyricsEntryKind = LyricsEntryKind.None;
+        private int _lyricsEntryId;
+
+        private enum LyricsEntryKind
+        {
+            None,
+            ImageBound,
+            LibrarySong
+        }
 
         // ============================================
         // 公共属性
@@ -105,7 +114,27 @@ namespace ImageColorChanger.UI
 
         internal void SetLyricsEntryBySong(int lyricsProjectId)
         {
-            _currentLyricsProjectId = lyricsProjectId;
+            SwitchLyricsEntry(LyricsEntryKind.LibrarySong, lyricsProjectId);
+        }
+
+        internal void SetLyricsEntryByImage(int imageId)
+        {
+            SwitchLyricsEntry(LyricsEntryKind.ImageBound, imageId);
+        }
+
+        private void SwitchLyricsEntry(LyricsEntryKind kind, int id)
+        {
+            // 旧项目必须使用旧入口保存，不能先改图片ID再把旧内容写入新图。
+            _lyricsTypingSaveTimer?.Stop();
+            if (_isLyricsMode && _currentLyricsProject != null)
+            {
+                SaveLyricsProject("EntrySwitch");
+            }
+
+            _lyricsEntryKind = kind;
+            _lyricsEntryId = id;
+            _currentLyricsProjectId = kind == LyricsEntryKind.LibrarySong ? id : 0;
+            _currentLyricsProject = null;
         }
 
         public sealed class LyricsSplitContentData
@@ -1139,7 +1168,7 @@ namespace ImageColorChanger.UI
 
         private void SetLyricsSplitMode(ViewSplitMode mode, bool keepTextBridge = false)
         {
-            if (_lyricsSplitMode != (int)ViewSplitMode.Single)
+            if (!_isLoadingLyricsProject && _lyricsSplitMode != (int)ViewSplitMode.Single)
             {
                 SaveCurrentSplitPageFromUi();
             }
@@ -1939,6 +1968,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LyricsTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (_isLoadingLyricsProject) return;
             if (sender is WpfTextBox textBox && TryNormalizeWhitespaceOnlyLines(textBox))
             {
                 // 文本被规范化后会再次触发 TextChanged，后续流程在下一次事件中执行
@@ -2896,23 +2926,39 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadOrCreateLyricsProject()
         {
-                _isLoadingLyricsProject = true;
+            _isLoadingLyricsProject = true;
             try
             {
+                _currentLyricsProject = null;
+                ResetLyricsEditorForProjectLoad();
                 _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                 EnsureLyricsProjectManager();
-                LogLyricsSaveDebug($"[Load-Begin] targetProjectId={_currentLyricsProjectId}, db={GetLyricsDbPathSafe()}");
+                LogLyricsSaveDebug($"[Load-Begin] entry={_lyricsEntryKind}, entryId={_lyricsEntryId}, targetProjectId={_currentLyricsProjectId}, db={GetLyricsDbPathSafe()}");
                 string loadedSingleColorHex = _configManager.DefaultLyricsColor;
 
-                if (_currentLyricsProjectId <= 0)
+                if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
+                {
+                    _lyricsProjectManager.ClearTracking();
+                    _currentLyricsProject = _lyricsProjectManager.LoadOrCreateImageProject(_lyricsEntryId);
+                    if (_currentLyricsProject == null)
+                    {
+                        CreateTempLyricsProject();
+                        _currentLyricsProject = null; // 缺失/无效图片显示空白，但不能保存成无主歌词。
+                        return;
+                    }
+                    _currentLyricsProjectId = _currentLyricsProject.Id;
+                }
+                else if (_currentLyricsProjectId <= 0)
                 {
                     // 未指定歌曲ID时，进入独立临时编辑态。
                     CreateTempLyricsProject();
                     return;
                 }
-
-                _lyricsProjectManager.ClearTracking();
-                _currentLyricsProject = _lyricsProjectManager.FindById(_currentLyricsProjectId);
+                else
+                {
+                    _lyricsProjectManager.ClearTracking();
+                    _currentLyricsProject = _lyricsProjectManager.FindById(_currentLyricsProjectId);
+                }
                     
 //#if DEBUG
 //                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
@@ -3162,6 +3208,10 @@ namespace ImageColorChanger.UI
 //                Debug.WriteLine($"[歌词] 加载项目出错: {ex.Message}");
 //#endif
                 CreateTempLyricsProject();
+                if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
+                {
+                    _currentLyricsProject = null; // 图片加载失败时不把临时内容保存到其他入口。
+                }
             }
             finally
             {
@@ -3170,15 +3220,39 @@ namespace ImageColorChanger.UI
             }
         }
 
+        /// <summary>加载新入口前清空全部编辑区和持久化快照，避免上张图片的分屏/切片残留。</summary>
+        private void ResetLyricsEditorForProjectLoad()
+        {
+            LyricsTextBox.Text = string.Empty;
+            LyricsSplitTextBox1.Text = string.Empty;
+            LyricsSplitTextBox2.Text = string.Empty;
+            LyricsSplitTextBox3.Text = string.Empty;
+            LyricsSplitTextBox4.Text = string.Empty;
+            _lyricsSplitPages.Clear();
+            _lyricsSliceItems.Clear();
+            _lyricsSliceCutPoints.Clear();
+            _lyricsCurrentPageIndex = 0;
+            _lyricsCurrentSliceIndex = 0;
+            _lyricsPagingMode = false;
+            _lyricsSliceModeEnabled = false;
+            _lyricsSliceLinesPerPage = 0;
+            _lyricsSliceRuleFromCustom = false;
+            _lyricsSingleRawText = string.Empty;
+            _lyricsSingleRawTextInitialized = true;
+            _activeLyricsEditor = LyricsTextBox;
+        }
+
         /// <summary>
         /// 创建临时歌词项目（不关联图片）
         /// </summary>
         private void CreateTempLyricsProject()
         {
+            _currentLyricsProjectId = 0;
             _currentLyricsProject = new LyricsProject
             {
                 Name = $"歌词_临时_{DateTime.Now:yyyyMMdd_HHmmss}",
                 ImageId = null,
+                SourceType = 1,
                 CreatedTime = DateTime.Now,
                 FontSize = DefaultLyricsFontSize,
                 TextAlign = "Center"
@@ -3295,7 +3369,17 @@ namespace ImageColorChanger.UI
                 _currentLyricsProject.ModifiedTime = DateTime.Now;
 
                 // 保存到数据库
-                _lyricsProjectManager.Save(_currentLyricsProject);
+                if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
+                {
+                    _lyricsProjectManager.SaveImageProject(_currentLyricsProject, _lyricsEntryId);
+                }
+                else
+                {
+                    _currentLyricsProject.ImageId = null;
+                    _currentLyricsProject.SourceType = 1;
+                    _lyricsProjectManager.Save(_currentLyricsProject);
+                }
+                _currentLyricsProjectId = _currentLyricsProject.Id;
                 var savedSnapshot = _dbContext.LyricsProjects
                     .AsNoTracking()
                     .FirstOrDefault(p => p.Id == _currentLyricsProject.Id);

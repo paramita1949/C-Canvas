@@ -30,6 +30,50 @@ namespace ImageColorChanger.Managers
             return _dbContext.LyricsProjects.FirstOrDefault(p => p.ImageId == imageId);
         }
 
+        /// <summary>图片入口只读取本图歌词；没有记录时返回未保存的空白项目。</summary>
+        public LyricsProject LoadOrCreateImageProject(int imageId)
+        {
+            if (imageId <= 0 || !_dbContext.MediaFiles.Any(m => m.Id == imageId))
+            {
+                return null;
+            }
+
+            return FindByImageId(imageId) ?? new LyricsProject
+            {
+                Name = $"歌词_图片_{imageId}",
+                ImageId = imageId,
+                SourceType = 0,
+                Content = string.Empty,
+                FontSize = 60,
+                TextAlign = "Center"
+            };
+        }
+
+        /// <summary>保存到进入时绑定的图片，禁止旧项目被另一张图片重新绑定。</summary>
+        public void SaveImageProject(LyricsProject project, int imageId)
+        {
+            if (project == null) throw new ArgumentNullException(nameof(project));
+            if (imageId <= 0 || project.ImageId != imageId)
+            {
+                throw new InvalidOperationException("歌词项目与当前图片入口不匹配。");
+            }
+
+            var stored = project.Id > 0
+                ? _dbContext.LyricsProjects.AsNoTracking().FirstOrDefault(p => p.Id == project.Id)
+                : null;
+            if (stored != null && stored.ImageId != imageId)
+            {
+                throw new InvalidOperationException("不能将已有歌词改绑到另一张图片。");
+            }
+            if (!_dbContext.MediaFiles.Any(m => m.Id == imageId))
+            {
+                throw new InvalidOperationException("对应图片已不存在，未保存歌词。");
+            }
+
+            project.SourceType = 0;
+            Save(project);
+        }
+
         public LyricsProject FindById(int id)
         {
             return _dbContext.LyricsProjects

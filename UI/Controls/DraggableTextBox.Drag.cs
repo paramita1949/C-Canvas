@@ -29,14 +29,20 @@ namespace ImageColorChanger.UI.Controls
     {
         #region 拖拽功能
 
+        public Func<WpfPoint, System.Windows.Controls.MenuItem> PointerSelectionMenuProvider { get; set; }
+        public Action PointerSelectionPreviewClear { get; set; }
+        public event EventHandler RequestBringToFront;
+
         private void OnMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (e.ChangedButton == WpfMouseButton.Left)
             {
+                // 已编辑时由 RichTextBox 处理单击/双击和原生选区，不能重新进入编辑重置光标。
+                if (IsInEditMode) return;
                 // 优化双击检测逻辑
                 var now = DateTime.Now;
                 var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
-                bool isDoubleClick = timeSinceLastClick < DOUBLE_CLICK_INTERVAL;
+                bool isDoubleClick = e.ClickCount >= 2 || timeSinceLastClick < DOUBLE_CLICK_INTERVAL;
                 _lastClickTime = now;
 
                 //System.Diagnostics.Debug.WriteLine($"[DraggableTextBox] 鼠标点击: 时间间隔={timeSinceLastClick:F0}ms, 双击={isDoubleClick}, 当前编辑模式={IsInEditMode}");
@@ -53,18 +59,8 @@ namespace ImageColorChanger.UI.Controls
                     Focus();
                     SetSelected(true);
 
-                    // 双击时：如果是占位符或新建的框，全选
-                    bool shouldSelectAll = _isPlaceholderText || _isNewlyCreated;
-                    EnterEditMode(selectAll: shouldSelectAll);
-                    _isNewlyCreated = false;
+                    FocusTextBoxAt(e.GetPosition(this));
                     e.Handled = true;
-                    return;
-                }
-
-                // 如果已经在编辑模式，不做处理
-                if (IsInEditMode)
-                {
-                    //System.Diagnostics.Debug.WriteLine("[DraggableTextBox] 已在编辑模式，忽略点击");
                     return;
                 }
 
@@ -152,7 +148,7 @@ namespace ImageColorChanger.UI.Controls
             
             try
             {
-                var style = System.Windows.Application.Current.MainWindow?.FindResource("NoBorderContextMenuStyle") as System.Windows.Style;
+                var style = TryFindResource("NoBorderContextMenuStyle") as System.Windows.Style;
                 if (style != null)
                 {
                     contextMenu.Style = style;
@@ -164,6 +160,21 @@ namespace ImageColorChanger.UI.Controls
                 contextMenu.Background = new WpfSolidColorBrush(WpfColor.FromRgb(45, 45, 48));
                 contextMenu.Foreground = WpfBrushes.White;
             }
+
+            var selectionMenu = PointerSelectionMenuProvider?.Invoke(e.GetPosition(this));
+            if (selectionMenu != null)
+            {
+                contextMenu.Items.Add(selectionMenu);
+                contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            }
+
+            var bringToFrontItem = new System.Windows.Controls.MenuItem
+            {
+                Header = BuildContextMenuHeader("置于顶层", "IconLucideUpload")
+            };
+            bringToFrontItem.Click += (s, args) => RequestBringToFront?.Invoke(this, EventArgs.Empty);
+            contextMenu.Items.Add(bringToFrontItem);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
 
             var copyItem = new System.Windows.Controls.MenuItem
             {
@@ -198,10 +209,15 @@ namespace ImageColorChanger.UI.Controls
             contextMenu.Items.Add(pasteItem);
 
             contextMenu.PlacementTarget = this;
+            contextMenu.Closed += (s, args) => PointerSelectionPreviewClear?.Invoke();
+            ContextMenu = contextMenu;
             contextMenu.IsOpen = true;
 
             e.Handled = true;
         }
+
+        internal void OpenPointerContextMenu(System.Windows.Input.MouseButtonEventArgs e) => OnMouseRightButtonDown(this, e);
+        internal void HandlePointerMouseDown(System.Windows.Input.MouseButtonEventArgs e) => OnMouseDown(this, e);
 
         private object BuildContextMenuHeader(string text, string iconResourceKey)
         {
@@ -213,7 +229,7 @@ namespace ImageColorChanger.UI.Controls
 
             var icon = new System.Windows.Shapes.Path
             {
-                Data = System.Windows.Application.Current.MainWindow?.TryFindResource(iconResourceKey) as System.Windows.Media.Geometry,
+                Data = TryFindResource(iconResourceKey) as System.Windows.Media.Geometry,
                 Width = 14,
                 Height = 14,
                 Margin = new System.Windows.Thickness(0, 0, 8, 0),
@@ -222,7 +238,7 @@ namespace ImageColorChanger.UI.Controls
                 Fill = WpfBrushes.Transparent
             };
 
-            if (System.Windows.Application.Current.MainWindow?.TryFindResource("LucideIconPathStyle") is System.Windows.Style iconStyle)
+            if (TryFindResource("LucideIconPathStyle") is System.Windows.Style iconStyle)
             {
                 icon.Style = iconStyle;
             }
