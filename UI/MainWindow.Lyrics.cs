@@ -810,13 +810,47 @@ namespace ImageColorChanger.UI
 
         private string ResolveCurrentLyricsWatermarkDisplayName()
         {
+            // 图片歌词的项目名可能是“歌词_图片_ID”；显示名必须来自进入时绑定的图片。
+            if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
+            {
+                return ResolveLyricsImageWatermarkDisplayName();
+            }
+
             string projectName = NormalizeLyricsProjectName(_currentLyricsProject?.Name);
-            if (!string.IsNullOrWhiteSpace(projectName))
+            if (_lyricsEntryKind == LyricsEntryKind.LibrarySong || !string.IsNullOrWhiteSpace(projectName))
             {
                 return projectName;
             }
 
             return ResolveCurrentImageDisplayName();
+        }
+
+        private string ResolveLyricsImageWatermarkDisplayName()
+        {
+            if (_lyricsEntryId <= 0 || _dbContext == null)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                var image = _dbContext.MediaFiles.AsNoTracking().FirstOrDefault(m => m.Id == _lyricsEntryId);
+                if (image == null || !string.Equals(image.FileTypeString, "image", StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.Empty;
+                }
+
+                // 不套用歌曲名的前缀清理规则，保留文件名原有的数字、标点和“歌词_”等内容。
+                string imagePath = image.Path?.Trim() ?? string.Empty;
+                return string.IsNullOrWhiteSpace(imagePath)
+                    ? image.Name?.Trim() ?? string.Empty
+                    : Path.GetFileNameWithoutExtension(imagePath)?.Trim() ?? string.Empty;
+            }
+            catch
+            {
+                // 无法读取绑定图片时不借用旧图片或项目名，避免投影显示错误名称。
+                return string.Empty;
+            }
         }
 
         private string ResolveCurrentImageDisplayName()
@@ -1397,6 +1431,7 @@ namespace ImageColorChanger.UI
             }
 
             _isLyricsMode = true;
+            UpdateLyricsProjectionPositionControl(_projectionManager?.IsProjecting == true);
         }
 
         /// <summary>
@@ -1427,6 +1462,8 @@ namespace ImageColorChanger.UI
 
             // 先设置标志为false，再恢复合成播放按钮的显示状态
             _isLyricsMode = false;
+
+            UpdateLyricsProjectionPositionControl(false);
 
             // 恢复合成播放按钮的显示状态
             UpdateFloatingCompositePlayButton();

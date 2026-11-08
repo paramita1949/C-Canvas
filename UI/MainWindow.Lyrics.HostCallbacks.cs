@@ -33,6 +33,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void OnProjectionStateChanged(bool isProjecting)
         {
+            UpdateLyricsProjectionPositionControl(isProjecting);
             EnsureLyricsModuleController();
             _lyricsModuleController.OnProjectionStateChanged(isProjecting);
         }

@@ -500,6 +500,36 @@
                             </Grid>
                         </ScrollViewer>
 
+                        <!-- 悬浮高度滑条：叠加于编辑区，不参与列宽分配。 -->
+                        <Border x:Name="LyricsProjectionPositionPanel"
+                                Grid.Column="0"
+                                Panel.ZIndex="200"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Stretch"
+                                Width="40"
+                                MaxHeight="280"
+                                Margin="0,12,12,12"
+                                CornerRadius="20"
+                                Background="#D91F1F1F"
+                                BorderBrush="#555555"
+                                BorderThickness="1"
+                                Visibility="Collapsed">
+                            <Slider x:Name="LyricsProjectionPositionSlider"
+                                    Orientation="Vertical"
+                                    Minimum="0" Maximum="100"
+                                    IsDirectionReversed="True"
+                                    IsSnapToTickEnabled="True" TickFrequency="1"
+                                    IsMoveToPointEnabled="True"
+                                    SmallChange="1" LargeChange="5"
+                                    Width="24" Margin="0,16"
+                                    HorizontalAlignment="Center"
+                                    Focusable="False"
+                                    Foreground="{StaticResource BrushScrollBarThumb}"
+                                    Background="{StaticResource BrushScrollBarTrackDark}"
+                                    ToolTip="上下拖动调整歌词投影高度，自动保存"
+                                    AutomationProperties.Name="歌词投影高度"/>
+                        </Border>
+
                         <Border x:Name="LyricsSlicePanel"
                                 Grid.Column="1"
                                 Background="#161616"

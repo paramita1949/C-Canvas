@@ -23,6 +23,8 @@ namespace ImageColorChanger.UI
         private System.Windows.Controls.StackPanel LyricsSliceToolbar => LyricsSectionView?.LyricsSliceToolbarContainer;
         private System.Windows.Controls.TextBlock LyricsSliceStateText => null;
         private System.Windows.Controls.Border LyricsSlicePanel => LyricsSectionView?.LyricsSlicePanelHost;
+        private System.Windows.Controls.Border LyricsProjectionPositionPanel => LyricsSectionView?.LyricsProjectionPositionPanelHost;
+        private System.Windows.Controls.Slider LyricsProjectionPositionSlider => LyricsSectionView?.LyricsProjectionPositionSliderControl;
         private System.Windows.Controls.ListBox LyricsSliceList => LyricsSectionView?.LyricsSliceListHost;
         private System.Windows.Controls.Button BtnLyricsSlicePrev => LyricsSectionView?.BtnLyricsSlicePrevButton;
         private System.Windows.Controls.Button BtnLyricsSliceNext => LyricsSectionView?.BtnLyricsSliceNextButton;
@@ -71,6 +73,7 @@ namespace ImageColorChanger.UI
             if (BtnLyricsPageDown != null) BtnLyricsPageDown.Click += BtnLyricsPageDown_Click;
             if (LyricsSliceList != null) LyricsSliceList.SelectionChanged += LyricsSliceList_SelectionChanged;
             if (LyricsSliceList != null) LyricsSliceList.PreviewMouseWheel += LyricsSliceList_PreviewMouseWheel;
+            if (LyricsProjectionPositionSlider != null) LyricsProjectionPositionSlider.ValueChanged += LyricsProjectionPositionSlider_ValueChanged;
 
             if (LyricsScrollViewer != null)
             {

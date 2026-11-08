@@ -23,7 +23,7 @@ namespace ImageColorChanger.Managers
                 RunOnMainDispatcher(() => OpenProjectionOnUiThread(screen));
                 StartProjectionHealthWatch();
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => true (source=OpenProjection)");
+                // System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => true (source=OpenProjection)");
 #endif
                 ProjectionStateChanged?.Invoke(this, true);
                 return true;
@@ -89,7 +89,7 @@ namespace ImageColorChanger.Managers
             _projectionWindow = null;
             ClearProjectionUiReferences();
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=ProjectionWindow_Closed)");
+            // System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=ProjectionWindow_Closed)");
 #endif
             ProjectionStateChanged?.Invoke(this, false);
         }
@@ -191,7 +191,7 @@ namespace ImageColorChanger.Managers
                 if (hadProjection)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=CloseProjection)");
+                    // System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=CloseProjection)");
 #endif
                     ProjectionStateChanged?.Invoke(this, false);
                 }

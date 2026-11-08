@@ -27,6 +27,39 @@ namespace ImageColorChanger.UI
     public partial class MainWindow
     {
         private bool _lyricsTransparentIdleFramePushed;
+        private bool _isUpdatingLyricsProjectionPosition;
+
+        private double GetLyricsProjectionVerticalPosition(bool splitRegion = false)
+        {
+            return _configManager?.LyricsProjectionVerticalPosition ?? (splitRegion ? 0.5 : 0.0);
+        }
+
+        private void UpdateLyricsProjectionPositionControl(bool isProjecting)
+        {
+            if (LyricsProjectionPositionPanel == null || LyricsProjectionPositionSlider == null) return;
+
+            _isUpdatingLyricsProjectionPosition = true;
+            try
+            {
+                LyricsProjectionPositionSlider.Value = 100 * GetLyricsProjectionVerticalPosition(
+                    _lyricsSplitMode != (int)ViewSplitMode.Single);
+                LyricsProjectionPositionPanel.Visibility = _isLyricsMode && isProjecting
+                    ? Visibility.Visible : Visibility.Collapsed;
+            }
+            finally
+            {
+                _isUpdatingLyricsProjectionPosition = false;
+            }
+        }
+
+        private void LyricsProjectionPositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isUpdatingLyricsProjectionPosition || !_isLyricsMode || _configManager == null
+                || _projectionManager?.IsProjecting != true) return;
+
+            _configManager.LyricsProjectionVerticalPosition = e.NewValue / 100.0;
+            QueueLyricsProjectionRender();
+        }
 
         private void RenderLyricsToProjection()
         {
@@ -37,6 +70,8 @@ namespace ImageColorChanger.UI
             }
 
             if (IsLyricsImeCompositionActive()) return;
+
+            UpdateLyricsProjectionPositionControl(_projectionManager?.IsProjecting == true);
 
             if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Lyrics))
             {
@@ -205,8 +240,8 @@ namespace ImageColorChanger.UI
 
                 bool transparentEnabled = _configManager?.ProjectionNdiEnabled == true
                     && (_ndiRouter?.IsChannelEnabled(NdiChannel.Transparent) == true);
-                ProjectionNdiDiagnostics.Log(
-                    $"LyricsNDI route: transparentEnabled={transparentEnabled}, frame={frame.Width}x{frame.Height}");
+                // ProjectionNdiDiagnostics.Log(
+                //     $"LyricsNDI route: transparentEnabled={transparentEnabled}, frame={frame.Width}x{frame.Height}");
 
                 if (transparentEnabled)
                 {
@@ -219,7 +254,7 @@ namespace ImageColorChanger.UI
                         transparentLyricsMode: true,
                         new SKColor(bg.R, bg.G, bg.B, bg.A));
                     _lyricsTransparentIdleFramePushed = !sent;
-                    ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=TransparentDual, sent={sent}");
+                    // ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=TransparentDual, sent={sent}");
                 }
                 else
                 {
@@ -230,7 +265,7 @@ namespace ImageColorChanger.UI
                         transparentLyricsMode: false,
                         default);
                     _lyricsTransparentIdleFramePushed = !sent;
-                    ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=SlideNormal, sent={sent}");
+                    // ProjectionNdiDiagnostics.Log($"LyricsNDI publish: path=SlideNormal, sent={sent}");
                 }
             }
             catch
@@ -286,7 +321,9 @@ namespace ImageColorChanger.UI
             }
 
             Canvas.SetLeft(textBlock, 0);
-            Canvas.SetTop(textBlock, ndiInvertedLayout ? Math.Max(0, actualHeight - textBlockHeight) : 0);
+            double position = GetLyricsProjectionVerticalPosition();
+            Canvas.SetTop(textBlock, Math.Max(0, actualHeight - textBlockHeight)
+                * (ndiInvertedLayout ? 1 - position : position));
             canvas.Children.Add(textBlock);
             AddImageWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale, placeTop: ndiInvertedLayout);
             AddSongNameWatermarkToProjection(canvas, physicalWidth, actualHeight, fontScale, placeTop: ndiInvertedLayout);
@@ -311,10 +348,11 @@ namespace ImageColorChanger.UI
 
         private void AddSplitRegionTextElement(Canvas canvas, Rect rect, WpfTextBox editor, string text, double fontScale, double regionFontSize)
         {
-            var host = new Grid
+            var host = new Canvas
             {
                 Width = Math.Max(0, rect.Width),
                 Height = Math.Max(0, rect.Height),
+                ClipToBounds = true,
                 Background = WpfBrushes.Transparent
             };
 
@@ -326,11 +364,15 @@ namespace ImageColorChanger.UI
                 Foreground = editor?.Foreground ?? LyricsTextBox.Foreground ?? WpfBrushes.White,
                 TextAlignment = editor?.TextAlignment ?? TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
+                Width = Math.Max(0, rect.Width),
+                VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 Padding = new Thickness(10 * fontScale, 30 * fontScale, 10 * fontScale, 10 * fontScale)
             };
 
+            textBlock.Measure(new WpfSize(host.Width, double.PositiveInfinity));
+            Canvas.SetTop(textBlock, Math.Max(0, host.Height - textBlock.DesiredSize.Height)
+                * GetLyricsProjectionVerticalPosition(splitRegion: true));
             host.Children.Add(textBlock);
             Canvas.SetLeft(host, rect.X);
             Canvas.SetTop(host, rect.Y);

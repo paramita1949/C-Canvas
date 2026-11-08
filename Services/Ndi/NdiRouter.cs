@@ -54,14 +54,14 @@ namespace ImageColorChanger.Services.Ndi
         {
             if (!IsChannelEnabled(NdiChannel.Slide) || _ndiTransportCoordinator == null || frame == null)
             {
-                ProjectionNdiDiagnostics.Log(
-                    $"LyricsNDI router skipped: slideEnabled={IsChannelEnabled(NdiChannel.Slide)}, transportNull={_ndiTransportCoordinator == null}, frameNull={frame == null}");
+                // ProjectionNdiDiagnostics.Log(
+                //     $"LyricsNDI router skipped: slideEnabled={IsChannelEnabled(NdiChannel.Slide)}, transportNull={_ndiTransportCoordinator == null}, frameNull={frame == null}");
                 return false;
             }
 
             if (!(_configManager?.ProjectionNdiEnabled ?? false))
             {
-                ProjectionNdiDiagnostics.Log("LyricsNDI router skipped: ProjectionNdiEnabled=false");
+                // ProjectionNdiDiagnostics.Log("LyricsNDI router skipped: ProjectionNdiEnabled=false");
                 return false;
             }
 
@@ -73,8 +73,8 @@ namespace ImageColorChanger.Services.Ndi
                 {
                     _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Transparent);
                 }
-                ProjectionNdiDiagnostics.Log(
-                    $"LyricsNDI router publish: path=SlideNormal, sent={sent}, transparentEnabled={transparentEnabled}, frame={frame.Width}x{frame.Height}");
+                // ProjectionNdiDiagnostics.Log(
+                //     $"LyricsNDI router publish: path=SlideNormal, sent={sent}, transparentEnabled={transparentEnabled}, frame={frame.Width}x{frame.Height}");
 
                 return sent;
             }
@@ -86,8 +86,8 @@ namespace ImageColorChanger.Services.Ndi
                 transparentFrame ?? frame,
                 ProjectionNdiContentType.Lyrics,
                 backgroundColor);
-            ProjectionNdiDiagnostics.Log(
-                $"LyricsNDI router publish: path=TransparentDual, fullSent={fullFrameSent}, transparentSent={transparentFrameSent}, frame={frame.Width}x{frame.Height}");
+            // ProjectionNdiDiagnostics.Log(
+            //     $"LyricsNDI router publish: path=TransparentDual, fullSent={fullFrameSent}, transparentSent={transparentFrameSent}, frame={frame.Width}x{frame.Height}");
             return fullFrameSent || transparentFrameSent;
         }
 

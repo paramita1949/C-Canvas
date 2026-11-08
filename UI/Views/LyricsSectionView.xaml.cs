@@ -23,6 +23,8 @@ namespace ImageColorChanger.UI.Views
         public System.Windows.Controls.Button BtnLyricsSliceRule4Button => BtnLyricsSliceRule4;
         public System.Windows.Controls.StackPanel LyricsSliceToolbarContainer => LyricsSliceToolbar;
         public System.Windows.Controls.Border LyricsSlicePanelHost => LyricsSlicePanel;
+        public System.Windows.Controls.Border LyricsProjectionPositionPanelHost => LyricsProjectionPositionPanel;
+        public System.Windows.Controls.Slider LyricsProjectionPositionSliderControl => LyricsProjectionPositionSlider;
         public System.Windows.Controls.ListBox LyricsSliceListHost => LyricsSliceList;
         public System.Windows.Controls.Button BtnLyricsSlicePrevButton => BtnLyricsSlicePrev;
         public System.Windows.Controls.Button BtnLyricsSliceNextButton => BtnLyricsSliceNext;

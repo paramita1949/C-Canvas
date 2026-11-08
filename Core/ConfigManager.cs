@@ -541,6 +541,29 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
+        /// 歌词投影纵向位置，0为顶部，1为底部；未设置时保留原有布局。
+        /// </summary>
+        public double? LyricsProjectionVerticalPosition
+        {
+            get
+            {
+                double? value = _config.LyricsProjectionVerticalPosition;
+                return value.HasValue && double.IsFinite(value.Value)
+                    ? Math.Clamp(value.Value, 0, 1) : null;
+            }
+            set
+            {
+                double? normalized = value.HasValue && double.IsFinite(value.Value)
+                    ? Math.Clamp(value.Value, 0, 1) : null;
+                if (_config.LyricsProjectionVerticalPosition != normalized)
+                {
+                    _config.LyricsProjectionVerticalPosition = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        /// <summary>
         /// 歌词主屏字号（仅影响主屏编辑，不影响投影字号）
         /// </summary>
         public double LyricsMainScreenFontSize
@@ -2458,6 +2481,11 @@ namespace ImageColorChanger.Core
         /// 歌词投影字号（默认：60）
         /// </summary>
         public double LyricsProjectionFontSize { get; set; } = 60.0;
+
+        /// <summary>
+        /// 歌词投影纵向位置（0..1）；null兼容既有布局。
+        /// </summary>
+        public double? LyricsProjectionVerticalPosition { get; set; }
 
         /// <summary>
         /// 歌词主屏字号（默认：40）
