@@ -76,11 +76,11 @@ namespace ImageColorChanger.Services.Ndi.Audio
                                  && _configManager.ProjectionNdiAudioEnabled
                                  && ProjectionNdiRuntimeProbe.IsRuntimeAvailable();
                 NdiAudioSourceMode mode = ParseMode(_configManager.ProjectionNdiAudioSourceMode);
-                ProjectionNdiDiagnostics.Log(
-                    $"NDI audio config: shouldRun={shouldRun}, mode={mode}, master={_configManager.ProjectionNdiEnabled}, slide={_configManager.ProjectionNdiSlideEnabled}, audioEnabled={_configManager.ProjectionNdiAudioEnabled}");
+                // ProjectionNdiDiagnostics.Log(
+                //     $"NDI audio config: shouldRun={shouldRun}, mode={mode}, master={_configManager.ProjectionNdiEnabled}, slide={_configManager.ProjectionNdiSlideEnabled}, audioEnabled={_configManager.ProjectionNdiAudioEnabled}");
                 if (!shouldRun || mode == NdiAudioSourceMode.None)
                 {
-                    ProjectionNdiDiagnostics.Log("NDI audio stop: disabled by config or mode=None.");
+                    // ProjectionNdiDiagnostics.Log("NDI audio stop: disabled by config or mode=None.");
                     StopCore();
                     return;
                 }

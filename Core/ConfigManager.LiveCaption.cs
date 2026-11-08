@@ -43,13 +43,40 @@ namespace ImageColorChanger.Core
             }
         }
 
-        public bool LiveCaptionRealtimeEnabled
+        public bool LiveCaptionInputMethodEnabled
         {
-            get => _config.LiveCaptionRealtimeEnabled;
+            get => _config.LiveCaptionInputMethodEnabled;
             set
             {
-                if (_config.LiveCaptionRealtimeEnabled != value)
+                if (_config.LiveCaptionInputMethodEnabled != value ||
+                    (value && (_config.LiveCaptionRealtimeEnabled || _config.LiveCaptionShortPhraseEnabled)))
                 {
+                    _config.LiveCaptionInputMethodEnabled = value;
+                    if (value)
+                    {
+                        _config.LiveCaptionRealtimeEnabled = false;
+                        _config.LiveCaptionShortPhraseEnabled = false;
+                    }
+                    SaveConfig();
+                }
+            }
+        }
+
+        public void EnsureLiveCaptionSourceSelected()
+        {
+            // 初次打开或没有选择来源时使用输入法，只有明确勾选识别才开启采音。
+            if (LiveCaptionInputMethodEnabled || (!LiveCaptionRealtimeEnabled && !LiveCaptionShortPhraseEnabled))
+                LiveCaptionInputMethodEnabled = true;
+        }
+
+        public bool LiveCaptionRealtimeEnabled
+        {
+            get => !_config.LiveCaptionInputMethodEnabled && _config.LiveCaptionRealtimeEnabled;
+            set
+            {
+                if (_config.LiveCaptionRealtimeEnabled != value || (value && _config.LiveCaptionInputMethodEnabled))
+                {
+                    if (value) _config.LiveCaptionInputMethodEnabled = false;
                     _config.LiveCaptionRealtimeEnabled = value;
                     SaveConfig();
                 }
@@ -58,11 +85,12 @@ namespace ImageColorChanger.Core
 
         public bool LiveCaptionShortPhraseEnabled
         {
-            get => _config.LiveCaptionShortPhraseEnabled;
+            get => !_config.LiveCaptionInputMethodEnabled && _config.LiveCaptionShortPhraseEnabled;
             set
             {
-                if (_config.LiveCaptionShortPhraseEnabled != value)
+                if (_config.LiveCaptionShortPhraseEnabled != value || (value && _config.LiveCaptionInputMethodEnabled))
                 {
+                    if (value) _config.LiveCaptionInputMethodEnabled = false;
                     _config.LiveCaptionShortPhraseEnabled = value;
                     SaveConfig();
                 }
@@ -1322,6 +1350,7 @@ namespace ImageColorChanger.Core
     public partial class AppConfig
     {
         public string LiveCaptionSpeechMode { get; set; } = "realtime";
+        public bool LiveCaptionInputMethodEnabled { get; set; } = true;
         public bool LiveCaptionRealtimeEnabled { get; set; } = false;
         public bool LiveCaptionShortPhraseEnabled { get; set; } = false;
         /// <summary>

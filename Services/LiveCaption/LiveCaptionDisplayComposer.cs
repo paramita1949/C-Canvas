@@ -38,7 +38,7 @@ namespace ImageColorChanger.Services.LiveCaption
             int maxCommittedHistory = 96,
             int maxSourceChars = 320)
         {
-            _lineCharLimit = Math.Max(4, lineCharLimit);
+            _lineCharLimit = Math.Max(1, lineCharLimit);
             _displayLineLimit = Math.Max(1, displayLineLimit);
             _maxCommittedHistory = Math.Max(16, maxCommittedHistory);
             _maxSourceChars = Math.Max(64, maxSourceChars);
@@ -60,7 +60,22 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public void SetLineCharLimit(int lineCharLimit)
         {
-            _lineCharLimit = Math.Max(4, lineCharLimit);
+            _lineCharLimit = Math.Max(1, lineCharLimit);
+        }
+
+        public LiveCaptionRenderFrame PushInputSnapshot(string text)
+        {
+            // 输入法传入的是完整编辑内容，删除和替换必须立即生效，不能使用 ASR 的回缩保护或去重。
+            string nextDisplay = BuildDisplayText(text);
+            if (string.Equals(nextDisplay, CurrentDisplay, StringComparison.Ordinal))
+            {
+                return new LiveCaptionRenderFrame(CurrentDisplay, CurrentHighlightStart, hasChanged: false);
+            }
+
+            int nextHighlight = ComputeHighlightStart(CurrentDisplay, nextDisplay);
+            CurrentDisplay = nextDisplay;
+            CurrentHighlightStart = nextHighlight;
+            return new LiveCaptionRenderFrame(CurrentDisplay, CurrentHighlightStart, hasChanged: true);
         }
 
         public LiveCaptionRenderFrame Push(in LiveCaptionAsrText update)
@@ -184,6 +199,11 @@ namespace ImageColorChanger.Services.LiveCaption
                 source += _draft;
             }
 
+            return BuildDisplayText(source);
+        }
+
+        private string BuildDisplayText(string source)
+        {
             source = Normalize(source);
             if (source.Length == 0)
             {

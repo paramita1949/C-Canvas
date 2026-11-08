@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -233,7 +233,8 @@ namespace ImageColorChanger.UI
 
         private void EnsureLiveCaptionComponents()
         {
-            EnsureLiveCaptionCoreComponents();
+            if (_configManager?.LiveCaptionInputMethodEnabled != true)
+                EnsureLiveCaptionCoreComponents();
             EnsureLiveCaptionOverlayWindow();
         }
 
@@ -275,8 +276,10 @@ namespace ImageColorChanger.UI
                     msg => LogShortPhraseCaption(msg)),
                 result =>
                 {
+                    int revision = _liveCaptionStateRevision;
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
+                        if (revision != _liveCaptionStateRevision || _configManager.LiveCaptionInputMethodEnabled || !_configManager.LiveCaptionShortPhraseEnabled) return;
                         if (!string.IsNullOrWhiteSpace(result?.RecognizedText))
                         {
                             TouchLiveCaptionRecognitionActivity();
@@ -314,6 +317,8 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.CaptionOrientationRequested += OnLiveCaptionOverlayCaptionOrientationRequested;
                 _liveCaptionOverlayWindow.CaptionPositionRequested += OnLiveCaptionOverlayCaptionPositionRequested;
                 _liveCaptionOverlayWindow.CloseRequested += StopLiveCaption;
+                _liveCaptionOverlayWindow.InputMethodToggleRequested += OnInputMethodToggleRequested;
+                _liveCaptionOverlayWindow.InputMethodTextChanged += OnInputMethodTextChanged;
                 _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested += OnRealtimeRecognitionToggleRequested;
                 _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested += OnShortPhraseRecognitionToggleRequested;
                 _liveCaptionOverlayWindow.FloatingBoundsChanged += OnLiveCaptionFloatingBoundsChanged;
@@ -359,7 +364,7 @@ namespace ImageColorChanger.UI
         {
             _ = sender;
             _ = e;
-            if (IsLiveCaptionRealtimeConnected())
+            if (IsLiveCaptionDisplayActive())
             {
                 TryToggleLiveCaptionOverlayVisibilityInternal("top-button");
                 SyncAiCaptionUiState();
@@ -371,7 +376,6 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _configManager.LiveCaptionRealtimeEnabled = true;
             StartLiveCaption(_liveCaptionCurrentSource);
         }
 
@@ -380,21 +384,22 @@ namespace ImageColorChanger.UI
             bool engineRunning,
             bool overlayVisible,
             bool featureAllowed = true,
-            string deniedToolTip = null)
+            string deniedToolTip = null,
+            bool inputMethodActive = false)
         {
             if (!featureAllowed)
             {
                 return ("字幕", string.IsNullOrWhiteSpace(deniedToolTip) ? "功能未开通" : deniedToolTip, false, false);
             }
 
-            bool active = realtimeEnabled && engineRunning;
+            bool active = inputMethodActive || (realtimeEnabled && engineRunning);
             _ = overlayVisible;
             if (!active)
             {
                 return ("字幕", "打开 AI字幕 (F4)", false, true);
             }
 
-            return ("字幕", "AI字幕运行中 (F4)", true, true);
+            return ("字幕", inputMethodActive ? "输入法字幕运行中 (F4)" : "AI字幕运行中 (F4)", true, true);
         }
 
         private bool IsLiveCaptionRealtimeConnected()
@@ -420,7 +425,8 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine?.IsRunning == true,
                 _liveCaptionOverlayWindow?.IsVisible == true,
                 TryGetPremiumFeatureUiState(Services.Licensing.PremiumFeature.LiveCaption, out string deniedToolTip),
-                deniedToolTip);
+                deniedToolTip,
+                IsLiveCaptionInputMethodActive());
 
             if (BtnAiCaptionText != null)
             {
@@ -481,6 +487,7 @@ namespace ImageColorChanger.UI
 
             SyncRecognitionPlatformNamesToOverlay();
             _liveCaptionOverlayWindow.SetRecognitionToggleStates(_configManager.LiveCaptionRealtimeEnabled, _configManager.LiveCaptionShortPhraseEnabled);
+            _liveCaptionOverlayWindow.SetInputMethodMode(IsLiveCaptionInputMethodActive());
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
             ApplyLiveCaptionTypographyFromBible();
             SyncLiveCaptionVisibilityWithMainWindowContext("panel-open");
@@ -557,6 +564,7 @@ namespace ImageColorChanger.UI
             }
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            _configManager.EnsureLiveCaptionSourceSelected();
             EnsureLiveCaptionComponents();
             LiveCaptionDebugLogger.Log($"StartPerf: ensure-components={sw.ElapsedMilliseconds}ms");
             LiveCaptionDebugLogger.Log($"Start: request source={source}, configured={_liveCaptionEngine?.IsConfigured}, running={_liveCaptionEngine?.IsRunning}");
@@ -597,17 +605,6 @@ namespace ImageColorChanger.UI
             SyncLiveCaptionVisibilityWithMainWindowContext("start");
             LiveCaptionDebugLogger.Log($"StartPerf: overlay-prepare={sw.ElapsedMilliseconds}ms");
 
-            bool realtimeEnabled = _configManager.LiveCaptionRealtimeEnabled;
-            bool shortPhraseEnabled = _configManager.LiveCaptionShortPhraseEnabled;
-            if (!LiveCaptionStartupPolicy.ShouldAutoStartRecognition(realtimeEnabled, shortPhraseEnabled))
-            {
-                _configManager.LiveCaptionRealtimeEnabled = true;
-                realtimeEnabled = true;
-                _liveCaptionOverlayWindow.SetRecognitionToggleStates(realtimeEnabled, shortPhraseEnabled);
-                LiveCaptionDebugLogger.Log("Start: no recognition mode enabled, auto-enabled realtime recognition.");
-                ShowStatus("已自动启用实时语音识别");
-            }
-
             RegisterLiveCaptionF4HotKey();
             LiveCaptionDebugLogger.Log($"StartPerf: engine-start-begin={sw.ElapsedMilliseconds}ms");
             try
@@ -625,14 +622,15 @@ namespace ImageColorChanger.UI
 
         private void StopLiveCaption()
         {
+            ++_liveCaptionStateRevision;
+            _inputMethodSessionActive = false;
+            _liveCaptionOverlayWindow?.SetInputMethodMode(false);
+            InputMethodCaptionDiagnostics.Log("session=stopped");
             try
             {
                 LiveCaptionDebugLogger.Log($"Stop: request running={_liveCaptionEngine?.IsRunning}, overlayVisible={_liveCaptionOverlayWindow?.IsVisible}");
                 _liveCaptionEngine?.Stop();
-                if (_bibleShortPhraseRuntime?.IsRunning == true)
-                {
-                    _ = _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
-                }
+                _bibleShortPhraseRuntime?.Abort();
                 _sharedAudioCaptureSession?.Stop();
                 _configManager.LiveCaptionRealtimeEnabled = false;
                 _configManager.LiveCaptionShortPhraseEnabled = false;
@@ -709,7 +707,7 @@ namespace ImageColorChanger.UI
             await ApplyRecognitionStateAsync();
         }
 
-        private async Task ApplyRecognitionStateAsync()
+        private void ApplyRecognitionStateCore()
         {
             EnsureLiveCaptionCoreComponents();
 
@@ -735,7 +733,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine?.Stop();
                 if (_bibleShortPhraseRuntime?.IsRunning == true)
                 {
-                    await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                    _bibleShortPhraseRuntime.Abort();
                 }
                 _sharedAudioCaptureSession?.Stop();
                 _liveCaptionProjectionCaptionHidden = true;
@@ -756,7 +754,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine?.Stop();
                 if (_bibleShortPhraseRuntime?.IsRunning == true)
                 {
-                    await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                    _bibleShortPhraseRuntime.Abort();
                 }
                 _sharedAudioCaptureSession?.Stop();
                 ShowStatus("字幕识别已关闭");
@@ -859,7 +857,7 @@ namespace ImageColorChanger.UI
             else if (_bibleShortPhraseRuntime?.IsRunning == true)
             {
                 LogShortPhraseCaption("RecognitionState: stopping runtime.");
-                await _bibleShortPhraseRuntime.StopAsync(CancellationToken.None);
+                _bibleShortPhraseRuntime.Abort();
                 ShowStatus("经文识别已关闭");
             }
 
@@ -877,6 +875,7 @@ namespace ImageColorChanger.UI
             }
 
             bool sessionActive =
+                IsLiveCaptionInputMethodActive() ||
                 (_liveCaptionOverlayWindow?.IsVisible == true) ||
                 (_sharedAudioCaptureSession?.IsRunning == true) ||
                 (_liveCaptionEngine?.IsRunning == true) ||
@@ -896,9 +895,11 @@ namespace ImageColorChanger.UI
 
         private void OnLiveCaptionSubtitleUpdated(LiveCaptionAsrText update)
         {
+            int revision = _liveCaptionStateRevision;
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
+                if (revision != _liveCaptionStateRevision || _configManager.LiveCaptionInputMethodEnabled ||
+                    _liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
                 {
                     return;
                 }
@@ -1046,6 +1047,9 @@ namespace ImageColorChanger.UI
 
         private async Task TryMatchVerseFromRealtimeAsync(string text, bool isFinal)
         {
+            int revision = _liveCaptionStateRevision;
+            bool IsCurrent() => revision == _liveCaptionStateRevision && !_configManager.LiveCaptionInputMethodEnabled && _liveCaptionEngine?.IsRunning == true;
+            if (!IsCurrent()) return;
             if (string.IsNullOrWhiteSpace(text) || _bibleSpeechReverseLookupService == null)
                 return;
 
@@ -1063,6 +1067,7 @@ namespace ImageColorChanger.UI
                         int vc = await _bibleService.GetVerseCountAsync(directRef.BookId, directRef.Chapter);
                         endVs = vc > 0 ? vc : Math.Max(1, directRef.StartVerse);
                     }
+                    if (!IsCurrent()) return;
                     _bibleSpeechReverseLookupService.NotifyDirectParse(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse));
                     UpdateRealtimeVerseContext(directRef.BookId, directRef.Chapter);
                     LiveCaptionDebugLogger.Log(
@@ -1087,6 +1092,7 @@ namespace ImageColorChanger.UI
                         contextualEnd = vc > 0 ? vc : Math.Max(1, contextualRef.StartVerse);
                     }
 
+                    if (!IsCurrent()) return;
                     _bibleSpeechReverseLookupService.NotifyDirectParse(
                         contextualRef.BookId,
                         contextualRef.Chapter,
@@ -1110,7 +1116,7 @@ namespace ImageColorChanger.UI
 
                 var resolved = await _bibleSpeechReverseLookupService.TryResolveAsync(
                     _bibleService, text, CancellationToken.None);
-                if (!resolved.HasValue)
+                if (!IsCurrent() || !resolved.HasValue)
                     return;
 
                 var r = resolved.Value;
@@ -1120,11 +1126,13 @@ namespace ImageColorChanger.UI
                     int vc = await _bibleService.GetVerseCountAsync(r.BookId, r.Chapter);
                     finalEnd = vc > 0 ? vc : Math.Max(1, r.StartVerse);
                 }
+                if (!IsCurrent()) return;
                 UpdateRealtimeVerseContext(r.BookId, r.Chapter);
                 LiveCaptionDebugLogger.Log(
                     $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
                 _ = Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    if (!IsCurrent()) return;
                     ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
                     AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd, focusHistorySlot: true);
                 }));
@@ -1376,6 +1384,8 @@ namespace ImageColorChanger.UI
                     _liveCaptionOverlayWindow.CaptionOrientationRequested -= OnLiveCaptionOverlayCaptionOrientationRequested;
                     _liveCaptionOverlayWindow.CaptionPositionRequested -= OnLiveCaptionOverlayCaptionPositionRequested;
                     _liveCaptionOverlayWindow.CloseRequested -= StopLiveCaption;
+                    _liveCaptionOverlayWindow.InputMethodToggleRequested -= OnInputMethodToggleRequested;
+                    _liveCaptionOverlayWindow.InputMethodTextChanged -= OnInputMethodTextChanged;
                     _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested -= OnRealtimeRecognitionToggleRequested;
                     _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested -= OnShortPhraseRecognitionToggleRequested;
                     _liveCaptionOverlayWindow.FloatingBoundsChanged -= OnLiveCaptionFloatingBoundsChanged;
@@ -1924,6 +1934,8 @@ namespace ImageColorChanger.UI
             }
 
             _configManager.LiveCaptionNdiLineCharLimit = Math.Clamp(value, 8, 80);
+            if (IsLiveCaptionInputMethodActive())
+                OnInputMethodTextChanged(_liveCaptionOverlayWindow?.InputMethodText);
             ShowStatus($"NDI字数：{_configManager.LiveCaptionNdiLineCharLimit}");
         }
 
@@ -2393,6 +2405,7 @@ namespace ImageColorChanger.UI
                 _configManager.LiveCaptionNdiEnabled = nextEnabled;
                 if (nextEnabled)
                 {
+                    if (IsLiveCaptionInputMethodActive()) RefreshLiveCaptionNdiPreview();
                     ShowStatus("字幕NDI已开启");
                 }
                 else
@@ -2414,6 +2427,11 @@ namespace ImageColorChanger.UI
         private void UpdateLiveCaptionProjectionCaption(string captionText, int? highlightStart = null)
         {
             string next = captionText ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(next))
+            {
+                _projectionManager?.HideProjectionCaptionOverlay();
+                return;
+            }
 
             if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.LiveCaption))
             {
@@ -2742,7 +2760,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (_liveCaptionEngine?.IsRunning == true &&
+            if (IsLiveCaptionDisplayActive() &&
                 !_liveCaptionProjectionCaptionHidden &&
                 !string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
             {
@@ -2874,6 +2892,9 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayWindow?.SetLatestTextHighlightColor(localLatestColor);
             _projectionManager?.SetProjectionCaptionTypography(projectionFontFamily, projectionFontSize, projectionPadding, projectionLineHeight, projectionLetterSpacing, projectionTextColor, projectionLatestColor);
             RecalculateLiveCaptionComposerLayout(localFontSize, localPadding, localLetterSpacing);
+
+            if (IsLiveCaptionInputMethodActive())
+                OnInputMethodTextChanged(_liveCaptionOverlayWindow?.InputMethodText);
 
             // 样式改动必须立即可见：强制用当前显示文本重绘一次，不依赖下一条 ASR 更新。
             if (!string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
@@ -3555,7 +3576,7 @@ namespace ImageColorChanger.UI
 
         internal void SyncLiveCaptionVisibilityWithMainWindowContext(string source)
         {
-            if (_liveCaptionEngine == null || !_liveCaptionEngine.IsRunning || _liveCaptionOverlayWindow == null)
+            if (!IsLiveCaptionDisplayActive() || _liveCaptionOverlayWindow == null)
             {
                 return;
             }

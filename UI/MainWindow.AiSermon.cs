@@ -215,7 +215,7 @@ namespace ImageColorChanger.UI
 
         private void OpenAiRealtimeSubtitle()
         {
-            _configManager.LiveCaptionRealtimeEnabled = true;
+            // 统一启动入口会恢复已保存的输入法选择，不能在此强制切回实时语音。
             StartLiveCaption(_liveCaptionCurrentSource);
             OpenLiveCaptionPanel();
         }

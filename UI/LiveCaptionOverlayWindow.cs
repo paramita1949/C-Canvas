@@ -98,6 +98,14 @@ namespace ImageColorChanger.UI
         private readonly Border _settingsAction;
         private readonly Border _closeAction;
         private readonly TextBlock _recognitionDebugMarkerText;
+        private readonly System.Windows.Controls.CheckBox _inputMethodToggle;
+        private readonly System.Windows.Controls.TextBox _inputMethodEditor;
+        private bool _inputMethodEnabled;
+        private bool _inputMethodCompositionActive;
+        private int _inputMethodChangeSequence;
+        private bool _inputMethodLayoutQueued;
+        private readonly DispatcherTimer _inputMethodSnapshotTimer;
+        private string _publishedInputMethodText = string.Empty;
         private string _realtimeRecognitionPlatformName = "百度";
         private string _shortPhraseRecognitionPlatformName = "百度";
         private bool _realtimeRecognitionEnabled;
@@ -153,6 +161,8 @@ namespace ImageColorChanger.UI
         public event Action<Rect> FloatingBoundsChanged;
         public event Action<bool> RealtimeRecognitionToggleRequested;
         public event Action<bool> ShortPhraseRecognitionToggleRequested;
+        public event Action<bool> InputMethodToggleRequested;
+        public event Action<string> InputMethodTextChanged;
 
         public LiveCaptionOverlayWindow()
         {
@@ -195,6 +205,11 @@ namespace ImageColorChanger.UI
                 Interval = TimeSpan.FromMilliseconds(16)
             };
             _typingTimer.Tick += TypingTimer_Tick;
+            _inputMethodSnapshotTimer = new DispatcherTimer(DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromMilliseconds(100)
+            };
+            _inputMethodSnapshotTimer.Tick += (_, _) => PublishInputMethodSnapshot();
             _floatingBoundsChangedTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(320)
@@ -227,6 +242,63 @@ namespace ImageColorChanger.UI
             Grid.SetColumnSpan(_captionText, 2);
             Grid.SetRow(_captionText, 1);
 
+            _inputMethodEditor = new System.Windows.Controls.TextBox
+            {
+                FontSize = 13,
+                FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI"),
+                Foreground = WpfBrushes.White,
+                Background = WpfBrushes.Transparent,
+                BorderBrush = WpfBrushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                Margin = new Thickness(0),
+                Width = 1,
+                Height = 1,
+                MaxHeight = 1,
+                Opacity = 0,
+                IsHitTestVisible = false,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                AcceptsReturn = true,
+                AcceptsTab = false,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Visibility = Visibility.Collapsed,
+                IsEnabled = false,
+                FocusVisualStyle = null
+            };
+            _inputMethodEditor.Foreground = WpfBrushes.Transparent;
+            _inputMethodEditor.CaretBrush = WpfBrushes.Transparent;
+            InputMethod.SetIsInputMethodEnabled(_inputMethodEditor, true);
+            _inputMethodEditor.TextChanged += InputMethodEditor_TextChanged;
+            _inputMethodEditor.GotKeyboardFocus += (_, _) => LogInputMethodState("focus-gained");
+            _inputMethodEditor.LostKeyboardFocus += (_, _) =>
+            {
+                LogInputMethodState("focus-lost");
+                QueueInputMethodFocus();
+            };
+            TextCompositionManager.AddPreviewTextInputStartHandler(_inputMethodEditor, (_, e) =>
+            {
+                _inputMethodCompositionActive = true;
+                LogInputMethodState($"composition-begin count={e.TextComposition.CompositionText?.Length ?? 0}");
+            });
+            TextCompositionManager.AddPreviewTextInputUpdateHandler(_inputMethodEditor, (_, e) =>
+            {
+                LogInputMethodState($"composition-update count={e.TextComposition.CompositionText?.Length ?? 0}");
+            });
+            TextCompositionManager.AddPreviewTextInputHandler(_inputMethodEditor, (_, e) =>
+            {
+                if (_inputMethodCompositionActive)
+                {
+                    _inputMethodCompositionActive = false;
+                    LogInputMethodState($"composition-end count={e.Text?.Length ?? 0}");
+                }
+            });
+            Grid.SetColumnSpan(_inputMethodEditor, 2);
+            Grid.SetRow(_inputMethodEditor, 1);
+
             _recognitionDebugMarkerText = new TextBlock
             {
                 Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(255, 244, 214)),
@@ -247,6 +319,24 @@ namespace ImageColorChanger.UI
                 VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 4, 0)
+            };
+
+            _inputMethodToggle = CreateActionToggle("输入法");
+            _inputMethodToggle.Margin = new Thickness(6, 0, 0, 0);
+            _inputMethodToggle.ToolTip = "通过输入法、打字或粘贴输入字幕";
+            _inputMethodToggle.Checked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    InputMethodToggleRequested?.Invoke(true);
+                }
+            };
+            _inputMethodToggle.Unchecked += (_, _) =>
+            {
+                if (!_suppressRecognitionToggleEvents)
+                {
+                    InputMethodToggleRequested?.Invoke(false);
+                }
             };
 
             _realtimeRecognitionToggle = CreateActionToggle("实时语音");
@@ -350,6 +440,7 @@ namespace ImageColorChanger.UI
                 CloseRequested?.Invoke();
             };
 
+            _actionPanel.Children.Add(_inputMethodToggle);
             _actionPanel.Children.Add(_realtimeRecognitionToggle);
             _actionPanel.Children.Add(_shortPhraseRecognitionToggle);
             _actionPanel.Children.Add(_aiPanelAction);
@@ -375,6 +466,7 @@ namespace ImageColorChanger.UI
             Grid.SetRow(accentBar, 0);
 
             captionGrid.Children.Add(_captionText);
+            captionGrid.Children.Add(_inputMethodEditor);
             captionGrid.Children.Add(_recognitionDebugMarkerText);
             captionGrid.Children.Add(_actionPanel);
             Grid.SetRow(captionGrid, 1);
@@ -389,6 +481,25 @@ namespace ImageColorChanger.UI
             PreviewMouseMove += Overlay_PreviewMouseMove;
             PreviewMouseLeftButtonUp += Overlay_PreviewMouseLeftButtonUp;
             LostMouseCapture += Overlay_LostMouseCapture;
+            Activated += (_, _) => QueueInputMethodFocus();
+            AddHandler(Mouse.PreviewMouseUpEvent, new MouseButtonEventHandler((_, _) => QueueInputMethodFocus()), true);
+            AddHandler(ContextMenuService.ContextMenuClosingEvent,
+                new ContextMenuEventHandler((_, _) => QueueInputMethodFocus()), true);
+            _captionSurface.SizeChanged += (_, e) =>
+            {
+                if (_inputMethodEnabled && e.WidthChanged)
+                {
+                    UpdateInputMethodCaptionWidth();
+                    if (_inputMethodLayoutQueued) return;
+                    _inputMethodLayoutQueued = true;
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                    {
+                        _inputMethodLayoutQueued = false;
+                        if (_inputMethodEnabled)
+                            InputMethodTextChanged?.Invoke(InputMethodText);
+                    }));
+                }
+            };
 
             Loaded += (_, _) =>
             {
@@ -403,6 +514,10 @@ namespace ImageColorChanger.UI
                     $"OverlayLoaded: dock={_dockMode}, hasCustom={_hasCustomFloatingBounds}, cachedFloating=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##}), actual=({Left:0.##},{Top:0.##},{Width:0.##}x{Height:0.##})");
                 ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
                     $"OverlayLoaded: projectionAction visible={_projectionAction.IsVisible}, size={_projectionAction.ActualWidth}x{_projectionAction.ActualHeight}; settingsAction visible={_settingsAction.IsVisible}, size={_settingsAction.ActualWidth}x{_settingsAction.ActualHeight}; closeAction visible={_closeAction.IsVisible}, size={_closeAction.ActualWidth}x{_closeAction.ActualHeight}");
+                if (_inputMethodEnabled)
+                {
+                    FocusInputMethodEditor();
+                }
             };
 
             SourceInitialized += (_, _) =>
@@ -440,7 +555,12 @@ namespace ImageColorChanger.UI
                 }
             };
 
-            Closed += (_, _) => RemoveAppBar(force: true);
+            Closed += (_, _) =>
+            {
+                _inputMethodSnapshotTimer.Stop();
+                _inputMethodEnabled = false;
+                RemoveAppBar(force: true);
+            };
 
             LocationChanged += (_, _) =>
             {
@@ -604,9 +724,7 @@ namespace ImageColorChanger.UI
 
         private double ComputeCaptionAutoMinHeight()
         {
-            double lineHeight = _captionText.LineHeight > 0
-                ? _captionText.LineHeight
-                : _captionText.FontSize * 1.5;
+            double lineHeight = _captionText.FontSize + _captionParagraphGap;
 
             double textAreaNeed = (lineHeight * VisibleCaptionLines)
                 + _captionText.Margin.Top
@@ -616,7 +734,8 @@ namespace ImageColorChanger.UI
                 Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_styleAction)),
                 Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)));
 
-            double bodyNeed = Math.Max(textAreaNeed, actionNeed);
+            // 输入法编辑器是不可见的键盘/TSF接收器，不应为字幕窗口增加白框或占位高度。
+            double bodyNeed = actionNeed + textAreaNeed;
 
             double shellNeed = 2 + bodyNeed;
             double surfaceNeed =
@@ -714,6 +833,11 @@ namespace ImageColorChanger.UI
             while (current != null)
             {
                 if (ReferenceEquals(current, _aiPanelAction) ||
+                    ReferenceEquals(current, _inputMethodEditor) ||
+                    ReferenceEquals(current, _inputMethodToggle) ||
+                    ReferenceEquals(current, _realtimeRecognitionToggle) ||
+                    ReferenceEquals(current, _shortPhraseRecognitionToggle) ||
+                    ReferenceEquals(current, _hideAction) ||
                     ReferenceEquals(current, _projectionAction) ||
                     ReferenceEquals(current, _ndiAction) ||
                     ReferenceEquals(current, _styleAction) ||
@@ -751,7 +875,8 @@ namespace ImageColorChanger.UI
 
         private void Overlay_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (_dockMode != LiveCaptionDockMode.Floating || e.ChangedButton != MouseButton.Left)
+            if (_dockMode != LiveCaptionDockMode.Floating || e.ChangedButton != MouseButton.Left ||
+                IsPointerOnActionButtons(e.OriginalSource as DependencyObject))
             {
                 return;
             }
@@ -802,6 +927,12 @@ namespace ImageColorChanger.UI
                 double dy = (current.Y - _resizeStartScreenPoint.Y) / scale;
                 ApplyResizeFromAnchor(_activeResizeAnchor, dx, dy, _resizeStartBounds);
                 e.Handled = true;
+                return;
+            }
+
+            if (IsPointerOnActionButtons(e.OriginalSource as DependencyObject))
+            {
+                Cursor = null;
                 return;
             }
 
@@ -995,6 +1126,173 @@ namespace ImageColorChanger.UI
             };
 
             return checkBox;
+        }
+
+        // 样式/布局刷新也必须使用同一可发布快照，不能绕过合成提交保护。
+        public string InputMethodText => _inputMethodSnapshotTimer.IsEnabled
+            ? _publishedInputMethodText : _inputMethodEditor.Text;
+
+        private double GetInputMethodCaptionWidth()
+        {
+            double surfaceWidth = _captionSurface.ActualWidth > 0
+                ? _captionSurface.ActualWidth
+                : Width - _captionSurface.Margin.Left - _captionSurface.Margin.Right;
+            return Math.Max(1, surfaceWidth - _captionSurface.Padding.Left - _captionSurface.Padding.Right
+                - _captionSurface.BorderThickness.Left - _captionSurface.BorderThickness.Right);
+        }
+
+        private void UpdateInputMethodCaptionWidth()
+        {
+            _captionText.MaxWidth = _inputMethodEnabled ? GetInputMethodCaptionWidth() : double.PositiveInfinity;
+            _captionText.HorizontalAlignment = _inputMethodEnabled
+                ? System.Windows.HorizontalAlignment.Left : System.Windows.HorizontalAlignment.Stretch;
+        }
+
+        public int GetInputMethodLineCharLimit()
+        {
+            UpdateInputMethodCaptionWidth();
+            double available = GetInputMethodCaptionWidth();
+
+            var probe = new TextBlock
+            {
+                FontFamily = _captionText.FontFamily,
+                FontSize = _captionText.FontSize,
+                FontWeight = _captionText.FontWeight,
+                FontStyle = _captionText.FontStyle,
+                TextWrapping = TextWrapping.NoWrap
+            };
+            TextOptions.SetTextFormattingMode(probe, TextFormattingMode.Display);
+
+            // 用当前输入中最宽的字形测量；包含W和汉字，覆盖中英混输及字体差异。
+            double maxGlyph = 0;
+            var glyphs = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            var elements = System.Globalization.StringInfo.GetTextElementEnumerator("国W" + _inputMethodEditor.Text);
+            while (elements.MoveNext())
+            {
+                string glyph = elements.GetTextElement();
+                if (!glyphs.Add(glyph)) continue;
+                if (string.IsNullOrWhiteSpace(glyph)) continue;
+                probe.Text = glyph;
+                probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                maxGlyph = Math.Max(maxGlyph, probe.DesiredSize.Width);
+            }
+            probe.Text = new string('\u200A', Math.Clamp((int)Math.Round(_captionLetterSpacing), 1, 10));
+            probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+            double gap = _captionLetterSpacing > 0.01 ? probe.DesiredSize.Width : 0;
+            return Math.Clamp((int)Math.Floor((available - 2 + gap) / Math.Max(1, maxGlyph + gap)), 1, 120);
+        }
+
+        public void SetInputMethodMode(bool enabled)
+        {
+            bool changed = _inputMethodEnabled != enabled;
+            bool wasSuppressed = _suppressRecognitionToggleEvents;
+            _suppressRecognitionToggleEvents = true;
+            try
+            {
+                _inputMethodEnabled = enabled;
+                if (changed)
+                {
+                    _inputMethodSnapshotTimer.Stop();
+                    _inputMethodCompositionActive = false;
+                    _publishedInputMethodText = _inputMethodEditor.Text;
+                }
+                _inputMethodToggle.IsChecked = enabled;
+                _inputMethodEditor.IsEnabled = enabled;
+                _inputMethodEditor.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+                UpdateInputMethodCaptionWidth();
+                if (!enabled && _inputMethodEditor.IsKeyboardFocusWithin)
+                {
+                    Keyboard.ClearFocus();
+                    FocusManager.SetFocusedElement(this, null);
+                }
+            }
+            finally
+            {
+                _suppressRecognitionToggleEvents = wasSuppressed;
+            }
+
+            if (changed)
+            {
+                LogInputMethodState("mode-changed");
+                EnsureAutoCaptionHeight();
+                if (enabled)
+                {
+                    FocusInputMethodEditor();
+                }
+            }
+        }
+
+        public void ClearInputMethodText()
+        {
+            _inputMethodSnapshotTimer.Stop();
+            _inputMethodCompositionActive = false;
+            bool alreadyEmpty = _inputMethodEditor.Text.Length == 0;
+            _inputMethodEditor.Clear();
+            if (alreadyEmpty) PublishInputMethodSnapshot();
+        }
+
+        public void FocusInputMethodEditor()
+        {
+            if (!_inputMethodEnabled || !IsVisible)
+            {
+                return;
+            }
+
+            Activate();
+            RestoreInputMethodFocus();
+            QueueInputMethodFocus();
+        }
+
+        private void QueueInputMethodFocus()
+        {
+            if (!_inputMethodEnabled || !IsVisible) return;
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                if (!_inputMethodEnabled || !IsVisible || !IsActive || _inputMethodCompositionActive) return;
+                if (Mouse.Captured != null) return;
+                if (Keyboard.FocusedElement is DependencyObject focused && Window.GetWindow(focused) != this) return;
+                RestoreInputMethodFocus();
+            }));
+        }
+
+        private void RestoreInputMethodFocus()
+        {
+            if (_inputMethodCompositionActive) return;
+            _inputMethodEditor.Select(_inputMethodEditor.Text.Length, 0);
+            _inputMethodEditor.Focus();
+        }
+
+        private void InputMethodEditor_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _inputMethodChangeSequence++;
+            LogInputMethodState("text-changed");
+            if (_inputMethodEnabled)
+            {
+                // TSF 提交会先撤掉预编辑内容，再写回正式文本。保留上一帧，避免投影和NDI闪空。
+                // 仅合并合成过程中的回缩；正常追加、普通编辑和主动清空仍立即生效。
+                if ((_inputMethodCompositionActive || _inputMethodSnapshotTimer.IsEnabled) &&
+                    _inputMethodEditor.Text.Length < _publishedInputMethodText.Length)
+                {
+                    _inputMethodSnapshotTimer.Stop();
+                    _inputMethodSnapshotTimer.Start();
+                    return;
+                }
+                PublishInputMethodSnapshot();
+            }
+        }
+
+        private void PublishInputMethodSnapshot()
+        {
+            _inputMethodSnapshotTimer.Stop();
+            if (!_inputMethodEnabled) return;
+            _publishedInputMethodText = _inputMethodEditor.Text;
+            InputMethodTextChanged?.Invoke(_publishedInputMethodText);
+        }
+
+        private void LogInputMethodState(string action)
+        {
+            ImageColorChanger.Services.LiveCaption.InputMethodCaptionDiagnostics.Log(
+                $"editor {action} mode={_inputMethodEnabled} focused={_inputMethodEditor.IsKeyboardFocusWithin} composing={_inputMethodCompositionActive} sequence={_inputMethodChangeSequence} chars={_inputMethodEditor.Text.Length}");
         }
 
         public void SetRecognitionToggleStates(bool realtimeEnabled, bool shortPhraseEnabled)

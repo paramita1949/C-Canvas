@@ -192,7 +192,7 @@ namespace ImageColorChanger.Services.Ndi
                     CreateSenderInstance());
 
                 _channelManagers[channel] = manager;
-                ProjectionNdiDiagnostics.Log($"Channel manager created: channel={channel}, sender={provider.ProjectionNdiSenderName}");
+                // ProjectionNdiDiagnostics.Log($"Channel manager created: channel={channel}, sender={provider.ProjectionNdiSenderName}");
                 return manager;
             }
         }
@@ -232,8 +232,8 @@ namespace ImageColorChanger.Services.Ndi
             }
 
             var cfg = GetChannelConfig(channel);
-            ProjectionNdiDiagnostics.Log(
-                $"IdleFrame pushed: channel={channel}, sender={cfg.SenderName}, size={cfg.Width}x{cfg.Height}, watermark=\"{_configManager?.ProjectionNdiIdleFrameWatermarkText}\"");
+            // ProjectionNdiDiagnostics.Log(
+            //     $"IdleFrame pushed: channel={channel}, sender={cfg.SenderName}, size={cfg.Width}x{cfg.Height}, watermark=\"{_configManager?.ProjectionNdiIdleFrameWatermarkText}\"");
         }
 
         private IProjectionNdiSender CreateSenderInstance()

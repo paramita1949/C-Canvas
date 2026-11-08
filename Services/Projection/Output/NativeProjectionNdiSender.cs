@@ -36,7 +36,7 @@ namespace ImageColorChanger.Services.Projection.Output
             }
 
             _options = options ?? new ProjectionNdiOutputOptions();
-            ProjectionNdiDiagnostics.Log($"Sender start requested: name={_options.SenderName}, fps={_options.Fps}, size={_options.Width}x{_options.Height}, preferAlpha={_options.PreferAlpha}");
+            // ProjectionNdiDiagnostics.Log($"Sender start requested: name={_options.SenderName}, fps={_options.Fps}, size={_options.Width}x{_options.Height}, preferAlpha={_options.PreferAlpha}");
 
             if (!TryInitializeNdi())
             {
@@ -74,7 +74,7 @@ namespace ImageColorChanger.Services.Projection.Output
                     return false;
                 }
 
-                ProjectionNdiDiagnostics.Log("Sender started successfully.");
+                // ProjectionNdiDiagnostics.Log("Sender started successfully.");
                 return true;
             }
             catch (DllNotFoundException)
@@ -287,7 +287,7 @@ namespace ImageColorChanger.Services.Projection.Output
                 if (count != _lastConnectionCount)
                 {
                     _lastConnectionCount = count;
-                    ProjectionNdiDiagnostics.Log($"NDI connections changed: {count}");
+                    // ProjectionNdiDiagnostics.Log($"NDI connections changed: {count}");
                 }
                 return count;
             }
