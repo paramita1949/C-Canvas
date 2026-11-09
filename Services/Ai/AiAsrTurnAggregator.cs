@@ -30,6 +30,14 @@ namespace ImageColorChanger.Services.Ai
             _minTurnInterval = TimeSpan.FromSeconds(Math.Max(1, minTurnIntervalSeconds));
         }
 
+        public void Reset()
+        {
+            _lastHash = string.Empty;
+            _lastTurnAcceptedAt = DateTimeOffset.MinValue;
+            _pendingInterimText = string.Empty;
+            _pendingInterimUpdatedAt = DateTimeOffset.MinValue;
+        }
+
         public bool TryAccept(string text, bool isFinal, DateTimeOffset capturedAt, out AiAsrTurnEnvelope turn)
         {
             turn = null;

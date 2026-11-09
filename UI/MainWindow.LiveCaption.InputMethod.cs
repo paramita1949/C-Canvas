@@ -54,7 +54,11 @@ namespace ImageColorChanger.UI
                     if (revision != _liveCaptionStateRevision || !_configManager.LiveCaptionInputMethodEnabled) return;
 
                     EnsureLiveCaptionOverlayWindow();
-                    if (!_inputMethodSessionActive) ResetLiveCaptionInputOutput();
+                    if (!_inputMethodSessionActive)
+                    {
+                        ResetLiveCaptionInputOutput();
+                        ResetAiCaptionInput();
+                    }
                     _inputMethodSessionActive = true;
                     _liveCaptionOverlayWindow.SetRecognitionToggleStates(false, false);
                     _liveCaptionOverlayWindow.SetInputMethodMode(true);
@@ -69,6 +73,7 @@ namespace ImageColorChanger.UI
                 if (_inputMethodSessionActive)
                 {
                     _inputMethodSessionActive = false;
+                    ResetAiCaptionInput();
                     ResetLiveCaptionInputOutput();
                     InputMethodCaptionDiagnostics.Log($"session=inactive revision={revision}");
                 }
@@ -98,7 +103,8 @@ namespace ImageColorChanger.UI
         private void OnInputMethodTextChanged(string text)
         {
             if (!IsLiveCaptionInputMethodActive() || _liveCaptionOverlayWindow == null) return;
-            // 整份可编辑快照独立进入渲染链，不进入 ASR/讲章/经文匹配入口。
+            ForwardInputMethodTextToAi(text);
+            // 渲染保留完整快照；AI接收由当前会话控制，不触发语音识别。
             RecalculateLiveCaptionComposerLayout();
             // 主字幕帧同时用于投影；仅在本机放不下时缩短，不能超过投影原有30字行上限。
             _liveCaptionComposer.SetLineCharLimit(Math.Min(LiveCaptionMainLineCharLimit,

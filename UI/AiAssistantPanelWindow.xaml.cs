@@ -43,6 +43,7 @@ namespace ImageColorChanger.UI
         private readonly HashSet<string> _selectedDialectTags = new(StringComparer.Ordinal);
         private double _expandedHeight = 500;
         private string _lastAsrConnectionStatus = string.Empty;
+        private bool _receivingCaption;
 
         public event Action<bool> DebugModeChanged;
         public event Action<string> SpeakerApplied;
@@ -161,9 +162,10 @@ namespace ImageColorChanger.UI
             SetAsrConnectionState(enabled, realtimeConnected: false);
         }
 
-        public void SetAsrConnectionState(bool aiReceiveAsr, bool realtimeConnected)
+        public void SetAsrConnectionState(bool aiReceiveAsr, bool realtimeConnected, bool inputMethodActive = false)
         {
-            string status = BuildAsrConnectionStatus(aiReceiveAsr, realtimeConnected);
+            _receivingCaption = aiReceiveAsr;
+            string status = BuildAsrConnectionStatus(aiReceiveAsr, realtimeConnected, inputMethodActive);
             if (string.Equals(_lastAsrConnectionStatus, status, StringComparison.Ordinal))
             {
                 return;
@@ -173,8 +175,9 @@ namespace ImageColorChanger.UI
             AppendStatus(status);
         }
 
-        public static string BuildAsrConnectionStatus(bool aiReceiveAsr, bool realtimeConnected)
+        public static string BuildAsrConnectionStatus(bool aiReceiveAsr, bool realtimeConnected, bool inputMethodActive = false)
         {
+            if (inputMethodActive) return aiReceiveAsr ? "输入法已连接" : "AI未接收字幕";
             return aiReceiveAsr && realtimeConnected ? "ASR已连接" : "ASR未启用";
         }
 
@@ -499,6 +502,8 @@ namespace ImageColorChanger.UI
             return text.StartsWith("AI缓存", StringComparison.Ordinal)
                 || string.Equals(text, "ASR已连接", StringComparison.Ordinal)
                 || string.Equals(text, "ASR未启用", StringComparison.Ordinal)
+                || string.Equals(text, "输入法已连接", StringComparison.Ordinal)
+                || string.Equals(text, "AI未接收字幕", StringComparison.Ordinal)
                 || string.Equals(text, "请选择传道人或者添加传道人", StringComparison.Ordinal);
         }
 
@@ -1165,7 +1170,7 @@ namespace ImageColorChanger.UI
             LoadDialectTagsForSpeaker(speaker);
             UpdateSpeakerSelectionVisual(speaker);
             RebuildSpeakerMenu(speaker);
-            if (raiseEvent && changed)
+            if (raiseEvent && (changed || !_receivingCaption))
             {
                 SpeakerApplied?.Invoke(speaker);
                 DialectSchemeChanged?.Invoke(_selectedDialectTags.Count > 0, _selectedDialectTags.ToList());

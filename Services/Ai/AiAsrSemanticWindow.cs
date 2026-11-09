@@ -46,6 +46,16 @@ namespace ImageColorChanger.Services.Ai
             }
         }
 
+        public void Clear()
+        {
+            lock (_gate)
+            {
+                _turns.Clear();
+                _updatedAt = DateTimeOffset.MinValue;
+                // Keep the sequence monotonic: the coordinator compares it with accepted turns.
+            }
+        }
+
         private AiAsrSemanticWindowSnapshot CreateSnapshotNoLock()
         {
             var turns = _turns.ToList();

@@ -11,6 +11,9 @@ namespace ImageColorChanger.Services.Ai
         private bool _isRunning;
         private int _lastProcessedVersion;
         private Task _runnerTask = Task.CompletedTask;
+        private CancellationTokenSource _sessionCancellation = new();
+        private int _sessionGeneration;
+        private bool _resettingSession;
 
         public event Action<Exception> ProcessingFailed;
 
@@ -29,21 +32,69 @@ namespace ImageColorChanger.Services.Ai
                 throw new ArgumentNullException(nameof(processor));
             }
 
-            if (turn != null)
-            {
-                _window.AddTurn(turn);
-            }
-
             lock (_gate)
             {
+                if (_resettingSession)
+                {
+                    return Task.CompletedTask;
+                }
+
+                if (turn != null)
+                {
+                    _window.AddTurn(turn);
+                }
+
                 if (!_isRunning)
                 {
                     _isRunning = true;
-                    _runnerTask = Task.Run(() => RunLoopAsync(processor, cancellationToken), CancellationToken.None);
+                    int generation = _sessionGeneration;
+                    var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _sessionCancellation.Token);
+                    _runnerTask = Task.Run(async () =>
+                    {
+                        using (linked)
+                        {
+                            await RunLoopAsync(processor, linked.Token, generation).ConfigureAwait(false);
+                        }
+                    }, CancellationToken.None);
                 }
             }
 
             return Task.CompletedTask;
+        }
+
+        public async Task ResetSessionAsync(CancellationToken cancellationToken = default)
+        {
+            Task runner;
+            CancellationTokenSource previousCancellation;
+            lock (_gate)
+            {
+                _resettingSession = true;
+                _sessionGeneration++;
+                runner = _runnerTask;
+                previousCancellation = _sessionCancellation;
+                _window.Clear();
+                _lastProcessedVersion = _window.CreateSnapshot().Version;
+            }
+
+            try
+            {
+                // Finish the current request for settlement, but never start the queued window.
+                await runner.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                // A timed-out provider may still return; its token remains cancelled permanently.
+                previousCancellation.Cancel();
+                lock (_gate)
+                {
+                    _sessionCancellation = new CancellationTokenSource();
+                    _runnerTask = Task.CompletedTask;
+                    _isRunning = false;
+                    _resettingSession = false;
+                }
+                _ = runner.ContinueWith(_ => previousCancellation.Dispose(), CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
         }
 
         public async Task WaitForIdleAsync(TimeSpan timeout)
@@ -86,13 +137,18 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task RunLoopAsync(
             Func<AiAsrSemanticWindowSnapshot, CancellationToken, Task> processor,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            int generation)
         {
             while (true)
             {
                 AiAsrSemanticWindowSnapshot snapshot;
                 lock (_gate)
                 {
+                    if (generation != _sessionGeneration)
+                    {
+                        return;
+                    }
                     snapshot = _window.CreateSnapshot();
                     if (snapshot.Version <= _lastProcessedVersion)
                     {
@@ -107,15 +163,19 @@ namespace ImageColorChanger.Services.Ai
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    ProcessingFailed?.Invoke(ex);
+                    if (!cancellationToken.IsCancellationRequested) ProcessingFailed?.Invoke(ex);
                 }
                 catch (OperationCanceledException ex)
                 {
-                    ProcessingFailed?.Invoke(ex);
+                    if (!cancellationToken.IsCancellationRequested) ProcessingFailed?.Invoke(ex);
                 }
 
                 lock (_gate)
                 {
+                    if (generation != _sessionGeneration)
+                    {
+                        return;
+                    }
                     if (snapshot.Version > _lastProcessedVersion)
                     {
                         _lastProcessedVersion = snapshot.Version;

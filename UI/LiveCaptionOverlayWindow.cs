@@ -1131,6 +1131,8 @@ namespace ImageColorChanger.UI
         // 样式/布局刷新也必须使用同一可发布快照，不能绕过合成提交保护。
         public string InputMethodText => _inputMethodSnapshotTimer.IsEnabled
             ? _publishedInputMethodText : _inputMethodEditor.Text;
+        internal string InputMethodCurrentText => _inputMethodEditor.Text;
+        internal bool HasPendingInputMethodSnapshot => _inputMethodSnapshotTimer.IsEnabled;
 
         private double GetInputMethodCaptionWidth()
         {

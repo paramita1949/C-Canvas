@@ -27,6 +27,9 @@ namespace ImageColorChanger.Services.Ai
         private readonly SemaphoreSlim _asrSendGate = new(MaxConcurrentAsrSends, MaxConcurrentAsrSends);
         private readonly SemaphoreSlim _assistantRenderLock = new(1, 1);
         private readonly SemaphoreSlim _sessionInitLock = new(1, 1);
+        private readonly SemaphoreSlim _sessionFinalizationLock = new(1, 1);
+        private CancellationTokenSource _sessionWorkCancellation = new();
+        private bool _isFinalizingSession;
         private readonly List<AiConversationMessage> _visibleMessages = new();
         private readonly List<string> _historicalSignals = new();
         private readonly object _stateLock = new();
@@ -96,15 +99,18 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task FinalizeActiveSessionAsync(CancellationToken cancellationToken = default)
         {
-            if (_session == null)
+            await _sessionFinalizationLock.WaitAsync().ConfigureAwait(false);
+            lock (_stateLock)
             {
-                return;
+                _isFinalizingSession = true;
             }
 
             bool sendLockHeld = false;
             int asrLocksHeld = 0;
             try
             {
+                // Includes initialization/balance/history work before the ASR send semaphore.
+                await _asrScheduler.ResetSessionAsync(cancellationToken).ConfigureAwait(false);
                 await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 sendLockHeld = true;
                 for (int i = 0; i < MaxConcurrentAsrSends; i++)
@@ -113,16 +119,26 @@ namespace ImageColorChanger.Services.Ai
                     asrLocksHeld++;
                 }
 
+                if (_session == null) return;
                 await RefreshBalanceStatusAsync(setBaseline: false, cancellationToken).ConfigureAwait(false);
                 await PersistSessionSettlementAsync(markEnded: true).ConfigureAwait(false);
-                ResetActiveSessionAfterFinalSettlement();
             }
             catch (OperationCanceledException)
             {
+                _sessionWorkCancellation.Cancel();
                 await PersistSessionSettlementAsync(markEnded: true).ConfigureAwait(false);
             }
             finally
             {
+                // Invalidate even providers that ignore cancellation before exposing a new session.
+                _sessionWorkCancellation.Cancel();
+                ResetActiveSessionAfterFinalSettlement();
+                lock (_stateLock)
+                {
+                    _sessionWorkCancellation.Dispose();
+                    _sessionWorkCancellation = new CancellationTokenSource();
+                    _isFinalizingSession = false;
+                }
                 for (int i = 0; i < asrLocksHeld; i++)
                 {
                     _asrSendGate.Release();
@@ -132,6 +148,27 @@ namespace ImageColorChanger.Services.Ai
                 {
                     _sendLock.Release();
                 }
+                _sessionFinalizationLock.Release();
+            }
+        }
+
+        private CancellationTokenSource CreateSessionWorkCancellation(CancellationToken cancellationToken)
+        {
+            lock (_stateLock)
+            {
+                return CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _sessionWorkCancellation.Token);
+            }
+        }
+
+        private bool TryInstallInitializedSession(AiSermonSessionState session, CancellationToken cancellationToken)
+        {
+            lock (_stateLock)
+            {
+                if (cancellationToken.IsCancellationRequested) return false;
+                _session = session;
+                _sessionStartBalance = null;
+                _lastBalance = null;
+                return true;
             }
         }
 
@@ -149,6 +186,12 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task StartProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
+            using var sessionWork = CreateSessionWorkCancellation(cancellationToken);
+            cancellationToken = sessionWork.Token;
+            lock (_stateLock)
+            {
+                if (_isFinalizingSession) return;
+            }
             if (!CanUseAiPanel())
             {
                 return;
@@ -156,6 +199,7 @@ namespace ImageColorChanger.Services.Ai
 
             StatusChanged?.Invoke("正在读取幻灯片项目上下文…");
             var context = await _contextBuilder.BuildAsync(projectId, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             StatusChanged?.Invoke("项目上下文读取完成，正在初始化会话…");
             bool createdNewSession = false;
 
@@ -165,6 +209,7 @@ namespace ImageColorChanger.Services.Ai
                 if (_session == null)
                 {
                     var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     _selectedSpeakerName = speaker.Name;
                     LoadDialectTagsForSpeaker(_selectedSpeakerName);
                     var historySession = await _historyStore.CreateSessionAsync(
@@ -172,7 +217,12 @@ namespace ImageColorChanger.Services.Ai
                         context.ProjectId,
                         context.ProjectName,
                         "concise").ConfigureAwait(false);
-                    _session = new AiSermonSessionState
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        await _historyStore.UpdateSessionSettlementAsync(historySession.Id, null, null, null, string.Empty, true).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    var initializedSession = new AiSermonSessionState
                     {
                         ProjectId = context.ProjectId,
                         ProjectName = context.ProjectName,
@@ -186,10 +236,14 @@ namespace ImageColorChanger.Services.Ai
                         SessionSummary = historySession.Summary,
                         StartedAt = DateTimeOffset.Now
                     };
-                    _sessionStartBalance = null;
-                    _lastBalance = null;
+                    if (!TryInstallInitializedSession(initializedSession, cancellationToken))
+                    {
+                        await _historyStore.UpdateSessionSettlementAsync(historySession.Id, null, null, null, string.Empty, true).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
                     lock (_stateLock)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         _visibleMessages.Clear();
                         _historicalSignals.Clear();
                     }
@@ -197,6 +251,7 @@ namespace ImageColorChanger.Services.Ai
                 }
                 else
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     _session.ProjectId = context.ProjectId;
                     _session.ProjectName = context.ProjectName;
                     _session.ProjectContext = context.ContextText;
@@ -269,23 +324,32 @@ namespace ImageColorChanger.Services.Ai
 
         public async Task SetSpeakerAsync(string speakerName, CancellationToken cancellationToken = default)
         {
+            using var sessionWork = CreateSessionWorkCancellation(cancellationToken);
+            cancellationToken = sessionWork.Token;
+            cancellationToken.ThrowIfCancellationRequested();
             var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(speakerName)).ConfigureAwait(false);
-            _selectedSpeakerName = speaker.Name;
-            LoadDialectTagsForSpeaker(_selectedSpeakerName);
-            if (_session == null)
+            cancellationToken.ThrowIfCancellationRequested();
+            var session = _session;
+            if (session?.HistorySessionId > 0)
             {
-                StatusChanged?.Invoke($"已选择传道人：{speaker.Name}");
-                return;
+                await _historyStore.UpdateSessionSpeakerAsync(session.HistorySessionId, speaker.Id).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
 
-            _session.SpeakerId = speaker.Id;
-            _session.SpeakerName = speaker.Name;
-            _session.SpeakerStyleSummary = speaker.StyleSummary;
-            if (_session.HistorySessionId > 0)
+            lock (_stateLock)
             {
-                await _historyStore.UpdateSessionSpeakerAsync(_session.HistorySessionId, speaker.Id).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!ReferenceEquals(session, _session)) return;
+                _selectedSpeakerName = speaker.Name;
+                LoadDialectTagsForSpeaker(_selectedSpeakerName);
+                if (session != null)
+                {
+                    session.SpeakerId = speaker.Id;
+                    session.SpeakerName = speaker.Name;
+                    session.SpeakerStyleSummary = speaker.StyleSummary;
+                }
             }
-            StatusChanged?.Invoke($"已切换传道人：{speaker.Name}");
+            StatusChanged?.Invoke(session == null ? $"已选择传道人：{speaker.Name}" : $"已切换传道人：{speaker.Name}");
         }
 
         public async Task SetOutputModeAsync(string outputMode)
@@ -399,6 +463,10 @@ namespace ImageColorChanger.Services.Ai
 
         public Task SendUserMessageAsync(string text, CancellationToken cancellationToken = default)
         {
+            lock (_stateLock)
+            {
+                if (_isFinalizingSession) return Task.CompletedTask;
+            }
             if (!CanUseAiPanel())
             {
                 return Task.CompletedTask;
@@ -409,6 +477,10 @@ namespace ImageColorChanger.Services.Ai
 
         public Task SendManualContextAsync(string text, CancellationToken cancellationToken = default)
         {
+            lock (_stateLock)
+            {
+                if (_isFinalizingSession) return Task.CompletedTask;
+            }
             if (!CanUseAiPanel())
             {
                 return Task.CompletedTask;
@@ -440,13 +512,13 @@ namespace ImageColorChanger.Services.Ai
                 return Task.CompletedTask;
             }
 
-            long asrSeq = Interlocked.Increment(ref _latestAsrSequence);
-
-            AppendHistoricalSignal($"ASR: {NormalizeSignal(turn.Text)}");
-            return _asrScheduler.EnqueueAsync(
-                turn,
-                ProcessAsrWindowAsync,
-                cancellationToken);
+            lock (_stateLock)
+            {
+                if (_isFinalizingSession) return Task.CompletedTask;
+                Interlocked.Increment(ref _latestAsrSequence);
+                AppendHistoricalSignal($"ASR: {NormalizeSignal(turn.Text)}");
+                return _asrScheduler.EnqueueAsync(turn, ProcessAsrWindowAsync, cancellationToken);
+            }
         }
 
         private async Task ProcessAsrWindowAsync(AiAsrSemanticWindowSnapshot snapshot, CancellationToken cancellationToken)
@@ -474,6 +546,9 @@ namespace ImageColorChanger.Services.Ai
             long asrSeq = 0,
             AiAsrSemanticWindowSnapshot asrSummarySnapshot = null)
         {
+            using var sessionWork = CreateSessionWorkCancellation(cancellationToken);
+            cancellationToken = sessionWork.Token;
+            cancellationToken.ThrowIfCancellationRequested();
             if (!CanUseAiPanel())
             {
                 return;
@@ -488,6 +563,7 @@ namespace ImageColorChanger.Services.Ai
             if (string.Equals(name, "asr", StringComparison.Ordinal))
             {
                 await EnsureSessionForAsrAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
 
             if (_session == null &&
@@ -502,6 +578,7 @@ namespace ImageColorChanger.Services.Ai
             {
                 return;
             }
+            cancellationToken.ThrowIfCancellationRequested();
 
             bool isAsr = string.Equals(name, "asr", StringComparison.Ordinal);
 
@@ -517,6 +594,7 @@ namespace ImageColorChanger.Services.Ai
             }
             MessageAppended?.Invoke(message);
             await SaveHistoryMessageAsync(message).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (isAsr && IsStaleAsrRequest(asrSeq))
             {
@@ -527,6 +605,7 @@ namespace ImageColorChanger.Services.Ai
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (isAsr && IsStaleAsrRequest(asrSeq))
                 {
                     return;
@@ -555,6 +634,7 @@ namespace ImageColorChanger.Services.Ai
                     request,
                     chunk =>
                     {
+                        if (cancellationToken.IsCancellationRequested) return;
                         if (!string.IsNullOrEmpty(chunk))
                         {
                             if (!receivedAnyDelta)
@@ -570,6 +650,7 @@ namespace ImageColorChanger.Services.Ai
                         }
                     },
                     cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (!string.IsNullOrWhiteSpace(result.Content))
                 {
@@ -602,7 +683,7 @@ namespace ImageColorChanger.Services.Ai
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     if (!isAsr)
                     {
-                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content).ConfigureAwait(false);
+                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, result.Content, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 else if (!receivedAnyDelta)
@@ -618,10 +699,11 @@ namespace ImageColorChanger.Services.Ai
                         forceWrite: string.Equals(name, "project_context", StringComparison.Ordinal)).ConfigureAwait(false);
                     if (!isAsr)
                     {
-                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty).ConfigureAwait(false);
+                        await UpdateSummariesAfterAssistantAsync(asrSummarySnapshot, string.Empty, cancellationToken).ConfigureAwait(false);
                     }
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
                 if (receivedAnyDelta)
                 {
                     StatusChanged?.Invoke("反馈接收完成。");
@@ -641,11 +723,11 @@ namespace ImageColorChanger.Services.Ai
             }
             catch (OperationCanceledException)
             {
-                StatusChanged?.Invoke("AI请求超时或取消");
+                if (!sessionWork.IsCancellationRequested) StatusChanged?.Invoke("AI请求超时或取消");
             }
             catch (Exception ex)
             {
-                StatusChanged?.Invoke(ex.Message);
+                if (!cancellationToken.IsCancellationRequested) StatusChanged?.Invoke(ex.Message);
             }
             finally
             {
@@ -747,12 +829,14 @@ namespace ImageColorChanger.Services.Ai
                 var result = await validator.ValidateAsync(
                     candidate,
                     (book, chapter) => _bibleService.GetVerseCountAsync(book, chapter)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (result.Accepted)
                 {
                     AppendHistoricalSignal(
                         $"经文候选确认: {result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}-{result.Candidate.EndVerse}节");
-                    await UpdateSpeakerStyleSummaryAsync(string.Empty, null, result.Candidate).ConfigureAwait(false);
+                    await UpdateSpeakerStyleSummaryAsync(string.Empty, null, result.Candidate, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     ScriptureCandidateAccepted?.Invoke(result.Candidate);
                     StatusChanged?.Invoke($"AI经文候选已确认：{result.Candidate.BookName}{result.Candidate.Chapter}章{result.Candidate.StartVerse}节");
                 }
@@ -1194,13 +1278,19 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task RefreshBalanceStatusAsync(bool setBaseline, CancellationToken cancellationToken)
         {
+            var session = _session;
             try
             {
                 var balance = await _chatClient.GetBalanceAsync(cancellationToken).ConfigureAwait(false);
-                _lastBalance = balance;
-                if (setBaseline || _sessionStartBalance == null)
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (_stateLock)
                 {
-                    _sessionStartBalance = balance;
+                    if (!ReferenceEquals(session, _session)) return;
+                    _lastBalance = balance;
+                    if (setBaseline || _sessionStartBalance == null)
+                    {
+                        _sessionStartBalance = balance;
+                    }
                 }
 
                 BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
@@ -1212,6 +1302,7 @@ namespace ImageColorChanger.Services.Ai
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                if (cancellationToken.IsCancellationRequested || !ReferenceEquals(session, _session)) return;
                 BalanceStatusChanged?.Invoke("余额：读取失败，消耗：待计算");
                 DebugMessageEmitted?.Invoke($"余额查询失败：{ex.Message}");
             }
@@ -1226,6 +1317,8 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task<bool> EnsureBalanceAllowsWorkAsync(CancellationToken cancellationToken)
         {
+            var session = _session;
+            cancellationToken.ThrowIfCancellationRequested();
             if (IsBalanceBelowMinimum(_lastBalance))
             {
                 StatusChanged?.Invoke(BuildLowBalanceStopMessage());
@@ -1240,10 +1333,15 @@ namespace ImageColorChanger.Services.Ai
             try
             {
                 var balance = await _chatClient.GetBalanceAsync(cancellationToken).ConfigureAwait(false);
-                _lastBalance = balance;
-                if (_sessionStartBalance == null)
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (_stateLock)
                 {
-                    _sessionStartBalance = balance;
+                    if (!ReferenceEquals(session, _session)) return false;
+                    _lastBalance = balance;
+                    if (_sessionStartBalance == null)
+                    {
+                        _sessionStartBalance = balance;
+                    }
                 }
 
                 BalanceStatusChanged?.Invoke(FormatBalanceStatus(_sessionStartBalance, balance));
@@ -1256,6 +1354,7 @@ namespace ImageColorChanger.Services.Ai
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                if (cancellationToken.IsCancellationRequested || !ReferenceEquals(session, _session)) return false;
                 DebugMessageEmitted?.Invoke($"余额检查失败：{ex.Message}");
             }
 
@@ -1349,11 +1448,10 @@ namespace ImageColorChanger.Services.Ai
             {
                 _visibleMessages.Clear();
                 _historicalSignals.Clear();
+                _session = null;
+                _sessionStartBalance = null;
+                _lastBalance = null;
             }
-
-            _session = null;
-            _sessionStartBalance = null;
-            _lastBalance = null;
         }
 
         private static string BuildLowBalanceStopMessage()
@@ -1403,8 +1501,10 @@ namespace ImageColorChanger.Services.Ai
         private async Task UpdateSpeakerStyleSummaryAsync(
             string assistantContent,
             AiAsrSemanticWindowSnapshot snapshot,
-            AiScriptureCandidate scriptureCandidate = null)
+            AiScriptureCandidate scriptureCandidate = null,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (_session == null || _session.SpeakerId <= 0)
             {
                 return;
@@ -1426,8 +1526,10 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task UpdateSummariesAfterAssistantAsync(
             AiAsrSemanticWindowSnapshot snapshot,
-            string assistantContent)
+            string assistantContent,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (_session == null || _session.HistorySessionId <= 0)
             {
                 return;
@@ -1440,7 +1542,8 @@ namespace ImageColorChanger.Services.Ai
                 await _historyStore.UpdateSessionSummaryAsync(_session.HistorySessionId, sessionSummary).ConfigureAwait(false);
             }
 
-            await UpdateSpeakerStyleSummaryAsync(assistantContent, snapshot).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await UpdateSpeakerStyleSummaryAsync(assistantContent, snapshot, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         private static string NormalizeSignal(string value)
@@ -1461,6 +1564,7 @@ namespace ImageColorChanger.Services.Ai
             await _assistantRenderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AssistantMessageStarted?.Invoke();
                 AssistantDeltaReceived?.Invoke(content);
             }
@@ -1472,6 +1576,7 @@ namespace ImageColorChanger.Services.Ai
 
         private async Task EnsureSessionForAsrAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (_session != null)
             {
                 return;
@@ -1486,6 +1591,7 @@ namespace ImageColorChanger.Services.Ai
                 }
 
                 var speaker = await _historyStore.GetOrCreateSpeakerAsync(ResolveSpeakerNameForSession(_selectedSpeakerName)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 _selectedSpeakerName = speaker.Name;
                 LoadDialectTagsForSpeaker(_selectedSpeakerName);
 
@@ -1494,8 +1600,13 @@ namespace ImageColorChanger.Services.Ai
                     projectId: 0,
                     title: $"实时会话 {DateTime.Now:MM-dd HH:mm}",
                     outputMode: "concise").ConfigureAwait(false);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    await _historyStore.UpdateSessionSettlementAsync(historySession.Id, null, null, null, string.Empty, true).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
 
-                _session = new AiSermonSessionState
+                var initializedSession = new AiSermonSessionState
                 {
                     ProjectId = 0,
                     ProjectName = "未绑定项目",
@@ -1509,8 +1620,11 @@ namespace ImageColorChanger.Services.Ai
                     SessionSummary = historySession.Summary,
                     StartedAt = DateTimeOffset.Now
                 };
-                _sessionStartBalance = null;
-                _lastBalance = null;
+                if (!TryInstallInitializedSession(initializedSession, cancellationToken))
+                {
+                    await _historyStore.UpdateSessionSettlementAsync(historySession.Id, null, null, null, string.Empty, true).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
 
                 StatusChanged?.Invoke("已自动创建实时历史会话");
                 await RefreshBalanceStatusAsync(setBaseline: true, cancellationToken).ConfigureAwait(false);

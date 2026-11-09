@@ -474,7 +474,7 @@ namespace ImageColorChanger.UI
 
         private void SyncAiPanelAsrConnectionStatus()
         {
-            _aiAssistantPanelWindow?.SetAsrConnectionState(_aiSermonReceiveAsr, IsLiveCaptionRealtimeConnected());
+            _aiAssistantPanelWindow?.SetAsrConnectionState(_aiSermonReceiveAsr, IsLiveCaptionRealtimeConnected(), IsLiveCaptionInputMethodActive());
         }
 
         private void OpenLiveCaptionPanel()
@@ -623,6 +623,7 @@ namespace ImageColorChanger.UI
         private void StopLiveCaption()
         {
             ++_liveCaptionStateRevision;
+            ResetAiCaptionInput();
             _inputMethodSessionActive = false;
             _liveCaptionOverlayWindow?.SetInputMethodMode(false);
             InputMethodCaptionDiagnostics.Log("session=stopped");

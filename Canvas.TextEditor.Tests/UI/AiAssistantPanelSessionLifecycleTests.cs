@@ -35,7 +35,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         public void PanelOpen_ResumesAsrOnlyWhenAnActiveSessionAlreadyExists()
         {
             string source = File.ReadAllText(Path.Combine(FindRepoRoot(), "UI", "MainWindow.AiSermon.cs"));
-            const string expected = "SetAiSermonReceiveAsr(_aiSermonCoordinator?.HasActiveSession == true);";
+            const string expected = "SetAiSermonReceiveAsr(_aiSermonReceiveAsr || _aiSermonCoordinator?.HasActiveSession == true);";
 
             Assert.Equal(2, CountOccurrences(source, expected));
         }
@@ -67,8 +67,10 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
 
             Assert.Contains("bool hasPendingProject = _pendingAiSermonProjectRequest != null", method, StringComparison.Ordinal);
             Assert.Contains("if (!hasPendingProject", method, StringComparison.Ordinal);
-            Assert.Contains("_liveCaptionEngine?.IsRunning != true", method, StringComparison.Ordinal);
-            Assert.Contains("StartLiveCaption(_liveCaptionCurrentSource);", method, StringComparison.Ordinal);
+            Assert.Contains("EnsureAiCaptionInputStarted();", method, StringComparison.Ordinal);
+            string startup = Slice(source, "private void EnsureAiCaptionInputStarted()", "private void ResetAiCaptionInput()");
+            Assert.Contains("_liveCaptionEngine?.IsRunning != true", startup, StringComparison.Ordinal);
+            Assert.Contains("StartLiveCaption(_liveCaptionCurrentSource);", startup, StringComparison.Ordinal);
         }
 
         [Fact]
