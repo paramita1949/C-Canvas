@@ -1,134 +1,176 @@
 #nullable enable
 using System;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using ImageColorChanger.Services;
 
 namespace ImageColorChanger.UI
 {
     public partial class UpdateWindow : Window
     {
-        private VersionInfo _versionInfo;
-        private string? _downloadedFilePath;
+        private readonly VersionInfo _versionInfo;
+        private CancellationTokenSource? _downloadCancellation;
+        private bool _closed;
 
         public UpdateWindow(VersionInfo versionInfo)
         {
+            _versionInfo = versionInfo ?? throw new ArgumentNullException(nameof(versionInfo));
             InitializeComponent();
-            _versionInfo = versionInfo;
+            MaxHeight = SystemParameters.WorkArea.Height;
+            MaxWidth = SystemParameters.WorkArea.Width;
+            MinHeight = Math.Min(MinHeight, MaxHeight);
+            MinWidth = Math.Min(MinWidth, MaxWidth);
+            Height = Math.Min(Height, MaxHeight);
+            Width = Math.Min(Width, MaxWidth);
             InitializeUI();
         }
 
         private void InitializeUI()
         {
-            // 设置版本信息
-            VersionText.Text = $"V{_versionInfo.Version}";
+            HeaderTitleText.Text = $"更新到 V{_versionInfo.Version}";
+            VersionText.Text = $"当前 V{UpdateService.GetCurrentVersion()}";
             ReleaseNotesText.Text = string.IsNullOrWhiteSpace(_versionInfo.ReleaseNotes)
-                ? "修复若干BUG"
-                : _versionInfo.ReleaseNotes.Trim();
-            
-            // 默认显示提示信息
+                ? "暂无更新说明。" : _versionInfo.ReleaseNotes.Trim();
             InfoPanel.Visibility = Visibility.Visible;
             ProgressPanel.Visibility = Visibility.Collapsed;
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            Close();
+            if (e.OriginalSource is System.Windows.Controls.Button) return;
+            if (e.ClickCount == 2)
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            else if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _closed = true;
+            _downloadCancellation?.Cancel();
+            base.OnClosed(e);
         }
 
         private async void UpdateButton_Click(object sender, RoutedEventArgs e)
         {
-            // 禁用按钮
+            if (_downloadCancellation != null) return;
+            using var cancellation = new CancellationTokenSource();
+            _downloadCancellation = cancellation;
+            var token = cancellation.Token;
             UpdateButton.IsEnabled = false;
-            SkipButton.IsEnabled = false;
-
-            // 隐藏提示，显示进度
-            InfoPanel.Visibility = Visibility.Collapsed;
+            SkipButtonText.Text = "取消更新";
             ProgressPanel.Visibility = Visibility.Visible;
-            ProgressText.Text = "正在下载更新...";
-
+            ProgressText.Text = "正在连接…";
+            ProgressDetailText.Text = "";
+            DownloadProgress.IsIndeterminate = true;
+            DownloadProgress.Value = 0;
+            var clock = Stopwatch.StartNew();
+            var acceptDownloadProgress = true;
+            string? downloadedDirectory = null;
+            var installationStarted = false;
             try
             {
-                // 创建进度报告器
+                // Progress 已回到WPF上下文；服务侧节流，无需每个数据块再同步 Dispatcher.Invoke。
                 var progress = new Progress<(long downloaded, long total)>(p =>
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        var percentage = p.total > 0 ? (double)p.downloaded / p.total * 100 : 0;
-                        DownloadProgress.Value = percentage;
-                        ProgressDetailText.Text = $"{UpdateService.FormatFileSize(p.downloaded)} / {UpdateService.FormatFileSize(p.total)}";
-                    });
+                    if (_closed || token.IsCancellationRequested || !acceptDownloadProgress) return;
+                    DownloadProgress.IsIndeterminate = p.total <= 0;
+                    DownloadProgress.Value = p.total > 0 ? Math.Clamp((double)p.downloaded / p.total * 100, 0, 100) : 0;
+                    ProgressText.Text = "正在下载…";
+                    var size = p.total > 0 ? $"{UpdateService.FormatFileSize(p.downloaded)} / {UpdateService.FormatFileSize(p.total)}"
+                        : $"已下载 {UpdateService.FormatFileSize(p.downloaded)}（总大小未知）";
+                    var speed = (long)(p.downloaded / Math.Max(0.1, clock.Elapsed.TotalSeconds));
+                    ProgressDetailText.Text = $"{size} · 平均 {UpdateService.FormatFileSize(speed)}/秒";
                 });
-
-                // 下载更新
-                _downloadedFilePath = await UpdateService.DownloadUpdateAsync(_versionInfo, progress);
-
-                if (string.IsNullOrEmpty(_downloadedFilePath))
+                downloadedDirectory = await UpdateService.DownloadUpdateAsync(_versionInfo, progress, token);
+                acceptDownloadProgress = false;
+                token.ThrowIfCancellationRequested();
+                if (string.IsNullOrEmpty(downloadedDirectory))
                 {
-                    System.Windows.MessageBox.Show(
-                        "下载更新失败，请检查网络连接后重试。",
-                        "下载失败",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Error);
-                    
-                    UpdateButton.IsEnabled = true;
-                    SkipButton.IsEnabled = true;
-                    InfoPanel.Visibility = Visibility.Visible;
-                    ProgressPanel.Visibility = Visibility.Collapsed;
+                    ProgressText.Text = "下载未完成";
+                    ProgressDetailText.Text = string.IsNullOrWhiteSpace(UpdateService.LastDownloadError)
+                        ? "请重试或使用浏览器下载。" : UpdateService.LastDownloadError;
                     return;
                 }
-
-                ProgressText.Text = "下载完成！准备安装...";
+                DownloadProgress.IsIndeterminate = false;
                 DownloadProgress.Value = 100;
-                await Task.Delay(800);
-
-                // 倒计时5秒后自动安装
                 for (int i = 5; i > 0; i--)
                 {
-                    ProgressText.Text = $"下载完成！{i}秒后自动安装...";
-                    await Task.Delay(1000);
+                    ProgressText.Text = $"下载完成，{i}秒后重启（可取消）";
+                    await Task.Delay(1000, token);
                 }
-
-                // 应用更新（自动重启）
-                if (UpdateService.ApplyUpdate(_downloadedFilePath))
+                token.ThrowIfCancellationRequested();
+                installationStarted = UpdateService.ApplyUpdate(downloadedDirectory);
+                if (!installationStarted)
                 {
-                    // 程序将自动退出并重启
+                    ProgressText.Text = "应用更新失败。";
+                    ProgressDetailText.Text = "请检查安装目录权限，或使用浏览器下载后手动更新。";
                 }
-                else
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                if (!_closed)
                 {
-                    System.Windows.MessageBox.Show(
-                        "应用更新失败，请尝试以管理员身份运行程序。",
-                        "更新失败",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Error);
-                    
-                    UpdateButton.IsEnabled = true;
-                    SkipButton.IsEnabled = true;
-                    InfoPanel.Visibility = Visibility.Visible;
-                    ProgressPanel.Visibility = Visibility.Collapsed;
+                    ProgressText.Text = "更新已取消";
+                    ProgressDetailText.Text = "";
                 }
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(
-                    $"更新过程中发生错误：\n\n{ex.Message}",
-                    "错误",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
-                
-                UpdateButton.IsEnabled = true;
-                SkipButton.IsEnabled = true;
-                InfoPanel.Visibility = Visibility.Visible;
-                ProgressPanel.Visibility = Visibility.Collapsed;
+                if (!_closed)
+                {
+                    ProgressText.Text = "更新失败";
+                    ProgressDetailText.Text = ex.Message;
+                }
+                Trace.WriteLine($"[Updater UI] {ex}");
+            }
+            finally
+            {
+                acceptDownloadProgress = false;
+                if (!installationStarted) UpdateService.CleanupIncompleteDownload(downloadedDirectory);
+                _downloadCancellation = null;
+                if (!_closed)
+                {
+                    UpdateButton.IsEnabled = true;
+                    UpdateButtonText.Text = "重试更新";
+                    SkipButtonText.Text = "稍后";
+                    DownloadProgress.IsIndeterminate = false;
+                }
+            }
+        }
+
+        private void BrowserDownloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            _downloadCancellation?.Cancel();
+            if (!Uri.TryCreate(_versionInfo.DownloadUrl, UriKind.Absolute, out var url) ||
+                (url.Scheme != Uri.UriSchemeHttps && url.Scheme != Uri.UriSchemeHttp))
+            {
+                ProgressPanel.Visibility = Visibility.Visible;
+                ProgressText.Text = "此更新没有可用的浏览器下载地址。";
+                return;
+            }
+            try
+            {
+                // 单包直链与应用内同源；多文件清单打开该网盘，避免只下载首文件导致不完整更新。
+                var address = _versionInfo.Files.Count == 1 ? url.AbsoluteUri : url.GetLeftPart(UriPartial.Authority);
+                Process.Start(new ProcessStartInfo(address) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                ProgressPanel.Visibility = Visibility.Visible;
+                ProgressText.Text = "无法打开浏览器。";
+                ProgressDetailText.Text = ex.Message;
             }
         }
 
         private void SkipButton_Click(object sender, RoutedEventArgs e)
         {
-            Close();
+            if (_downloadCancellation != null) _downloadCancellation.Cancel();
+            else Close();
         }
     }
 }
-
-
-

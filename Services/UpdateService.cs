@@ -98,6 +98,15 @@ namespace ImageColorChanger.Services
         private static readonly UpdateEndpointSelector EndpointSelector = new();
         private static HttpClient _httpClient = CreateDefaultHttpClient();
         private const int RollbackRequestTimeoutSeconds = 6;
+        private static TimeSpan _downloadHeaderTimeout = TimeSpan.FromSeconds(8);
+        private static TimeSpan _downloadIdleTimeout = TimeSpan.FromSeconds(15);
+        public static string LastDownloadError { get; private set; } = "";
+
+        internal static void SetDownloadTimeoutsForTests(TimeSpan? headerTimeout = null, TimeSpan? idleTimeout = null)
+        {
+            _downloadHeaderTimeout = headerTimeout ?? TimeSpan.FromSeconds(8);
+            _downloadIdleTimeout = idleTimeout ?? TimeSpan.FromSeconds(15);
+        }
 
         // 升级检查的时限保护：整体检查与单地址探测都有上限，避免长时间卡在某个地址上无反馈。
         private const int DefaultUpdateCheckOverallTimeoutSeconds = 20;
@@ -859,14 +868,17 @@ namespace ImageColorChanger.Services
         /// 从多个地址尝试下载单个文件（带轮询）
         /// </summary>
         /// <returns>返回 (是否成功, 下载的字节数)</returns>
-        private static async Task<(bool success, long bytesDownloaded)> DownloadFileWithMultiSourceAsync(string fileName, string version, string filePath, long totalBytes, long currentDownloadedBytes, IProgress<(long, long)>? progress)
+        private static async Task<(bool success, long bytesDownloaded)> DownloadFileWithMultiSourceAsync(
+            UpdateFileInfo file, VersionInfo versionInfo, string filePath, long currentDownloadedBytes,
+            IProgress<(long, long)>? progress, CancellationToken cancellationToken)
         {
             // 尝试所有下载地址（最近可用地址优先，失败地址靠后）
             var baseUrls = GetOrderedDownloadBaseUrlsSnapshot();
             for (int i = 0; i < baseUrls.Count; i++)
             {
                 var baseUrl = baseUrls[i];
-                var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, version, fileName);
+                var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, versionInfo.Version, file.FileName);
+                var addressTimedOut = false;
 
                 foreach (var downloadUrl in downloadCandidates)
                 {
@@ -875,7 +887,11 @@ namespace ImageColorChanger.Services
                     {
                         try
                         {
-                            using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                            cancellationToken.ThrowIfCancellationRequested();
+                            using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
+                            using var headerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                            headerCts.CancelAfter(_downloadHeaderTimeout);
+                            using (var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headerCts.Token).ConfigureAwait(false))
                             {
                                 // 如果文件不存在（404），尝试下一个地址
                                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -884,36 +900,66 @@ namespace ImageColorChanger.Services
                                 }
 
                                 response.EnsureSuccessStatusCode();
+                                var expectedLength = response.Content.Headers.ContentLength;
+                                file.FileSize = expectedLength ?? 0;
+                                long TotalBytes() => versionInfo.Files.All(f => f.FileSize > 0) ? versionInfo.FileSize : 0;
                                 long fileDownloadedBytes = 0;
-                                using (var contentStream = await response.Content.ReadAsStreamAsync())
-                                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                                var reportClock = Stopwatch.StartNew();
+                                progress?.Report((currentDownloadedBytes, TotalBytes()));
+                                using (var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+                                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true))
                                 {
-                                    var buffer = new byte[8192];
-                                    int bytesRead;
-
-                                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                    var buffer = new byte[65536];
+                                    using var readCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                                    while (true)
                                     {
-                                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                        // ResponseHeadersRead 的 HttpClient.Timeout 不覆盖正文；每次读取单独限制无数据等待。
+                                        readCts.CancelAfter(_downloadIdleTimeout);
+                                        var bytesRead = await contentStream.ReadAsync(buffer.AsMemory(), readCts.Token).ConfigureAwait(false);
+                                        readCts.CancelAfter(Timeout.InfiniteTimeSpan);
+                                        if (bytesRead == 0) break;
+                                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
                                         fileDownloadedBytes += bytesRead;
-                                        var newDownloadedBytes = currentDownloadedBytes + fileDownloadedBytes;
-                                        progress?.Report((newDownloadedBytes, totalBytes));
+                                        if (reportClock.ElapsedMilliseconds >= 250)
+                                        {
+                                            progress?.Report((currentDownloadedBytes + fileDownloadedBytes, TotalBytes()));
+                                            reportClock.Restart();
+                                        }
                                     }
                                 }
+                                if (expectedLength.HasValue && fileDownloadedBytes != expectedLength.Value)
+                                    throw new IOException($"{file.FileName} 下载不完整：{fileDownloadedBytes}/{expectedLength.Value} 字节");
+                                if (fileDownloadedBytes == 0) throw new IOException($"{file.FileName} 下载内容为空");
+                                file.FileSize = fileDownloadedBytes;
+                                progress?.Report((currentDownloadedBytes + fileDownloadedBytes, TotalBytes()));
                                 EndpointSelector.MarkSuccess(baseUrl);
                                 return (true, fileDownloadedBytes); // 下载成功，返回下载的字节数
                             }
                         }
-                        catch (Exception)
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
-                        
+                            throw;
+                        }
+                        catch (OperationCanceledException ex)
+                        {
+                            LastDownloadError = "连接或接收更新数据超时，请重试或使用浏览器下载。";
+                            Trace.WriteLine($"[Updater] timeout {downloadUrl}: {ex}");
+                            addressTimedOut = true;
+                            break; // 无数据的地址不再原地重试，直接切换下载源。
+                        }
+                        catch (Exception ex) when (ex is HttpRequestException || ex is IOException)
+                        {
+                            LastDownloadError = ex.Message;
+                            Trace.WriteLine($"[Updater] failed {downloadUrl}: {ex}");
                             // 如果是最后一次重试，跳出重试循环，尝试下一个地址
                             if (retry == 1)
                                 break;
                         
                             // 否则等待1秒后重试当前地址
-                            await Task.Delay(1000);
+                            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
                         }
                     }
+                    if (addressTimedOut) break;
                 }
 
                 // 该地址的所有候选 URL 都失败，进入冷却期，下次优先使用其它地址。
@@ -927,10 +973,13 @@ namespace ImageColorChanger.Services
         /// <summary>
         /// 下载更新文件
         /// </summary>
-        public static async Task<string?> DownloadUpdateAsync(VersionInfo versionInfo, IProgress<(long, long)>? progress = null)
+        public static async Task<string?> DownloadUpdateAsync(VersionInfo versionInfo, IProgress<(long, long)>? progress = null, CancellationToken cancellationToken = default)
         {
+            string? tempDir = null;
+            LastDownloadError = "";
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 // 检查文件列表是否为空
                 if (versionInfo.Files == null || versionInfo.Files.Count == 0)
                 {
@@ -938,101 +987,73 @@ namespace ImageColorChanger.Services
                 }
 
                 // 创建临时目录
-                var tempDir = Path.Combine(Path.GetTempPath(), "CanvasCastUpdate");
-                if (Directory.Exists(tempDir))
-                {
-                    // 清空旧文件
-                    Directory.Delete(tempDir, true);
-                }
+                tempDir = Path.Combine(Path.GetTempPath(), "CanvasCastUpdate", Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(tempDir);
-
-                // 计算总大小（先获取每个文件的大小，尝试从多个地址获取）
-                long totalBytes = 0;
-                foreach (var file in versionInfo.Files)
-                {
-                    // 尝试从多个地址获取文件大小（使用HEAD请求，只获取响应头）
-                    var sizeResolved = false;
-                    var baseUrls = GetDownloadBaseUrlsSnapshot();
-                    for (int i = 0; i < baseUrls.Length; i++)
-                    {
-                        var baseUrl = baseUrls[i];
-                        var downloadCandidates = BuildFileDownloadCandidateUrls(baseUrl, versionInfo.Version, file.FileName);
-
-                        foreach (var downloadUrl in downloadCandidates)
-                        {
-                            try
-                            {
-                                using (var request = new HttpRequestMessage(HttpMethod.Head, downloadUrl))
-                                using (var response = await _httpClient.SendAsync(request))
-                                {
-                                    if (response.IsSuccessStatusCode)
-                                    {
-                                        file.FileSize = response.Content.Headers.ContentLength ?? 0;
-                                        totalBytes += file.FileSize;
-                                        sizeResolved = true;
-                                        break; // 成功获取大小，跳出循环
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (sizeResolved)
-                        {
-                            break; // 已获取到该文件大小，不再累加其他镜像
-                        }
-                    }
-                }
-
+                // 不做串行 HEAD 预探测，大小直接从实际 GET 响应读取；未知大小仍可下载。
                 long downloadedBytes = 0;
-
-                // 下载所有文件
-                var successfulFiles = 0;
-                var failedFiles = 0;
                 
                 foreach (var file in versionInfo.Files)
                 {
-                    var filePath = Path.Combine(tempDir, file.FileName);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var filePath = Path.GetFullPath(Path.Combine(tempDir, file.FileName));
+                    if (!filePath.StartsWith(tempDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("更新文件路径无效");
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
                     
                     // 使用多地址轮询下载单个文件
                     var (downloadSuccess, bytesDownloaded) = await DownloadFileWithMultiSourceAsync(
-                        file.FileName, 
-                        versionInfo.Version, 
+                        file,
+                        versionInfo,
                         filePath, 
-                        totalBytes, 
                         downloadedBytes, 
-                        progress);
+                        progress,
+                        cancellationToken).ConfigureAwait(false);
                     
                     if (!downloadSuccess)
                     {
-                        failedFiles++;
-                        continue;
+                        throw new IOException(string.IsNullOrEmpty(LastDownloadError)
+                            ? $"无法下载 {file.FileName}，请重试或使用浏览器下载。" : LastDownloadError);
                     }
                     
                     // 更新已下载字节数
                     downloadedBytes += bytesDownloaded;
-                    successfulFiles++;
                     // 如果是压缩包，自动解压
                     if (IsCompressedFile(file.FileName))
                     {
-                        await ExtractCompressedFileAsync(filePath, tempDir);
+                        await ExtractCompressedFileAsync(filePath, tempDir).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
                         
                         // 删除压缩包文件
                         File.Delete(filePath);
                     }
                 }
                 
-                // 如果没有任何文件成功下载，返回失败
-                if (successfulFiles == 0)
-                {
-                    return null;
-                }
+                cancellationToken.ThrowIfCancellationRequested();
                 return tempDir; // 返回临时目录路径
             }
-            catch (Exception)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                CleanupIncompleteDownload(tempDir);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LastDownloadError = ex.Message;
+                Trace.WriteLine($"[Updater] download failed: {ex}");
+                CleanupIncompleteDownload(tempDir);
                 return null;
             }
+        }
+
+        internal static void CleanupIncompleteDownload(string? directory)
+        {
+            if (directory == null) return;
+            var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "CanvasCastUpdate")) + Path.DirectorySeparatorChar;
+            directory = Path.GetFullPath(directory);
+            if (!directory.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return;
+            try { Directory.Delete(directory, true); }
+            catch (IOException ex) { Trace.WriteLine($"[Updater] cleanup: {ex.Message}"); }
+            catch (UnauthorizedAccessException ex) { Trace.WriteLine($"[Updater] cleanup: {ex.Message}"); }
         }
 
         /// <summary>
