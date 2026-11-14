@@ -939,8 +939,7 @@ namespace ImageColorChanger.UI
                     .ThenBy(g => g.Id)
                     .ToList();
 
-                var songs = _dbContext.LyricsProjects
-                    .AsNoTracking()
+                var songs = Managers.LyricsProjectManager.QueryLibraryProjects(_dbContext)
                     .OrderBy(p => p.SortOrder)
                     .ThenBy(p => p.Id)
                     .ToList();
@@ -989,7 +988,7 @@ namespace ImageColorChanger.UI
                     _projectTreeItems.Add(groupItem);
                 }
 
-                // 兼容历史数据：未分组歌曲也需要在文件视图中可见（顶层歌曲节点）
+                // 只有独立歌曲可作为顶层节点，图片关联歌词保留在数据库中。
                 var ungroupedSongs = songs
                     .Where(s => !s.GroupId.HasValue)
                     .OrderBy(s => s.SortOrder)

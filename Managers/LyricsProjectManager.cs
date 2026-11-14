@@ -81,6 +81,16 @@ namespace ImageColorChanger.Managers
                 .FirstOrDefault(p => p.Id == id);
         }
 
+        /// <summary>文件树和搜索共用的独立歌曲范围；图片歌词始终通过图片入口访问。</summary>
+        public static IQueryable<LyricsProject> QueryLibraryProjects(CanvasDbContext dbContext)
+        {
+            return dbContext.LyricsProjects.AsNoTracking()
+                .Where(p => p.ImageId == null &&
+                    (p.SourceType == 1 ||
+                        // 兼容旧版普通分组中尚未回填来源类型的独立歌曲。
+                        (p.LyricsGroup != null && !p.LyricsGroup.IsSystem)));
+        }
+
         public List<LyricsProject> GetByGroupId(int? groupId)
         {
             return _dbContext.LyricsProjects

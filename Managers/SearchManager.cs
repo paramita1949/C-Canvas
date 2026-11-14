@@ -251,7 +251,7 @@ namespace ImageColorChanger.Managers
                 var groups = groupQuery
                     .Select(g => new { g.Id, g.Name, g.HighlightColor })
                     .ToList();
-                if (groups.Count == 0)
+                if (lyricsGroupId.HasValue && groups.Count == 0)
                 {
                     return;
                 }
@@ -262,14 +262,10 @@ namespace ImageColorChanger.Managers
                     .Select(g => g.Id)
                     .ToHashSet();
 
-                var songQuery = db.LyricsProjects.AsNoTracking();
+                var songQuery = LyricsProjectManager.QueryLibraryProjects(db);
                 if (lyricsGroupId.HasValue)
                 {
                     songQuery = songQuery.Where(s => s.GroupId == lyricsGroupId.Value);
-                }
-                else
-                {
-                    songQuery = songQuery.Where(s => s.SourceType == 1 || s.GroupId != null);
                 }
 
                 var songs = songQuery
