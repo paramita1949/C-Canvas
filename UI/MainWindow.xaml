@@ -1323,14 +1323,18 @@
                     </Popup>
                     
                     <!-- 屏幕选择器（底部） -->
-                    <Border Grid.Row="2" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="8">
-                        <StackPanel>
-                            <TextBlock Text="投影屏幕" FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="ScreenSelector" Height="32" 
-                                      SelectedIndex="0" FontSize="12"
-                                      Style="{StaticResource WhiteComboBoxPopup}"
-                                      ItemContainerStyle="{StaticResource WhiteComboBoxItem}"/>
-                        </StackPanel>
+                    <Border x:Name="ScreenSelectorPanel" Grid.Row="2" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="8">
+                        <ComboBox x:Name="ScreenSelector" Height="32"
+                                  SelectedIndex="0" FontSize="12"
+                                  ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource Self}}"
+                                  Style="{StaticResource WhiteComboBoxPopup}"
+                                  ItemContainerStyle="{StaticResource WhiteComboBoxItem}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" MaxWidth="480" ToolTip="{Binding}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </Border>
                 </Grid>
             </Border>

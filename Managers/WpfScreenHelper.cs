@@ -214,6 +214,7 @@ namespace ImageColorChanger.Managers
             // System.Diagnostics.Debug.WriteLine($" [Screen API] 共检测到 {screens.Count} 个显示器");
 #endif
 
+            MonitorDisplayNameResolver.ApplyTo(screens);
             return screens;
         }
 
@@ -318,6 +319,7 @@ namespace ImageColorChanger.Managers
             // System.Diagnostics.Debug.WriteLine($" [EnumDisplayDevices] 共检测到 {screens.Count} 个显示器");
 #endif
 
+            MonitorDisplayNameResolver.ApplyTo(screens);
             return screens;
         }
 
@@ -409,6 +411,9 @@ namespace ImageColorChanger.Managers
         /// 设备名称
         /// </summary>
         public string DeviceName { get; set; }
+
+        /// <summary>Windows提供的显示器友好名称，仅用于显示，不用于选屏。</summary>
+        public string FriendlyName { get; set; }
 
         /// <summary>
         /// 是否为主显示器

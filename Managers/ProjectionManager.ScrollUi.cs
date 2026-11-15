@@ -296,12 +296,12 @@ namespace ImageColorChanger.Managers
                 if (!string.Equals(signature, _lastBibleTitleDiagSignature, StringComparison.Ordinal))
                 {
                     _lastBibleTitleDiagSignature = signature;
-                    System.Diagnostics.Trace.WriteLine(
-                        $"[BibleTitleDiag][Projection.UpdateBibleTitleStyleOnUi] " +
-                        $"fontFamily={_projectionBibleTitleText?.FontFamily?.Source}, fontSize={_projectionBibleTitleText?.FontSize:0.##}, " +
-                        $"sourceDpiScaleY={sourceDpiScaleY:0.###}, projectionDpiScaleY={projectionDpiScaleY:0.###}, " +
-                        $"contentScaleRatio={contentScaleRatio:0.###}, requestedFontSize={fontSize:0.##}, normalizedFontSize={normalizedFontSize:0.##}, " +
-                        $"titleColorHex={titleColorHex}, backgroundColorHex={backgroundColorHex}");
+                    // System.Diagnostics.Trace.WriteLine(
+                        // $"[BibleTitleDiag][Projection.UpdateBibleTitleStyleOnUi] " +
+                        // $"fontFamily={_projectionBibleTitleText?.FontFamily?.Source}, fontSize={_projectionBibleTitleText?.FontSize:0.##}, " +
+                        // $"sourceDpiScaleY={sourceDpiScaleY:0.###}, projectionDpiScaleY={projectionDpiScaleY:0.###}, " +
+                        // $"contentScaleRatio={contentScaleRatio:0.###}, requestedFontSize={fontSize:0.##}, normalizedFontSize={normalizedFontSize:0.##}, " +
+                        // $"titleColorHex={titleColorHex}, backgroundColorHex={backgroundColorHex}");
                 }
             }
             catch

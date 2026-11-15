@@ -57,7 +57,7 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 更新屏幕下拉框
         /// </summary>
-        private void UpdateScreenComboBox()
+        private void UpdateScreenComboBox(int? preferredIndex = null)
         {
             if (_screenComboBox == null)
             {
@@ -71,7 +71,7 @@ namespace ImageColorChanger.Managers
                 for (int i = 0; i < _screens.Count; i++)
                 {
                     var screen = _screens[i];
-                    string name = screen.IsPrimary ? "主显示器" : $"显示器{i + 1}";
+                    string name = ProjectionScreenLabel.GetLabel(screen, i);
                     _screenComboBox.Items.Add(name);
                 }
 
@@ -87,9 +87,19 @@ namespace ImageColorChanger.Managers
 
                 if (_screenComboBox.Items.Count > 0)
                 {
-                    _screenComboBox.SelectedIndex = defaultIndex;
+                    _screenComboBox.SelectedIndex = preferredIndex ?? defaultIndex;
                 }
             });
+        }
+
+        private void RefreshProjectionTargetScreens()
+        {
+            int selectedIndex = _screenComboBox?.SelectedIndex ?? 0;
+            var fresh = WpfScreenHelper.GetAllScreens();
+            int resolvedIndex = ProjectionPlacementPolicy.ResolveSelectedIndex(_screens, selectedIndex, fresh);
+            _screens = fresh;
+            // 先按旧设备身份匹配新列表；断开/无效选择保持-1，不悄悄切到另一块屏。
+            UpdateScreenComboBox(resolvedIndex);
         }
 
         /// <summary>
@@ -101,7 +111,7 @@ namespace ImageColorChanger.Managers
             for (int i = 0; i < _screens.Count; i++)
             {
                 var screen = _screens[i];
-                string name = screen.IsPrimary ? "主显示器" : $"显示器{i + 1}";
+                string name = ProjectionScreenLabel.GetLabel(screen, i);
                 monitors.Add((name, screen.IsPrimary, screen.PhysicalWidth, screen.PhysicalHeight));
             }
 

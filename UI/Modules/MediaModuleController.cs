@@ -115,11 +115,11 @@ namespace ImageColorChanger.UI.Modules
                     return;
                 }
 
-                Debug.WriteLine(
-                    $"[MediaPlayerInit] Main VideoView {trigger}: " +
-                    $"Loaded={_mainVideoView.IsLoaded}, Visible={_mainVideoView.IsVisible}, " +
-                    $"Size={_mainVideoView.ActualWidth:F0}x{_mainVideoView.ActualHeight:F0}, " +
-                    $"HasMediaPlayer={_mainVideoView.MediaPlayer != null}");
+                // Debug.WriteLine(
+                    // $"[MediaPlayerInit] Main VideoView {trigger}: " +
+                    // $"Loaded={_mainVideoView.IsLoaded}, Visible={_mainVideoView.IsVisible}, " +
+                    // $"Size={_mainVideoView.ActualWidth:F0}x{_mainVideoView.ActualHeight:F0}, " +
+                    // $"HasMediaPlayer={_mainVideoView.MediaPlayer != null}");
 
                 if (_mainVideoView.ActualWidth <= 0 || _mainVideoView.ActualHeight <= 0)
                 {
@@ -132,7 +132,7 @@ namespace ImageColorChanger.UI.Modules
                     _videoPlayerManager.InitializeMediaPlayer(_mainVideoView);
                     _videoPlayerManager.SetMainVideoView(_mainVideoView);
                     mediaPlayerInitialized = _mainVideoView.MediaPlayer != null;
-                    Debug.WriteLine($"[MediaPlayerInit] Main VideoView 绑定完成: Success={mediaPlayerInitialized}");
+                    // Debug.WriteLine($"[MediaPlayerInit] Main VideoView 绑定完成: Success={mediaPlayerInitialized}");
 
                     if (mediaPlayerInitialized)
                     {
@@ -165,7 +165,7 @@ namespace ImageColorChanger.UI.Modules
             _mainVideoView.SizeChanged += _mainVideoViewSizeChangedHandler;
             _mainVideoView.Loaded += (_, _) => TryInitializeMainVideoView("Loaded");
             hostContainer.Children.Add(_mainVideoView);
-            Debug.WriteLine($"[MediaPlayerInit] Main VideoView 已加入宿主: ChildCount={hostContainer.Children.Count}");
+            // Debug.WriteLine($"[MediaPlayerInit] Main VideoView 已加入宿主: ChildCount={hostContainer.Children.Count}");
             TryInitializeMainVideoView("AfterAttach");
         }
 

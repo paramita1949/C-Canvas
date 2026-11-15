@@ -841,11 +841,23 @@ namespace ImageColorChanger.UI
             _projectionManager?.ClearProjectionDisplay();
         }
 
+        /// <summary>屏幕选择只在文件标签页显示；收起整块底栏，不改变已选设备。</summary>
+        private void UpdateScreenSelectorVisibility()
+        {
+            if (ScreenSelectorPanel != null)
+            {
+                ScreenSelectorPanel.Visibility = _currentViewMode == NavigationViewMode.Files
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
         /// <summary>
         /// 更新切换按钮的视觉状态
         /// </summary>
         private void UpdateViewModeButtons()
         {
+            UpdateScreenSelectorVisibility();
             var inactiveBackground = new SolidColorBrush(Colors.White);
             var inactiveForeground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666"));
             var inactiveBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E0E0E0"));

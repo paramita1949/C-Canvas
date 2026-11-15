@@ -743,7 +743,7 @@ namespace ImageColorChanger.UI
 
             if (_bibleNdiModule == null || verses == null || verses.Count == 0)
             {
-                LogBibleNdiDebug("PublishBibleFrameToNdi skipped: manager null or verses empty.");
+                // LogBibleNdiDebug("PublishBibleFrameToNdi skipped: manager null or verses empty.");
                 return;
             }
             
@@ -767,7 +767,7 @@ namespace ImageColorChanger.UI
                     frame = RenderVersesToProjection(verses);
                     if (frame == null)
                     {
-                        LogBibleNdiDebug("PublishBibleFrameToNdi skipped: rendered fallback frame is null.");
+                        // LogBibleNdiDebug("PublishBibleFrameToNdi skipped: rendered fallback frame is null.");
                         return;
                     }
 
@@ -782,12 +782,12 @@ namespace ImageColorChanger.UI
                         if (viewportFrame != null)
                         {
                             frameToSend = viewportFrame;
-                            LogBibleNdiDebug($"PublishBibleFrameToNdi: using fallback crop frame {frameToSend.Width}x{frameToSend.Height}");
+                            // LogBibleNdiDebug($"PublishBibleFrameToNdi: using fallback crop frame {frameToSend.Width}x{frameToSend.Height}");
                         }
                         else
                         {
                             frameToSend = frame;
-                            LogBibleNdiDebug($"PublishBibleFrameToNdi: using raw fallback frame {frameToSend.Width}x{frameToSend.Height}");
+                            // LogBibleNdiDebug($"PublishBibleFrameToNdi: using raw fallback frame {frameToSend.Width}x{frameToSend.Height}");
                         }
                     }
                 }
@@ -795,7 +795,7 @@ namespace ImageColorChanger.UI
                 var key = HexToColor(_configManager?.BibleBackgroundColor ?? "#000000");
                 if (frameToSend == null)
                 {
-                    LogBibleNdiDebug("PublishBibleFrameToNdi skipped: frameToSend is null.");
+                    // LogBibleNdiDebug("PublishBibleFrameToNdi skipped: frameToSend is null.");
                     return;
                 }
 
@@ -809,7 +809,7 @@ namespace ImageColorChanger.UI
                 else
                 {
                     string rawSize = frame != null ? $"{frame.Width}x{frame.Height}" : "n/a";
-                    LogBibleNdiDebug($"PublishBibleFrameToNdi: sent={sent}, source=Fallback, rawFrame={rawSize}, sendFrame={frameToSend.Width}x{frameToSend.Height}, key=#{key.R:X2}{key.G:X2}{key.B:X2}, ndiEnabled={_configManager?.ProjectionNdiEnabled == true}, ndiSender={_configManager?.ProjectionNdiSenderName}");
+                    // LogBibleNdiDebug($"PublishBibleFrameToNdi: sent={sent}, source=Fallback, rawFrame={rawSize}, sendFrame={frameToSend.Width}x{frameToSend.Height}, key=#{key.R:X2}{key.G:X2}{key.B:X2}, ndiEnabled={_configManager?.ProjectionNdiEnabled == true}, ndiSender={_configManager?.ProjectionNdiSenderName}");
                 }
             }
             catch (Exception ex)
@@ -847,7 +847,7 @@ namespace ImageColorChanger.UI
 
             if (viewportWidth <= 2 || viewportHeight <= 2)
             {
-                LogBibleNdiDebug($"BuildBibleNdiFrameFromVisibleViewport skipped: invalid viewport {viewportWidth}x{viewportHeight}");
+                // LogBibleNdiDebug($"BuildBibleNdiFrameFromVisibleViewport skipped: invalid viewport {viewportWidth}x{viewportHeight}");
                 return null;
             }
 
@@ -942,7 +942,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void OnBibleProjectionStateChanged(bool isProjecting)
         {
-            LogBibleNdiDebug($"OnBibleProjectionStateChanged: isProjecting={isProjecting}, isBibleMode={_isBibleMode}, projectionActive={_projectionManager?.IsProjectionActive == true}, isProjectingFlag={_projectionManager?.IsProjecting == true}");
+            // LogBibleNdiDebug($"OnBibleProjectionStateChanged: isProjecting={isProjecting}, isBibleMode={_isBibleMode}, projectionActive={_projectionManager?.IsProjectionActive == true}, isProjectingFlag={_projectionManager?.IsProjecting == true}");
 //#if DEBUG
 //            Debug.WriteLine($"[圣经] 投影状态改变 - IsProjecting: {isProjecting}, _isBibleMode: {_isBibleMode}");
 //#endif
