@@ -15,8 +15,10 @@ namespace ImageColorChanger.Managers
         {
             try
             {
+                TryRunDiagnosticOnMainDispatcher(BeginProjectionDiagnostics);
                 if (!TryGetProjectionTargetScreen(out var screen))
                 {
+                    EndProjectionDiagnostics("target-rejected");
                     return false;
                 }
 
@@ -26,10 +28,13 @@ namespace ImageColorChanger.Managers
                 // System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => true (source=OpenProjection)");
 #endif
                 ProjectionStateChanged?.Invoke(this, true);
+                TryRunDiagnosticOnMainDispatcher(() => CaptureProjectionDiagnostics("after-open-state-event"));
                 return true;
             }
             catch (Exception ex)
             {
+                CaptureProjectionDiagnostics("open-failed", ImageColorChanger.Services.Diagnostics.ProjectionDiagnosticLog.DescribeException(ex));
+                EndProjectionDiagnostics("open-aborted");
                 _uiNotifier.ShowMessage("错误", $"投影开启失败: {ex.Message}", ProjectionUiMessageLevel.Error);
                 return false;
             }
@@ -87,6 +92,7 @@ namespace ImageColorChanger.Managers
             StopProjectionTimer();
             ClearLockedVideo();
             _projectionWindow = null;
+            EndProjectionDiagnostics("window-closed");
             ClearProjectionUiReferences();
 #if DEBUG
             // System.Diagnostics.Debug.WriteLine("[ProjectionSession] ProjectionStateChanged => false (source=ProjectionWindow_Closed)");
@@ -104,6 +110,7 @@ namespace ImageColorChanger.Managers
             BindProjectionLayout(layout);
             ShowProjectionWindow(screen);
             InitializeProjectionStateAfterOpen();
+            ScheduleProjectionDiagnosticSnapshots();
         }
 
         private bool TryGetProjectionTargetScreen(out WpfScreenInfo screen)
@@ -111,6 +118,7 @@ namespace ImageColorChanger.Managers
             screen = null;
             if (_screens.Count < 2)
             {
+                CaptureProjectionDiagnostics("no-secondary-screen");
                 _uiNotifier.ShowMessage("警告", "未检测到第二个显示器！", ProjectionUiMessageLevel.Warning);
                 return false;
             }
@@ -118,6 +126,7 @@ namespace ImageColorChanger.Managers
             int selectedIndex = _screenComboBox?.SelectedIndex ?? 0;
             if (selectedIndex < 0 || selectedIndex >= _screens.Count)
             {
+                CaptureProjectionDiagnostics("invalid-selection");
                 _uiNotifier.ShowMessage("错误", "选定的显示器无效！", ProjectionUiMessageLevel.Error);
                 return false;
             }
@@ -125,12 +134,14 @@ namespace ImageColorChanger.Managers
             var selectedScreen = _screens[selectedIndex];
             if (selectedScreen.IsPrimary)
             {
+                CaptureProjectionDiagnostics("primary-screen-rejected");
                 _uiNotifier.ShowMessage("警告", "不能投影到主显示器！", ProjectionUiMessageLevel.Warning);
                 return false;
             }
 
             _currentScreenIndex = selectedIndex;
             screen = selectedScreen;
+            CaptureProjectionDiagnostics("target-selected", "TargetDevice=" + screen.DeviceName);
             return true;
         }
 
@@ -141,18 +152,21 @@ namespace ImageColorChanger.Managers
                 return;
             }
 
+            CaptureProjectionDiagnostics("before-place-window", "TargetDevice=" + screen.DeviceName);
             _projectionWindow.Left = screen.WpfBounds.Left;
             _projectionWindow.Top = screen.WpfBounds.Top;
             _projectionWindow.Width = screen.WpfBounds.Width;
             _projectionWindow.Height = screen.WpfBounds.Height;
 
             _projectionWindow.Show();
+            CaptureProjectionDiagnostics("after-window-show");
             _projectionWindow.Left = screen.WpfBounds.Left;
             _projectionWindow.Top = screen.WpfBounds.Top;
             _projectionWindow.WindowState = WindowState.Maximized;
             _projectionWindow.Focusable = true;
             _projectionWindow.Focus();
             _projectionWindow.Activate();
+            CaptureProjectionDiagnostics("after-window-maximize");
         }
 
         private void InitializeProjectionStateAfterOpen()
@@ -209,6 +223,7 @@ namespace ImageColorChanger.Managers
             bool hadProjection = false;
             if (_projectionWindow != null)
             {
+                CaptureProjectionDiagnostics("before-close");
                 hadProjection = true;
                 _projectionWindow.KeyDown -= ProjectionWindow_KeyDown;
                 _projectionWindow.Closed -= ProjectionWindow_Closed;
@@ -224,6 +239,8 @@ namespace ImageColorChanger.Managers
 
                 _projectionWindow = null;
             }
+
+            EndProjectionDiagnostics("after-close");
 
             ClearLockedVideo();
             ClearProjectionUiReferences();

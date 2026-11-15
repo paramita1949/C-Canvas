@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Xml.Linq;
 
 namespace Canvas.TextEditor.Tests.UI
 {
@@ -13,7 +15,12 @@ namespace Canvas.TextEditor.Tests.UI
                 .Replace("\r\n", "\n");
 
             Assert.Contains("<views:MediaPlayerSectionView x:Name=\"MediaPlayerSectionView\"", xaml);
-            Assert.Contains("Grid.Row=\"2\"", xaml);
+            var xml = XElement.Parse(xaml);
+            XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+            var media = xml.Descendants().Single(e => (string)e.Attribute(x + "Name") == "MediaPlayerSectionView");
+            Assert.Equal("MainContentGrid", (string)media.Parent.Attribute(x + "Name"));
+            Assert.Equal("1", (string)media.Attribute("Grid.Row"));
+            Assert.Equal("2", (string)media.Attribute("Grid.Column"));
 
             int videoContainerStart = xaml.IndexOf("<Grid x:Name=\"VideoContainer\"", StringComparison.Ordinal);
             int videoContainerEnd = xaml.IndexOf("<!--  圣经显示区域", videoContainerStart, StringComparison.Ordinal);
@@ -116,8 +123,11 @@ namespace Canvas.TextEditor.Tests.UI
             string repoRoot = FindRepoRoot();
             string xaml = File.ReadAllText(Path.Combine(repoRoot, "UI", "MainWindow.xaml"));
 
-            Assert.Contains("Width=\"{Binding ActualWidth, ElementName=VideoContainer}\"", xaml);
-            Assert.Contains("HorizontalAlignment=\"Right\"", xaml);
+            var xml = XElement.Parse(xaml);
+            XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+            var media = xml.Descendants().Single(e => (string)e.Attribute(x + "Name") == "MediaPlayerSectionView");
+            Assert.Equal("2", (string)media.Attribute("Grid.Column"));
+            Assert.Null(media.Attribute("Width")); // Width belongs to the shared right column, not a second binding.
         }
 
         [Fact]

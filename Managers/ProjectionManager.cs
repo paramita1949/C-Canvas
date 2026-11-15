@@ -1003,6 +1003,8 @@ namespace ImageColorChanger.Managers
 
         public void Dispose()
         {
+            // 诊断只读；即使投影开启失败，也解绑系统事件/停止采样定时器。
+            EndProjectionDiagnostics("manager-dispose");
             //  优化4：统一清理 D3D11 资源
             DisposeD3D11Resources();
             

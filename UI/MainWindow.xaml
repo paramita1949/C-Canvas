@@ -27,8 +27,7 @@
             <!-- 单排按钮菜单栏 -->
             <RowDefinition Height="*"/>
             <!-- 主内容区 -->
-            <RowDefinition Height="Auto"/>
-            <!-- 媒体播放器控制栏 -->
+
         </Grid.RowDefinitions>
 
         <!-- ========== 单排按钮菜单栏 ========== -->
@@ -331,6 +330,12 @@
 
         <!-- ========== 主内容区 ========== -->
         <Grid Grid.Row="1" x:Name="MainContentGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <!-- 右侧画面 -->
+                <RowDefinition Height="Auto"/>
+                <!-- 右侧媒体控制栏；左侧导航跨两行，不随播放栏显隐改变高度 -->
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="NavigationPanelColumn" Width="370"/>
                 <!-- 左侧导航栏（圣经模式5列表格需要370宽度） -->
@@ -341,7 +346,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左侧：文件导航栏 -->
-            <Border Grid.Column="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Grid.RowSpan="2" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1332,7 +1337,7 @@
 
             <!-- 分隔条 -->
             <GridSplitter x:Name="NavigationSplitter" 
-                          Grid.Column="1" Width="3" HorizontalAlignment="Stretch" 
+                          Grid.Column="1" Grid.RowSpan="2" Width="3" HorizontalAlignment="Stretch"
                           Background="#E0E0E0" Cursor="SizeWE"
                           DragCompleted="NavigationSplitter_DragCompleted"/>
 
@@ -1678,17 +1683,17 @@
                 </StackPanel>
 
             </Grid>
+
+            <!-- 媒体控制栏仅占右侧列，不进入VideoView，也不挤压左侧目录与屏幕选择器 -->
+            <views:MediaPlayerSectionView x:Name="MediaPlayerSectionView"
+                                          Grid.Row="1"
+                                          Grid.Column="2"/>
         </Grid>
 
-        <!-- ========== 媒体播放器控制栏（仅主窗口显示，不进入投影窗口） ========== -->
-        <views:MediaPlayerSectionView x:Name="MediaPlayerSectionView"
-                                      Grid.Row="2"
-                                      Width="{Binding ActualWidth, ElementName=VideoContainer}"
-                                      HorizontalAlignment="Right"/>
 
         <!-- ========== Toast 通知容器（悬浮提示，显示在合成播放按钮下方） ========== -->
         <Border x:Name="ToastNotification" 
-                Grid.RowSpan="3"
+                Grid.RowSpan="2"
                 Background="#CC000000"
                 CornerRadius="8"
                 Padding="20,12"
