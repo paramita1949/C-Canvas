@@ -152,6 +152,7 @@ namespace ImageColorChanger.Database.Repositories
                     .Select(t => t.BaseImageId)
                     .Distinct())
                 .Concat(_context.LyricsProjects.Where(lp => lp.ImageId.HasValue && orphanIds.Contains(lp.ImageId.Value)).Select(lp => lp.ImageId.Value).Distinct())
+                .Concat(_context.ImageLyrics.Where(lp => orphanIds.Contains(lp.ImageId)).Select(lp => lp.ImageId).Distinct())
                 .Distinct()
                 .ToHashSet();
 

@@ -67,12 +67,14 @@ namespace ImageColorChanger.UI
             int previousId = _lyricsEntryId;
             int previousProjectId = _currentLyricsProjectId;
             var previousProject = _currentLyricsProject;
+            var previousDocument = _currentLyricsDocument;
+            int previousImageLyricsId = _loadedImageLyricsId;
             bool entered = false;
             SetLyricsEntryByImage(imageId);
             try
             {
                 EnterLyricsMode();
-                entered = _isLyricsMode && _currentLyricsProject?.ImageId == imageId;
+                entered = _isLyricsMode && _lyricsEntryKind == LyricsEntryKind.ImageBound && _lyricsEntryId == imageId && _currentLyricsDocument != null;
                 return entered;
             }
             finally
@@ -83,6 +85,8 @@ namespace ImageColorChanger.UI
                     _lyricsEntryId = previousId;
                     _currentLyricsProjectId = previousProjectId;
                     _currentLyricsProject = previousProject;
+                    _currentLyricsDocument = previousDocument;
+                    _loadedImageLyricsId = previousImageLyricsId;
                     StopAutoSaveTimer();
                     CompleteLyricsModeExit();
                 }

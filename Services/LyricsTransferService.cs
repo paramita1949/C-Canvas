@@ -58,7 +58,7 @@ namespace ImageColorChanger.Services
         public Task<LyricsTransferResult> ExportSongAsync(int songId, string targetPath)
         {
             LogInfo($"[ExportSong-Begin] songId={songId}, target={targetPath}");
-            var song = _dbContext.LyricsProjects.FirstOrDefault(s => s.Id == songId);
+            var song = Managers.LyricsProjectManager.QueryLibraryProjects(_dbContext).FirstOrDefault(s => s.Id == songId);
             if (song == null)
             {
                 LogWarn($"[ExportSong-Skip] song not found, songId={songId}");
@@ -85,7 +85,7 @@ namespace ImageColorChanger.Services
                 return Task.FromResult(new LyricsTransferResult { Success = false, Message = "分组不存在" });
             }
 
-            var songs = _dbContext.LyricsProjects.Where(s => s.GroupId == groupId).OrderBy(s => s.SortOrder).ToList();
+            var songs = Managers.LyricsProjectManager.QueryLibraryProjects(_dbContext).Where(s => s.GroupId == groupId).OrderBy(s => s.SortOrder).ToList();
             var manifest = BuildManifest("library", new List<LyricsGroup> { group }, songs);
             WriteLyrPackage(targetPath, manifest);
             LogInfo($"[ExportGroup-End] groupId={groupId}, songs={songs.Count}");
@@ -96,7 +96,7 @@ namespace ImageColorChanger.Services
         {
             LogInfo($"[ExportLibrary-Begin] target={targetPath}");
             var groups = _dbContext.LyricsGroups.OrderBy(g => g.SortOrder).ToList();
-            var songs = _dbContext.LyricsProjects.OrderBy(s => s.SortOrder).ToList();
+            var songs = Managers.LyricsProjectManager.QueryLibraryProjects(_dbContext).OrderBy(s => s.SortOrder).ToList();
             var manifest = BuildManifest("library", groups, songs);
             WriteLyrPackage(targetPath, manifest);
             LogInfo($"[ExportLibrary-End] groups={groups.Count}, songs={songs.Count}");

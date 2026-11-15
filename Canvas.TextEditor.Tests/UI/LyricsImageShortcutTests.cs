@@ -30,8 +30,7 @@ public sealed class LyricsImageShortcutTests
         var controller = Controller(id =>
         {
             Call(host, "SetLyricsEntryByImage", id);
-            var project = manager.LoadOrCreateImageProject(id);
-            Set(host, "_currentLyricsProject", project);
+            var project = (ImageColorChanger.Services.Lyrics.LyricsDocument)Call(host, "LoadLyricsEntryDocument");
             Set(host, "_isLyricsMode", true);
             editor.Text = project.Content.StartsWith("__LYRICS_MODE_V1__")
                 ? JsonSerializer.Deserialize<MainWindow.LyricsModeContentData>(project.Content[18..]).SingleContent : project.Content;
@@ -46,9 +45,9 @@ public sealed class LyricsImageShortcutTests
         Assert.True(Handle(controller, mode, currentId));
         currentId = ids[2]; Assert.True(Handle(controller, mode, currentId)); Assert.Equal("", editor.Text);
         using var fresh = new CanvasDbContext(path);
-        Assert.Equal(2, fresh.LyricsProjects.Count());
-        var one = fresh.LyricsProjects.Single(p => p.ImageId == ids[0]);
-        var two = fresh.LyricsProjects.Single(p => p.ImageId == ids[1]);
+        Assert.Equal(2, fresh.ImageLyrics.Count());
+        var one = fresh.ImageLyrics.Single(p => p.ImageId == ids[0]);
+        var two = fresh.ImageLyrics.Single(p => p.ImageId == ids[1]);
         Assert.Contains("图片1最新中文", JsonSerializer.Deserialize<MainWindow.LyricsModeContentData>(one.Content[18..]).SingleContent);
         Assert.Contains("图片2独立歌词", JsonSerializer.Deserialize<MainWindow.LyricsModeContentData>(two.Content[18..]).SingleContent);
         Console.WriteLine("F6_ROUNDTRIP: image1=latest-Chinese; image2=independent; image3=empty; reopened-SQLite=True; saves-before-exit=True");
@@ -130,15 +129,14 @@ public sealed class LyricsImageShortcutTests
         var host = CreateSaveHost(db, Path.ChangeExtension(path, ".json"));
         var manager = new LyricsProjectManager(db);
         Call(host, "SetLyricsEntryByImage", ids[0]);
-        var project = manager.LoadOrCreateImageProject(ids[0]); Set(host, "_currentLyricsProject", project);
+        var project = (ImageColorChanger.Services.Lyrics.LyricsDocument)Call(host, "LoadLyricsEntryDocument");
         ((TextBox)Get(host, "LyricsTextBox")).Text = "未丢失的正文";
         Assert.True((bool)Call(host, "TrySaveLyricsProject", "F6Test", true));
-        manager.Delete(project.Id);
+        db.ImageLyrics.Remove(db.ImageLyrics.Single(p => p.ImageId == ids[0])); db.SaveChanges();
         Assert.False((bool)Call(host, "TrySaveLyricsProject", "F6TestDeleted", true));
         Assert.Equal("未丢失的正文", ((TextBox)Get(host, "LyricsTextBox")).Text);
-        Set(host, "_currentLyricsProject", manager.LoadOrCreateImageProject(ids[1]));
         Call(host, "SetLyricsEntryByImage", ids[1]);
-        Set(host, "_currentLyricsProject", manager.LoadOrCreateImageProject(ids[1]));
+        Call(host, "LoadLyricsEntryDocument");
         db.MediaFiles.Remove(db.MediaFiles.Single(m => m.Id == ids[1])); db.SaveChanges();
         Assert.False((bool)Call(host, "TrySaveLyricsProject", "F6TestMissing", true));
         Console.WriteLine("F6_REAL_SAVE_NEGATIVE: deleted-project=False; missing-image=False; native-text=preserved");
@@ -152,13 +150,13 @@ public sealed class LyricsImageShortcutTests
         int end = source.IndexOf("private void ExitLyricsMode()", begin, StringComparison.Ordinal);
         string entry = source[begin..end];
         int load = entry.IndexOf("LoadOrCreateLyricsProject();", StringComparison.Ordinal);
-        int guard = entry.IndexOf("if (_currentLyricsProject == null) return;", StringComparison.Ordinal);
+        int guard = entry.IndexOf("if (_currentLyricsDocument == null) return;", StringComparison.Ordinal);
         int hide = entry.IndexOf("ImageScrollViewer.Visibility = Visibility.Collapsed", StringComparison.Ordinal);
         Assert.True(load >= 0 && guard > load && hide > guard);
         Assert.True(entry.IndexOf("StartAutoSaveTimer();", StringComparison.Ordinal) > guard);
         Assert.Contains("&& IsActive", entry);
         string shortcut = File.ReadAllText(Path.Combine(Root(), "UI/MainWindow.Lyrics.Shortcut.cs"));
-        Assert.Contains("_currentLyricsProject?.ImageId == imageId", shortcut);
+        Assert.Contains("_lyricsEntryId == imageId && _currentLyricsDocument != null", shortcut);
         Assert.Contains("_lyricsEntryKind = previousKind", shortcut);
         Console.WriteLine("F6_LOAD_FAILURE_GATE: load-before-view-change; invalid-project=no-timer-no-hide; entry-identity-restored; stale-focus-requires-active-window");
     }
@@ -205,7 +203,7 @@ public sealed class LyricsImageShortcutTests
         Assert.Contains("CompleteLyricsModeExit", source); Assert.DoesNotContain("RegisterHotKey", source);
         string lyrics = File.ReadAllText(Path.Combine(root, "UI/MainWindow.Lyrics.cs"));
         Assert.Contains("epoch == _lyricsInputEpoch && _isLyricsMode", lyrics);
-        Assert.Contains("保存内容校验失败", lyrics);
+        Assert.Contains("保存内容校验失败", File.ReadAllText(Path.Combine(root, "UI/MainWindow.Lyrics.Storage.cs")));
         Console.WriteLine("F6_HOST: foreground-only; image-bound-only; current-id-matched; IME-and-repeat-protected; shared-enter/save/exit; old-focus-callback-gated");
     }
 

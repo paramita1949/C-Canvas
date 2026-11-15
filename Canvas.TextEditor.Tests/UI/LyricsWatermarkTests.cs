@@ -30,7 +30,7 @@ public sealed class LyricsWatermarkTests
         {
             image.Path = @"D:\fixture\" + filename; db.SaveChanges();
             AssertWatermark(host, $"《{expected}》");
-            Assert.Equal("歌词_图片_1", GetProject(host).Name);
+            Assert.Null(GetProject(host)); Assert.Empty(db.ImageLyrics);
             Assert.Empty(db.LyricsProjects); // 仅显示水印不能写入或重命名项目。
         });
     }
@@ -40,7 +40,7 @@ public sealed class LyricsWatermarkTests
     {
         WithFixture((host, db, image) =>
         {
-            GetProject(host).Name = "歌词_以前的标题";
+            Set(host, "_currentLyricsProject", new LyricsProject { Name = "歌词_以前的标题" });
             Set(host, "_currentImageId", 999);
             Set(host, "_imagePath", @"D:\other\错误的图片.jpg");
             AssertWatermark(host, "《原图赞美诗》");
@@ -53,14 +53,14 @@ public sealed class LyricsWatermarkTests
         WithFixture((host, db, image) =>
         {
             var manager = new LyricsProjectManager(db);
-            var project = GetProject(host); project.Content = "保存的歌词";
-            manager.SaveImageProject(project, image.Id);
+            var document = (ImageColorChanger.Services.Lyrics.LyricsDocument)Invoke(host, "LoadLyricsEntryDocument"); document.Content = "保存的歌词";
+            Invoke(host, "PersistLyricsEntryDocument", document);
             AssertWatermark(host, "《原图赞美诗》");
             image.Path = @"D:\fixture\改名后的诗歌.png"; db.SaveChanges();
             manager.ClearTracking();
-            Set(host, "_currentLyricsProject", manager.LoadOrCreateImageProject(image.Id));
+            Invoke(host, "LoadLyricsEntryDocument");
             AssertWatermark(host, "《改名后的诗歌》");
-            Assert.Equal("保存的歌词", GetProject(host).Content);
+            Assert.Equal("保存的歌词", ((ImageColorChanger.Services.Lyrics.LyricsDocument)typeof(MainWindow).GetField("_currentLyricsDocument", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(host)).Content);
         });
     }
 
@@ -74,8 +74,8 @@ public sealed class LyricsWatermarkTests
                 var next = new MediaFile { Name = name, Path = @"D:\fixture\" + name + ".jpg" };
                 db.MediaFiles.Add(next); db.SaveChanges();
                 Invoke(host, "SetLyricsEntryByImage", next.Id);
-                Set(host, "_currentLyricsProject", new LyricsProjectManager(db).LoadOrCreateImageProject(next.Id));
-                Assert.Equal("", GetProject(host).Content);
+                Invoke(host, "LoadLyricsEntryDocument");
+                Assert.Equal("", new ImageColorChanger.Services.Lyrics.ImageLyricsService(db).Load(next.Id).Content);
                 AssertWatermark(host, $"《{name}》");
             }
         });
@@ -134,6 +134,7 @@ public sealed class LyricsWatermarkTests
         {
             Invoke(host, "SetLyricsEntryBySong", 25);
             Set(host, "_currentLyricsProject", new LyricsProject { Id = 25, SourceType = 1, Name = name });
+            Set(host, "_currentLyricsDocument", new ImageColorChanger.Services.Lyrics.LyricsDocument());
             AssertWatermark(host, expected);
         });
     }
@@ -197,7 +198,7 @@ public sealed class LyricsWatermarkTests
                 var host = (MainWindow)RuntimeHelpers.GetUninitializedObject(typeof(MainWindow));
                 Set(host, "_dbContext", db); Set(host, "_currentImageId", image.Id); Set(host, "_imagePath", image.Path);
                 Invoke(host, "SetLyricsEntryByImage", image.Id);
-                Set(host, "_currentLyricsProject", new LyricsProjectManager(db).LoadOrCreateImageProject(image.Id));
+                Invoke(host, "LoadLyricsEntryDocument");
                 action(host, db, image);
             }
             catch (Exception ex) { error = ex; }

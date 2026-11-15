@@ -144,6 +144,8 @@ namespace ImageColorChanger.UI
                 }
             };
             contextMenu.Items.Add(lyricsMenuItem);
+            var lyricsArchiveMenu = BuildImageLyricsArchiveMenu(_currentImageId);
+            if (lyricsArchiveMenu != null) contextMenu.Items.Add(lyricsArchiveMenu);
 
             //  合成标记菜单（第二位）
             var compositeMarkMenuItem = new MenuItem 

@@ -36,7 +36,7 @@ namespace ImageColorChanger.UI
                         .ToArray();
                 }
 
-                if (splitData.SplitMode < (int)ViewSplitMode.Single || splitData.SplitMode > (int)ViewSplitMode.Quad)
+                if (!Enum.IsDefined(typeof(ViewSplitMode), splitData.SplitMode))
                 {
                     splitData.SplitMode = (int)ViewSplitMode.Single;
                 }
@@ -87,7 +87,7 @@ namespace ImageColorChanger.UI
                 var normalizedSplits = new Dictionary<int, LyricsSplitContentData>();
                 foreach (var split in modeData.SplitContents.Where(s => s != null))
                 {
-                    if (split.SplitMode < (int)ViewSplitMode.Horizontal || split.SplitMode > (int)ViewSplitMode.Quad)
+                    if (split.SplitMode < (int)ViewSplitMode.Horizontal || !Enum.IsDefined(typeof(ViewSplitMode), split.SplitMode))
                     {
                         split.SplitMode = (int)ViewSplitMode.Horizontal;
                     }
@@ -128,7 +128,7 @@ namespace ImageColorChanger.UI
                 modeData.SplitContents = normalizedSplits.Values.OrderBy(s => s.SplitMode).ToList();
                 modeData.SplitContent = modeData.SplitContents.FirstOrDefault() ?? CreateDefaultSplitPage(ViewSplitMode.Horizontal);
 
-                if (modeData.ActiveMode < (int)ViewSplitMode.Single || modeData.ActiveMode > (int)ViewSplitMode.Quad)
+                if (!Enum.IsDefined(typeof(ViewSplitMode), modeData.ActiveMode))
                 {
                     modeData.ActiveMode = (int)ViewSplitMode.Single;
                 }
@@ -199,7 +199,7 @@ namespace ImageColorChanger.UI
                     }
                     page.RegionStyles = styles.Take(4).Select(s => s ?? new LyricsSplitRegionStyle()).ToArray();
 
-                    if (page.SplitMode < (int)ViewSplitMode.Horizontal || page.SplitMode > (int)ViewSplitMode.Quad)
+                    if (page.SplitMode < (int)ViewSplitMode.Horizontal || !Enum.IsDefined(typeof(ViewSplitMode), page.SplitMode))
                     {
                         page.SplitMode = (int)ViewSplitMode.Horizontal;
                     }

@@ -589,6 +589,7 @@ namespace ImageColorChanger.Services
 
             await target.Database.OpenConnectionAsync();
             await source.Database.OpenConnectionAsync();
+            Lyrics.ImageLyricsMigration.Run(target);
 
             // folders + media_files
             var targetFolders = await target.Folders.ToListAsync();
@@ -1192,7 +1193,9 @@ namespace ImageColorChanger.Services
                     .ToListAsync()),
                 StringComparer.OrdinalIgnoreCase);
 
-            var sourceLyrics = await source.LyricsProjects.AsNoTracking().ToListAsync();
+            var privatePlan = Lyrics.ImageLyricsMigrationPlanner.Plan(source);
+            var privateIds = privatePlan.EligibleProjectIds.Concat(privatePlan.QuarantineProjectIds).ToHashSet();
+            var sourceLyrics = (await source.LyricsProjects.AsNoTracking().ToListAsync()).Where(p => !privateIds.Contains(p.Id)).ToList();
             foreach (var sourceLyric in sourceLyrics)
             {
                 if (!string.IsNullOrWhiteSpace(sourceLyric.ExternalId) &&
@@ -1237,6 +1240,15 @@ namespace ImageColorChanger.Services
                     targetLyricsExternalIds.Add(newLyric.ExternalId);
                 }
                 stats.AddedLyricsProjects++;
+            }
+
+            using (var privateLyricsTransaction = target.Database.BeginTransaction())
+            {
+                Lyrics.ImageLyricsTransfer.Merge(source, target, sourceToTargetMediaMap);
+                Lyrics.ImageLyricsTransfer.MergeLegacy(source, target, sourceToTargetMediaMap);
+                // 图片文档两种格式和最终迁移校验整批提交；任何归档失败都撤回本批文档。
+                Lyrics.ImageLyricsMigration.Run(target);
+                privateLyricsTransaction.Commit();
             }
 
             // bible_history：仅补充缺失槽位；已有槽位仅在本机为空且导入值非空时补齐

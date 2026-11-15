@@ -63,6 +63,7 @@ namespace ImageColorChanger.UI
 
         private void RenderLyricsToProjection()
         {
+            if (_isSwitchingImageLyrics || _isLoadingLyricsProject) return;
             if (!Dispatcher.CheckAccess())
             {
                 Dispatcher.BeginInvoke(new Action(RenderLyricsToProjection), System.Windows.Threading.DispatcherPriority.Background);

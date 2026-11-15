@@ -15,10 +15,14 @@ namespace ImageColorChanger.UI
     {
         private void LoadImage(string path)
         {
+            TryLoadImage(path);
+        }
+
+        private bool TryLoadImage(string path, bool publishProjection = true, bool showError = true)
+        {
             if (!Dispatcher.CheckAccess())
             {
-                Dispatcher.Invoke(() => LoadImage(path));
-                return;
+                return Dispatcher.Invoke(() => TryLoadImage(path, publishProjection, showError));
             }
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -47,7 +51,7 @@ namespace ImageColorChanger.UI
                 {
                     if (_currentImageId > 0)
                     {
-                        bool shouldUseOriginal = _originalManager.ShouldUseOriginalMode(_currentImageId);
+                        bool shouldUseOriginal = _originalManager?.ShouldUseOriginalMode(_currentImageId) == true;
 
                         if (shouldUseOriginal && !_originalMode)
                         {
@@ -59,7 +63,7 @@ namespace ImageColorChanger.UI
 
                         if (_originalMode)
                         {
-                            _originalManager.FindSimilarImages(_currentImageId);
+                            _originalManager?.FindSimilarImages(_currentImageId);
                             _ = TriggerSmartPreload();
                         }
 
@@ -79,7 +83,7 @@ namespace ImageColorChanger.UI
                     }
 
                     UpdateImageZoomControlsVisibility();
-                    UpdateProjection();
+                    if (publishProjection) UpdateProjection();
                     _keyframeManager?.UpdatePreviewLines();
                     UpdateFloatingCompositePlayButton();
 
@@ -92,6 +96,7 @@ namespace ImageColorChanger.UI
 
                     sw.Stop();
                     ShowStatus($"已加载：{Path.GetFileName(path)}");
+                    return true;
                 }
                 else
                 {
@@ -100,8 +105,9 @@ namespace ImageColorChanger.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"无法打开图片: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (showError) MessageBox.Show($"无法打开图片: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 ShowStatus("加载失败");
+                return false;
             }
         }
 

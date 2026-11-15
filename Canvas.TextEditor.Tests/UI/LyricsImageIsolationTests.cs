@@ -51,7 +51,7 @@ public sealed class LyricsImageIsolationTests
             Assert.Equal("", three.Content);
             Assert.Equal(images[2], three.ImageId);
             Assert.Equal(0, three.Id); // 只进入空白图片不提前写入空记录。
-            Assert.Equal(2, reopened.LyricsProjects.Count());
+            Assert.Equal(2, reopened.ImageLyrics.Count());
             Console.WriteLine("IMAGE_SQLITE: image1=own-full-payload; image2=different-full-payload; image3=empty; reopened-db=True; independent-ids=True");
         });
     }
@@ -70,7 +70,7 @@ public sealed class LyricsImageIsolationTests
             Assert.Equal(original.Id, reopened.Id);
             Assert.Equal(original.Content, reopened.Content);
             SaveImage(manager, reopened, images[0]);
-            Assert.Single(db.LyricsProjects.Where(p => p.ImageId == images[0]));
+            Assert.Single(db.ImageLyrics.Where(p => p.ImageId == images[0]));
             Console.WriteLine("IMAGE_REENTRY: same-project-id=True; duplicate-count=1");
         });
     }
@@ -102,10 +102,10 @@ public sealed class LyricsImageIsolationTests
             project.ImageId = images[1];
             project.Content = "禁止覆盖图2";
             Assert.Throws<InvalidOperationException>(() => SaveImage(manager, project, images[1]));
-            var stored = db.LyricsProjects.AsNoTracking().Single(p => p.Id == id);
+            var stored = db.ImageLyrics.AsNoTracking().Single(p => p.Id == id);
             Assert.Equal(images[0], stored.ImageId);
             Assert.Equal("图1必须保留", stored.Content);
-            Assert.False(db.LyricsProjects.AsNoTracking().Any(p => p.ImageId == images[1]));
+            Assert.False(db.ImageLyrics.AsNoTracking().Any(p => p.ImageId == images[1]));
             Console.WriteLine("IMAGE_SAVE_GUARD: cross-image-rebind=rejected; original-database-content=unchanged");
         });
     }
@@ -119,7 +119,7 @@ public sealed class LyricsImageIsolationTests
             var project = OpenImage(manager, images[0]);
             project.Content = "已删除歌词";
             SaveImage(manager, project, images[0]);
-            db.LyricsProjects.Remove(project); db.SaveChanges();
+            db.ImageLyrics.Remove(db.ImageLyrics.Single(p => p.Id == project.Id)); db.SaveChanges();
             SaveImage(manager, project, images[0]);
             Assert.Empty(db.LyricsProjects);
             Assert.Equal("", OpenImage(manager, images[0]).Content);
@@ -221,8 +221,8 @@ public sealed class LyricsImageIsolationTests
         int capture = menu.IndexOf("SetLyricsEntryByImage(_currentImageId);", StringComparison.Ordinal);
         Assert.True(capture >= 0 && capture < menu.IndexOf("EnterLyricsMode();", capture, StringComparison.Ordinal));
         var load = source.Substring(source.IndexOf("private void LoadOrCreateLyricsProject()", StringComparison.Ordinal));
-        Assert.True(load.IndexOf("ResetLyricsEditorForProjectLoad();", StringComparison.Ordinal) < load.IndexOf("LoadOrCreateImageProject(_lyricsEntryId)", StringComparison.Ordinal));
-        Assert.Contains("SaveImageProject(_currentLyricsProject, _lyricsEntryId)", source);
+        Assert.True(load.IndexOf("ResetLyricsEditorForProjectLoad();", StringComparison.Ordinal) < load.IndexOf("LoadLyricsEntryDocument()", StringComparison.Ordinal));
+        Assert.Contains("PersistLyricsEntryDocument(_currentLyricsDocument)", source);
         Assert.Contains("if (!_isLoadingLyricsProject && _lyricsSplitMode != (int)ViewSplitMode.Single)", source);
         var changed = source.Substring(source.IndexOf("private void LyricsTextBox_TextChanged(", StringComparison.Ordinal), 260);
         Assert.Contains("if (_isLoadingLyricsProject) return;", changed);

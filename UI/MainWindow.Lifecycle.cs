@@ -91,7 +91,7 @@ namespace ImageColorChanger.UI
             {
                 // 清理旧版“图片绑定歌词”残留，歌词模块仅保留独立歌曲数据。
                 var purgeSw = System.Diagnostics.Stopwatch.StartNew();
-                PurgeLegacyImageLinkedLyricsProjects();
+                MigrateLegacyImageLyrics();
                 StartupPerfLogger.Mark("MainWindow.StartupFolderSync.PurgeLegacyLyrics.Completed", $"ElapsedMs={purgeSw.ElapsedMilliseconds}");
 
                 // 启动时先做一次映射对账，确保历史数据迁移后读路径稳定。

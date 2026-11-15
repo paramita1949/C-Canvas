@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -142,6 +142,7 @@ namespace ImageColorChanger.UI
             if (_currentLyricsProject != null && _currentLyricsProject.GroupId == groupId)
             {
                 _currentLyricsProject.ProjectionWatermarkPath = target;
+                if (_currentLyricsDocument != null) _currentLyricsDocument.ProjectionWatermarkPath = target;
                 if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
                 {
                     RenderLyricsToProjection();
@@ -614,6 +615,7 @@ namespace ImageColorChanger.UI
             if (_currentLyricsProject != null && removedSongIds.Contains(_currentLyricsProject.Id))
             {
                 _currentLyricsProject = null;
+                _currentLyricsDocument = null;
                 _currentLyricsProjectId = 0;
                 if (_isLyricsMode)
                 {
@@ -661,6 +663,7 @@ namespace ImageColorChanger.UI
             {
                 // 先清空当前项目引用，避免退出/关闭流程继续保存已删除对象
                 _currentLyricsProject = null;
+                _currentLyricsDocument = null;
                 _currentLyricsProjectId = 0;
             }
 

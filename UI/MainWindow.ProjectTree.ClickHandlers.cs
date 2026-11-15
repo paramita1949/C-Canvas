@@ -106,6 +106,12 @@ namespace ImageColorChanger.UI
 
         private async Task HandleFileNodeClickAsync(ProjectTreeItem selectedItem)
         {
+            // 歌词导航先完成保存/预读门禁，不能先应用目标文件夹的原图/变色状态。
+            if (_isLyricsMode && selectedItem.FileType == FileType.Image)
+            {
+                await HandleImageFileSingleClickAsync(selectedItem, selectedItem.Id);
+                return;
+            }
             bool isEditingSlide = TextEditorPanel.Visibility == Visibility.Visible;
             bool keepEditorForSplitImage = isEditingSlide &&
                                            IsInSplitMode() &&

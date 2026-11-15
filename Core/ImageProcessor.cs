@@ -283,6 +283,29 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 加载图片
         /// </summary>
+        /// <summary>导航事务回退使用已解码状态，不依赖旧文件仍存在。缓存持有bitmap生命周期。</summary>
+        internal Action CaptureImageRestoreAction()
+        {
+            var original = originalImage; var current = currentImage; var photo = currentPhoto;
+            var path = currentImagePath; var source = imageControl.Source;
+            var imageLayout = (imageControl.Width, imageControl.Height, imageControl.Margin,
+                imageControl.HorizontalAlignment, imageControl.VerticalAlignment);
+            var containerLayout = (imageContainer.Width, imageContainer.Height);
+            var scroll = (scrollViewer.HorizontalOffset, scrollViewer.VerticalOffset);
+            var state = (originalMode, originalDisplayMode, originalTopScalePercent, zoomRatio, isInverted, lastUpdateTime);
+            return () =>
+            {
+                originalImage = original; currentImage = current; currentPhoto = photo; currentImagePath = path;
+                (originalMode, originalDisplayMode, originalTopScalePercent, zoomRatio, isInverted, lastUpdateTime) = state;
+                imageControl.Source = source;
+                (imageControl.Width, imageControl.Height, imageControl.Margin,
+                    imageControl.HorizontalAlignment, imageControl.VerticalAlignment) = imageLayout;
+                (imageContainer.Width, imageContainer.Height) = containerLayout;
+                scrollViewer.ScrollToHorizontalOffset(scroll.HorizontalOffset);
+                scrollViewer.ScrollToVerticalOffset(scroll.VerticalOffset);
+            };
+        }
+
         public bool LoadImage(string path)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();

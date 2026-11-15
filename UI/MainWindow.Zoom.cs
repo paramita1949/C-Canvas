@@ -179,7 +179,7 @@ namespace ImageColorChanger.UI
                 }
 
                 // 原图模式缩放也要实时同步到投影窗口。
-                if (_projectionManager?.IsProjecting == true && _imageProcessor?.CurrentImage != null)
+                if (!_isSwitchingImageLyrics && _projectionManager?.IsProjecting == true && _imageProcessor?.CurrentImage != null)
                 {
                     _projectionManager.UpdateProjectionImage(
                         _imageProcessor.CurrentImage,

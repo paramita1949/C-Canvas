@@ -30,9 +30,9 @@ public sealed class LyricsLibraryVisibilityTests
             Assert.Equal(project.Id, loaded.Id);
             Assert.Equal(project.Content, loaded.Content);
             var tree = LoadTree(reopened);
-            Console.WriteLine($"IMAGE_ROOT: nodes={tree.Count}; databaseRows={reopened.LyricsProjects.Count()}; contentPreserved={loaded.Content == project.Content}");
+            Console.WriteLine($"IMAGE_ROOT: nodes={tree.Count}; databaseRows={reopened.ImageLyrics.Count()}; contentPreserved={loaded.Content == project.Content}");
             Assert.Empty(tree);
-            Assert.Single(reopened.LyricsProjects);
+            Assert.Single(reopened.ImageLyrics); Assert.Empty(reopened.LyricsProjects);
         });
     }
 
@@ -69,9 +69,9 @@ public sealed class LyricsLibraryVisibilityTests
             db.MediaFiles.Remove(image);
             db.SaveChanges();
             db.ChangeTracker.Clear();
-            Assert.Null(db.LyricsProjects.Single().ImageId);
+            Assert.Empty(db.ImageLyrics); Assert.Single(db.ImageLyricsArchives);
             Assert.Empty(LoadTree(db));
-            Assert.Equal(project.Content, db.LyricsProjects.Single().Content);
+            Assert.Equal(project.Content, System.Text.Json.JsonSerializer.Deserialize<ImageColorChanger.Services.Lyrics.LyricsDocument>(db.ImageLyricsArchives.Single().DocumentJson).Content);
             Assert.Null(manager.LoadOrCreateImageProject(image.Id));
         });
     }

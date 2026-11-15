@@ -29,7 +29,7 @@ namespace ImageColorChanger.UI
         private void ImageScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             // 如果正在执行关键帧跳转，跳过自动同步（避免中间状态导致投影位置错误）
-            if (!_disableAutoProjectionSync)
+            if (!_disableAutoProjectionSync && !_isSwitchingImageLyrics)
             {
                 _projectionManager?.SyncProjectionScroll();
                 PublishMediaNdiFromCurrentProjectionViewport("scroll");
@@ -44,6 +44,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         public void UpdateProjection()
         {
+            if (_isSwitchingImageLyrics) return;
             if (_imageProcessor.CurrentImage != null)
             {
                 if (_projectionManager != null && _projectionManager.IsProjectionActive)

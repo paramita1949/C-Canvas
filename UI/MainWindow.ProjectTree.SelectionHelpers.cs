@@ -89,7 +89,7 @@ namespace ImageColorChanger.UI
 
             if (_isLyricsMode)
             {
-                ShowStatus("歌词模块已独立，图片切换不影响当前歌词");
+                HandleImageSelectionInLyricsMode(selectedItem, fileId);
                 return;
             }
 
@@ -141,6 +141,12 @@ namespace ImageColorChanger.UI
 
         private void HandleImageFileDoubleClick(ProjectTreeItem selectedItem, Stopwatch clickTime)
         {
+            if (_isLyricsMode)
+            {
+                HandleImageSelectionInLyricsMode(selectedItem, selectedItem.Id);
+                clickTime.Stop();
+                return;
+            }
 #if DEBUG
             System.Diagnostics.Debug.WriteLine($"切换到图片: {selectedItem.Name}");
 #endif

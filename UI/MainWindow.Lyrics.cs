@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -124,15 +124,22 @@ namespace ImageColorChanger.UI
         {
             // 旧项目必须使用旧入口保存，不能先改图片ID再把旧内容写入新图。
             _lyricsTypingSaveTimer?.Stop();
-            if (_isLyricsMode && _currentLyricsProject != null)
+            if (_isLyricsMode && _currentLyricsDocument != null)
             {
                 SaveLyricsProject("EntrySwitch");
             }
 
+            BindLyricsEntry(kind, id);
+        }
+
+        // 仅在调用方已确认旧入口保存时使用；不能在重绑定后再保存旧编辑器。
+        private void BindLyricsEntry(LyricsEntryKind kind, int id)
+        {
             _lyricsEntryKind = kind;
             _lyricsEntryId = id;
             _currentLyricsProjectId = kind == LyricsEntryKind.LibrarySong ? id : 0;
             _currentLyricsProject = null;
+            _currentLyricsDocument = null;
         }
 
         public sealed class LyricsSplitContentData
@@ -356,7 +363,7 @@ namespace ImageColorChanger.UI
                 RenderLyricsToProjection();
             }
 
-            if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
+            if (_isLyricsMode && _currentLyricsDocument != null && !_isLoadingLyricsProject)
             {
                 SaveLyricsProject("ThemeChanged", suppressUserError: true);
             }
@@ -658,7 +665,7 @@ namespace ImageColorChanger.UI
             EnforceMainLyricsEditorFontSize();
             ShowStatus($"主屏字号: {next:0}");
 
-            if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
+            if (_isLyricsMode && _currentLyricsDocument != null && !_isLoadingLyricsProject)
             {
                 SaveLyricsProject("MainScreenFontSizeChanged", suppressUserError: true);
             }
@@ -913,7 +920,7 @@ namespace ImageColorChanger.UI
             return name;
         }
 
-        private double ResolveProjectionFontSizeForProject(LyricsProject project)
+        private double ResolveProjectionFontSizeForProject(Services.Lyrics.LyricsDocument project)
         {
             double projectSize = project?.FontSize ?? 0;
             if (projectSize > 0)
@@ -926,7 +933,7 @@ namespace ImageColorChanger.UI
 
         private string GetCurrentLyricsWatermarkImagePath()
         {
-            string raw = _currentLyricsProject?.ProjectionWatermarkPath?.Trim() ?? string.Empty;
+            string raw = _currentLyricsDocument?.ProjectionWatermarkPath?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(raw))
             {
                 return string.Empty;
@@ -1375,7 +1382,7 @@ namespace ImageColorChanger.UI
 
             // 先确认加载成功，失败时不能进入无法保存、也无法用 F6 退出的空白态。
             LoadOrCreateLyricsProject();
-            if (_currentLyricsProject == null) return;
+            if (_currentLyricsDocument == null) return;
 
             // 隐藏其他显示区域
             ImageScrollViewer.Visibility = Visibility.Collapsed;
@@ -1614,7 +1621,7 @@ namespace ImageColorChanger.UI
 
         private void ImportLyricsWatermarkForCurrentSong()
         {
-            if (_currentLyricsProject == null)
+            if (_currentLyricsDocument == null)
             {
                 ShowStatus("请先打开一首歌词再设置水印");
                 return;
@@ -1666,13 +1673,13 @@ namespace ImageColorChanger.UI
 
         private void BindLyricsWatermarkToCurrentSong(string relativePath)
         {
-            if (_currentLyricsProject == null)
+            if (_currentLyricsDocument == null)
             {
                 ShowStatus("当前没有可绑定的歌词项目");
                 return;
             }
 
-            _currentLyricsProject.ProjectionWatermarkPath = relativePath ?? string.Empty;
+            _currentLyricsDocument.ProjectionWatermarkPath = relativePath ?? string.Empty;
             SaveLyricsProject("WatermarkChanged", suppressUserError: true);
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -1683,12 +1690,12 @@ namespace ImageColorChanger.UI
 
         private void ClearLyricsWatermarkForCurrentSong()
         {
-            if (_currentLyricsProject == null)
+            if (_currentLyricsDocument == null)
             {
                 return;
             }
 
-            _currentLyricsProject.ProjectionWatermarkPath = string.Empty;
+            _currentLyricsDocument.ProjectionWatermarkPath = string.Empty;
             SaveLyricsProject("WatermarkCleared", suppressUserError: true);
 
             if (_isLyricsMode && _projectionManager != null && _projectionManager.IsProjecting)
@@ -1744,7 +1751,7 @@ namespace ImageColorChanger.UI
 
         private void AddWatermarkSelectionItemsToContextMenu(ContextMenu contextMenu)
         {
-            string current = _currentLyricsProject?.ProjectionWatermarkPath ?? string.Empty;
+            string current = _currentLyricsDocument?.ProjectionWatermarkPath ?? string.Empty;
 
             var selectWatermarkItem = new MenuItem
             {
@@ -1852,7 +1859,7 @@ namespace ImageColorChanger.UI
                 RenderLyricsToProjection();
             }
 
-            if (_isLyricsMode && _currentLyricsProject != null && !_isLoadingLyricsProject)
+            if (_isLyricsMode && _currentLyricsDocument != null && !_isLoadingLyricsProject)
             {
                 SaveLyricsProject("LyricsColorChanged", suppressUserError: true);
             }
@@ -2881,10 +2888,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadOrCreateLyricsProject()
         {
+            LoadLyricsProjectCore();
+        }
+
+        private void LoadLyricsProjectCore(Services.Lyrics.LyricsDocument preparedDocument = null, bool throwOnError = false)
+        {
             _isLoadingLyricsProject = true;
             try
             {
                 _currentLyricsProject = null;
+                _currentLyricsDocument = null;
                 ResetLyricsEditorForProjectLoad();
                 _lyricsMainScreenFontSize = ResolveMainLyricsFontSize();
                 EnsureLyricsProjectManager();
@@ -2894,14 +2907,14 @@ namespace ImageColorChanger.UI
                 if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
                 {
                     _lyricsProjectManager.ClearTracking();
-                    _currentLyricsProject = _lyricsProjectManager.LoadOrCreateImageProject(_lyricsEntryId);
-                    if (_currentLyricsProject == null)
+                    _currentLyricsDocument = preparedDocument ?? LoadLyricsEntryDocument();
+                    if (_currentLyricsDocument == null)
                     {
                         CreateTempLyricsProject();
-                        _currentLyricsProject = null; // 缺失/无效图片显示空白，但不能保存成无主歌词。
+                        _currentLyricsProject = null; _currentLyricsDocument = null; // 缺失/无效图片不能保存。
                         return;
                     }
-                    _currentLyricsProjectId = _currentLyricsProject.Id;
+                    _currentLyricsProjectId = _currentLyricsProject?.Id ?? 0;
                 }
                 else if (_currentLyricsProjectId <= 0)
                 {
@@ -2912,39 +2925,29 @@ namespace ImageColorChanger.UI
                 else
                 {
                     _lyricsProjectManager.ClearTracking();
-                    _currentLyricsProject = _lyricsProjectManager.FindById(_currentLyricsProjectId);
+                    _currentLyricsDocument = LoadLyricsEntryDocument();
                 }
                     
 //#if DEBUG
-//                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsProject != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
+//                Debug.WriteLine($"[歌词-加载] 查询结果: {(_currentLyricsDocument != null ? $"找到 - {_currentLyricsProject.Name}" : "未找到，将创建新项目")}");
 //#endif
 
-                if (_currentLyricsProject != null)
+                if (_currentLyricsDocument != null)
                 {
                     string loadedThemeName = "黑色";
                     string loadedThemeHex = "#000000";
                     Dictionary<int, double> loadedSliceRuleProjectionFontSizes = null;
-                    _currentLyricsProjectId = _currentLyricsProject.Id;
-                    LogLyricsSaveDebug($"[Load-Hit] projectId={_currentLyricsProject.Id}, name={_currentLyricsProject.Name}, contentLen={(_currentLyricsProject.Content ?? "").Length}, db={GetLyricsDbPathSafe()}");
+                    _currentLyricsProjectId = _currentLyricsProject?.Id ?? 0;
+                    LogLyricsSaveDebug($"[Load-Hit] projectId={_currentLyricsProject?.Id ?? 0}, name={_currentLyricsProject?.Name ?? "图片内部歌词"}, contentLen={(_currentLyricsDocument.Content ?? "").Length}, db={GetLyricsDbPathSafe()}");
                     // 加载现有项目
 //#if DEBUG
-//                    Debug.WriteLine($"[歌词-加载] 项目ID: {_currentLyricsProject.Id}, 名称: {_currentLyricsProject.Name}");
+//                    Debug.WriteLine($"[歌词-加载] 项目ID: {_currentLyricsProject?.Id ?? 0}, 名称: {_currentLyricsProject.Name}");
 //                    Debug.WriteLine($"[歌词-加载] 关联图片ID: {_currentLyricsProject.ImageId}");
-//                    Debug.WriteLine($"[歌词-加载] 内容长度: {(_currentLyricsProject.Content ?? "").Length}");
-//                    Debug.WriteLine($"[歌词-加载] 内容完整: {_currentLyricsProject.Content ?? "(空)"}");
+//                    Debug.WriteLine($"[歌词-加载] 内容长度: {(_currentLyricsDocument.Content ?? "").Length}");
+//                    Debug.WriteLine($"[歌词-加载] 内容完整: {_currentLyricsDocument.Content ?? "(空)"}");
 //#endif
 
-                    // 自动升级旧项目：对齐方式
-                    if (_currentLyricsProject.TextAlign == "Left")
-                    {
-                        _currentLyricsProject.TextAlign = "Center";
-                        _lyricsProjectManager.Save(_currentLyricsProject);
-//#if DEBUG
-//                        Debug.WriteLine($"[歌词-升级] 对齐从左对齐更新为居中");
-//#endif
-                    }
-
-                    string content = _currentLyricsProject.Content ?? "";
+                    string content = _currentLyricsDocument.Content ?? "";
                     _lyricsSplitPages.Clear();
                     _lyricsCurrentPageIndex = 0;
 
@@ -2979,13 +2982,14 @@ namespace ImageColorChanger.UI
                     }
                     else if (TryParsePagesLyricsContent(content, out var pagesData))
                     {
+                        // 正文判定和展示选择同一legacy首屏，不能排序后静默切到空的横分屏。
+                        var loadedMode = (ViewSplitMode)pagesData.Pages.First().SplitMode;
                         if (pagesData.Pages != null && pagesData.Pages.Count > 0)
                         {
                             _lyricsSplitPages.AddRange(pagesData.Pages.Where(p => p != null));
                         }
                         NormalizeSplitPages();
                         _lyricsCurrentPageIndex = 0;
-                        var loadedMode = (ViewSplitMode)_lyricsSplitPages.First().SplitMode;
                         SetLyricsSplitMode(loadedMode, keepTextBridge: false);
                         _lyricsSliceModeEnabled = false;
                         _lyricsSliceLinesPerPage = 0;
@@ -3039,7 +3043,7 @@ namespace ImageColorChanger.UI
                         loadedThemeHex = "#000000";
                     }
 
-                    _lyricsProjectionFontSize = ResolveProjectionFontSizeForProject(_currentLyricsProject);
+                    _lyricsProjectionFontSize = ResolveProjectionFontSizeForProject(_currentLyricsDocument);
                     LoadSingleSliceProjectionFontSizes(loadedSliceRuleProjectionFontSizes, _lyricsProjectionFontSize);
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                     {
@@ -3065,7 +3069,7 @@ namespace ImageColorChanger.UI
                     // 恢复对齐方式
                     if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                     {
-                        var alignment = ParseTextAlignmentOrDefault(_currentLyricsProject.TextAlign, TextAlignment.Center);
+                        var alignment = ParseTextAlignmentOrDefault(_currentLyricsDocument.TextAlign, TextAlignment.Center);
                         ApplyLyricsEditorStyleToCurrentMode(tb => tb.TextAlignment = alignment);
                         UpdateAlignmentButtonsState(alignment);
                     }
@@ -3100,9 +3104,10 @@ namespace ImageColorChanger.UI
                         TextAlign = "Center"
                     };
 
+                    _currentLyricsDocument = Services.Lyrics.LyricsDocument.FromProject(_currentLyricsProject);
                     _lyricsProjectManager.Add(_currentLyricsProject);
-                    _currentLyricsProjectId = _currentLyricsProject.Id;
-                    LogLyricsSaveDebug($"[Load-Create] projectId={_currentLyricsProject.Id}, sourceType={_currentLyricsProject.SourceType}, groupId={_currentLyricsProject.GroupId}");
+                    _currentLyricsProjectId = _currentLyricsProject?.Id ?? 0;
+                    LogLyricsSaveDebug($"[Load-Create] projectId={_currentLyricsProject?.Id ?? 0}, sourceType={_currentLyricsProject.SourceType}, groupId={_currentLyricsProject.GroupId}");
                     
                     // 清空歌词内容（新项目没有歌词）
                     _lyricsSplitPages.Clear();
@@ -3159,13 +3164,16 @@ namespace ImageColorChanger.UI
             catch (Exception ex)
             {
                 LogLyricsSaveDebug($"[Load-Error] {ex.Message}; stack={ex.StackTrace}");
+                if (throwOnError) throw;
+                if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
+                    System.Windows.MessageBox.Show(ex.Message + "\n右键图片 → 图片歌词归档，可检查、导出和恢复。", "图片歌词未加载", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
 //#if DEBUG
 //                Debug.WriteLine($"[歌词] 加载项目出错: {ex.Message}");
 //#endif
                 CreateTempLyricsProject();
                 if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
                 {
-                    _currentLyricsProject = null; // 图片加载失败时不把临时内容保存到其他入口。
+                    _currentLyricsProject = null; _currentLyricsDocument = null; // 图片加载失败不保存到其他入口。
                 }
             }
             finally
@@ -3215,6 +3223,7 @@ namespace ImageColorChanger.UI
                 TextAlign = "Center"
             };
 
+            _currentLyricsDocument = Services.Lyrics.LyricsDocument.FromProject(_currentLyricsProject);
             _lyricsSplitPages.Clear();
             _lyricsCurrentPageIndex = 0;
             SetLyricsSplitMode(ViewSplitMode.Single, keepTextBridge: false);
@@ -3257,7 +3266,7 @@ namespace ImageColorChanger.UI
         private bool TrySaveLyricsProject(string reason = "Unknown", bool suppressUserError = false)
         {
             if (IsLyricsImeCompositionActive()) return false;
-            if (_currentLyricsProject == null)
+            if (_currentLyricsDocument == null)
             {
                 LogLyricsSaveDebug($"[Skip] reason={reason}, project=null");
                 return false;
@@ -3265,7 +3274,7 @@ namespace ImageColorChanger.UI
 
             if (_isLoadingLyricsProject)
             {
-                LogLyricsSaveDebug($"[Skip] reason={reason}, loading=true, projectId={_currentLyricsProject.Id}");
+                LogLyricsSaveDebug($"[Skip] reason={reason}, loading=true, projectId={_currentLyricsProject?.Id ?? 0}");
                 return false;
             }
 
@@ -3325,49 +3334,16 @@ namespace ImageColorChanger.UI
                 };
                 string serializedModeData = JsonSerializer.Serialize(modeData);
                 string expectedContent = LyricsModeContentPrefix + serializedModeData;
-                _currentLyricsProject.Content = expectedContent;
+                _currentLyricsDocument.Content = expectedContent;
 
-                _currentLyricsProject.FontSize = _lyricsProjectionFontSize;
-                _currentLyricsProject.TextAlign = activeEditor.TextAlignment.ToString();
-                _currentLyricsProject.ModifiedTime = DateTime.Now;
+                _currentLyricsDocument.FontSize = _lyricsProjectionFontSize;
+                _currentLyricsDocument.TextAlign = activeEditor.TextAlignment.ToString();
 
-                // 保存到数据库
-                if (_lyricsEntryKind == LyricsEntryKind.ImageBound)
-                {
-                    _lyricsProjectManager.SaveImageProject(_currentLyricsProject, _lyricsEntryId);
-                }
-                else
-                {
-                    _currentLyricsProject.ImageId = null;
-                    _currentLyricsProject.SourceType = 1;
-                    _lyricsProjectManager.Save(_currentLyricsProject);
-                }
-                _currentLyricsProjectId = _currentLyricsProject.Id;
-                var savedSnapshot = _dbContext.LyricsProjects
-                    .AsNoTracking()
-                    .FirstOrDefault(p => p.Id == _currentLyricsProject.Id);
-                if (savedSnapshot == null || !string.Equals(savedSnapshot.Content, expectedContent, StringComparison.Ordinal))
-                {
-                    var persistent = _dbContext.LyricsProjects.FirstOrDefault(p => p.Id == _currentLyricsProject.Id);
-                    if (persistent != null)
-                    {
-                        persistent.Content = expectedContent;
-                        persistent.FontSize = _lyricsProjectionFontSize;
-                        persistent.TextAlign = activeEditor.TextAlignment.ToString();
-                        persistent.ModifiedTime = DateTime.Now;
-                        _dbContext.SaveChanges();
-                        savedSnapshot = _dbContext.LyricsProjects
-                            .AsNoTracking()
-                            .FirstOrDefault(p => p.Id == _currentLyricsProject.Id);
-                        LogLyricsSaveDebug($"[Repair] reason={reason}, projectId={_currentLyricsProject.Id}, mismatchDetected=true");
-                    }
-                }
-                if (savedSnapshot == null || !string.Equals(savedSnapshot.Content, expectedContent, StringComparison.Ordinal))
-                    throw new InvalidOperationException("保存内容校验失败，歌词仍保留在编辑器中，请重试保存。");
-                int savedContentLen = (savedSnapshot?.Content ?? "").Length;
-                bool savedAsModePayload = (savedSnapshot?.Content ?? "").StartsWith(LyricsModeContentPrefix, StringComparison.Ordinal);
+                PersistLyricsEntryDocument(_currentLyricsDocument);
+                int savedContentLen = (_currentLyricsDocument.Content ?? "").Length;
+                bool savedAsModePayload = (_currentLyricsDocument.Content ?? "").StartsWith(LyricsModeContentPrefix, StringComparison.Ordinal);
                 LogLyricsSaveDebug(
-                    $"[OK] reason={reason}, projectId={_currentLyricsProject.Id}, splitMode={_lyricsSplitMode}, sliceMode={_lyricsSliceModeEnabled}, textLen={(LyricsTextBox.Text ?? "").Length}, modeJsonLen={serializedModeData.Length}, savedContentLen={savedContentLen}, savedModePayload={savedAsModePayload}, db={GetLyricsDbPathSafe()}");
+                    $"[OK] reason={reason}, projectId={_currentLyricsProject?.Id ?? 0}, splitMode={_lyricsSplitMode}, sliceMode={_lyricsSliceModeEnabled}, textLen={(LyricsTextBox.Text ?? "").Length}, modeJsonLen={serializedModeData.Length}, savedContentLen={savedContentLen}, savedModePayload={savedAsModePayload}, db={GetLyricsDbPathSafe()}");
 
 //#if DEBUG
 //                Debug.WriteLine($"[歌词] 保存成功: {_currentLyricsProject.Name}");
@@ -3421,59 +3397,14 @@ namespace ImageColorChanger.UI
             }
         }
 
-        /// <summary>
-        /// 仅在跨过版本阈值（6.0.1.5）时执行一次清理：删除旧版图片关联歌词。
-        /// </summary>
-        private void PurgeLegacyImageLinkedLyricsProjects()
+        /// <summary>旧图片歌词通过可恢复迁移保存，不再按版本阈值清空。</summary>
+        private void MigrateLegacyImageLyrics()
         {
-            const string thresholdVersion = "6.0.1.5";
-            try
-            {
-                if (_dbContext == null || _configManager == null)
-                {
-                    return;
-                }
-
-                string currentVersion = Services.UpdateService.GetCurrentVersion() ?? string.Empty;
-                string lastRunVersion = _configManager.LastRunAppVersion ?? string.Empty;
-
-                // 仅当“上次版本 < 阈值 && 当前版本 >= 阈值”时触发清理。
-                bool crossedThreshold =
-                    CompareSimpleVersion(lastRunVersion, thresholdVersion) < 0 &&
-                    CompareSimpleVersion(currentVersion, thresholdVersion) >= 0;
-                if (!crossedThreshold)
-                {
-                    if (!string.IsNullOrWhiteSpace(currentVersion))
-                    {
-                        _configManager.LastRunAppVersion = currentVersion;
-                    }
-                    return;
-                }
-
-                var legacyItems = _dbContext.LyricsProjects
-                    .Where(p => p.ImageId != null || p.SourceType == 0)
-                    .ToList();
-                int removed = legacyItems.Count;
-                if (removed > 0)
-                {
-                    var removedIds = legacyItems.Select(x => x.Id).ToHashSet();
-                    _dbContext.LyricsProjects.RemoveRange(legacyItems);
-                    _dbContext.SaveChanges();
-
-                    if (_currentLyricsProject != null && removedIds.Contains(_currentLyricsProject.Id))
-                    {
-                        _currentLyricsProject = null;
-                        _currentLyricsProjectId = 0;
-                    }
-                }
-
-                _configManager.LastRunAppVersion = string.IsNullOrWhiteSpace(currentVersion) ? thresholdVersion : currentVersion;
-                LogLyricsSaveDebug($"[Legacy-Purge] threshold={thresholdVersion}, removed={removed}, lastRun={_configManager.LastRunAppVersion}, db={GetLyricsDbPathSafe()}");
-            }
-            catch (Exception ex)
-            {
-                LogLyricsSaveDebug($"[Legacy-Purge-Error] {ex.Message}");
-            }
+            if (_dbContext == null) return;
+            Services.Lyrics.ImageLyricsMigration.Run(_dbContext);
+            NotifyImageLyricsMigrationArchives();
+            if (_configManager != null)
+                _configManager.LastRunAppVersion = Services.UpdateService.GetCurrentVersion();
         }
 
         private static int CompareSimpleVersion(string left, string right)

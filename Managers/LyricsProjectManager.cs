@@ -25,53 +25,39 @@ namespace ImageColorChanger.Managers
             _dbContext.ChangeTracker.Clear();
         }
 
+        // 兼容旧调用方的临时适配对象，不再写入lyrics_projects。新UI使用ImageLyricsService/LyricsDocument。
+        [Obsolete("图片入口请使用ImageLyricsService。此适配器仅供旧调用方过渡。")]
         public LyricsProject FindByImageId(int imageId)
         {
-            return _dbContext.LyricsProjects.FirstOrDefault(p => p.ImageId == imageId);
+            var row = _dbContext.ImageLyrics.AsNoTracking().SingleOrDefault(p => p.ImageId == imageId);
+            if (row == null) return null;
+            var project = new LyricsProject { Id = row.Id, Name = string.Empty, ImageId = imageId, SourceType = 0, CreatedTime = row.CreatedTime, ModifiedTime = row.ModifiedTime };
+            Services.Lyrics.LyricsDocument.FromImage(row).ApplyTo(project);
+            return project;
         }
 
-        /// <summary>图片入口只读取本图歌词；没有记录时返回未保存的空白项目。</summary>
+        [Obsolete("图片入口请使用ImageLyricsService.Load。")]
         public LyricsProject LoadOrCreateImageProject(int imageId)
         {
-            if (imageId <= 0 || !_dbContext.MediaFiles.Any(m => m.Id == imageId))
-            {
-                return null;
-            }
-
-            return FindByImageId(imageId) ?? new LyricsProject
-            {
-                Name = $"歌词_图片_{imageId}",
-                ImageId = imageId,
-                SourceType = 0,
-                Content = string.Empty,
-                FontSize = 60,
-                TextAlign = "Center"
-            };
+            var doc = new Services.Lyrics.ImageLyricsService(_dbContext).Load(imageId);
+            if (doc == null) return null;
+            var project = FindByImageId(imageId) ?? new LyricsProject { Name = string.Empty, ImageId = imageId, SourceType = 0 };
+            doc.ApplyTo(project); return project;
         }
 
-        /// <summary>保存到进入时绑定的图片，禁止旧项目被另一张图片重新绑定。</summary>
+        [Obsolete("图片入口请使用ImageLyricsService.Save。")]
         public void SaveImageProject(LyricsProject project, int imageId)
         {
             if (project == null) throw new ArgumentNullException(nameof(project));
-            if (imageId <= 0 || project.ImageId != imageId)
+            if (imageId <= 0 || project.ImageId != imageId) throw new InvalidOperationException("歌词项目与当前图片入口不匹配。");
+            if (project.Id > 0)
             {
-                throw new InvalidOperationException("歌词项目与当前图片入口不匹配。");
+                var stored = _dbContext.ImageLyrics.AsNoTracking().SingleOrDefault(p => p.Id == project.Id);
+                if (stored == null) return; // 已删除项目不因旧回调复活。
+                if (stored.ImageId != imageId) throw new InvalidOperationException("不能将已有歌词改绑到另一张图片。");
             }
-
-            var stored = project.Id > 0
-                ? _dbContext.LyricsProjects.AsNoTracking().FirstOrDefault(p => p.Id == project.Id)
-                : null;
-            if (stored != null && stored.ImageId != imageId)
-            {
-                throw new InvalidOperationException("不能将已有歌词改绑到另一张图片。");
-            }
-            if (!_dbContext.MediaFiles.Any(m => m.Id == imageId))
-            {
-                throw new InvalidOperationException("对应图片已不存在，未保存歌词。");
-            }
-
-            project.SourceType = 0;
-            Save(project);
+            new Services.Lyrics.ImageLyricsService(_dbContext).Save(imageId, Services.Lyrics.LyricsDocument.FromProject(project));
+            project.Id = _dbContext.ImageLyrics.AsNoTracking().Single(p => p.ImageId == imageId).Id;
         }
 
         public LyricsProject FindById(int id)

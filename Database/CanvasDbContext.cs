@@ -47,6 +47,18 @@ namespace ImageColorChanger.Database
         /// </summary>
         private readonly string _dbPath;
 
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            Services.Lyrics.ImageLyricsMigration.PrepareImageDeletion(this);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override System.Threading.Tasks.Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, System.Threading.CancellationToken cancellationToken = default)
+        {
+            Services.Lyrics.ImageLyricsMigration.PrepareImageDeletion(this);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         /// <summary>
         /// 构造函数
         /// </summary>
@@ -54,6 +66,9 @@ namespace ImageColorChanger.Database
         public CanvasDbContext(string dbPath)
         {
             _dbPath = dbPath;
+            // 必需关联的删除延迟至提交：先在统一SaveChanges边界归档/移除私有歌词，
+            // 再让EF处理其余既有级联关系，避免Remove父对象时提前断开Restrict子对象。
+            ChangeTracker.CascadeDeleteTiming = Microsoft.EntityFrameworkCore.ChangeTracking.CascadeTiming.OnSaveChanges;
         }
 
         /// <summary>
@@ -120,6 +135,10 @@ namespace ImageColorChanger.Database
         /// 歌词项目表
         /// </summary>
         public DbSet<LyricsProject> LyricsProjects { get; set; }
+
+        /// <summary>图片私有歌词，与独立歌曲库分离。</summary>
+        public DbSet<ImageLyrics> ImageLyrics { get; set; }
+        public DbSet<ImageLyricsArchive> ImageLyricsArchives { get; set; }
 
         /// <summary>
         /// 歌词分组表
@@ -362,6 +381,25 @@ namespace ImageColorChanger.Database
                     .HasConversion(new SqliteDateTimeConverter());
             });
 
+            // ========== 图片私有歌词表配置 ==========
+            modelBuilder.Entity<ImageLyrics>(entity =>
+            {
+                entity.HasIndex(e => e.ImageId).IsUnique().HasDatabaseName("idx_image_lyrics_image");
+                entity.HasOne(e => e.MediaFile)
+                    .WithMany()
+                    .HasForeignKey(e => e.ImageId)
+                    .IsRequired()
+                    // 删除流程尚未接入归档时，不允许把私有歌词变成孤儿或歌曲库条目。
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ImageLyricsArchive>(entity =>
+            {
+                entity.HasIndex(e => e.ExternalId).IsUnique().HasDatabaseName("idx_image_lyrics_archive_external");
+                entity.HasIndex(e => e.SourceKey).IsUnique().HasDatabaseName("idx_image_lyrics_archive_source");
+                entity.HasIndex(e => e.OriginalImageId).HasDatabaseName("idx_image_lyrics_archive_image");
+            });
+
             // ========== 歌词项目表配置 ==========
             modelBuilder.Entity<LyricsProject>(entity =>
             {
@@ -548,6 +586,7 @@ namespace ImageColorChanger.Database
                 {
                     // 快速路径：数据库文件与 schema 版本戳均已就绪，跳过 EnsureCreated/兼容检查。
                     EnsureAiSermonSchemaExists();
+                    Services.Lyrics.ImageLyricsMigration.Run(this);
                     EnsureDefaultProjectExists();
                     ApplyStartupPragmas();
                     return;
@@ -583,6 +622,7 @@ namespace ImageColorChanger.Database
 
                     // 歌词库Schema（分组+扩展列）兼容升级
                     EnsureLyricsLibrarySchemaExists();
+                    Services.Lyrics.ImageLyricsMigration.Run(this);
 
                     //  检查并添加文本项目的排序字段（兼容旧数据库）
                     EnsureTextProjectSortOrderColumnExists();
