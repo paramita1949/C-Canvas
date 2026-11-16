@@ -1235,6 +1235,7 @@
                                 <Viewbox Stretch="Uniform" StretchDirection="DownOnly" ClipToBounds="True">
                                     <Grid x:Name="EditorCanvasContainer" Width="1600" Height="900" Background="White" ClipToBounds="True">
                             <Canvas x:Name="EditorCanvas"
+                                    RenderOptions.BitmapScalingMode="HighQuality"
                                     Width="1600" Height="900"
                                     Background="White"
                                     MouseLeftButtonDown="EditorCanvas_MouseDown"
