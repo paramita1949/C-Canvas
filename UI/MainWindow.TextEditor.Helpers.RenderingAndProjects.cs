@@ -25,25 +25,8 @@ namespace ImageColorChanger.UI
         /// </summary>
         private SKBitmap ConvertBitmapSourceToSKBitmap(BitmapSource source)
         {
-            int width = source.PixelWidth;
-            int height = source.PixelHeight;
-            
-            var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            
-            int stride = width * 4;
-            byte[] pixels = new byte[height * stride];
-            source.CopyPixels(pixels, stride, 0);
-            
-            unsafe
-            {
-                fixed (byte* ptr = pixels)
-                {
-                    var dest = bitmap.GetPixels();
-                    Buffer.MemoryCopy(ptr, dest.ToPointer(), pixels.Length, pixels.Length);
-                }
-            }
-            
-            return bitmap;
+            return ImageColorChanger.Utils.SkiaWpfHelper.ConvertToSkBitmap(source)
+                ?? throw new InvalidOperationException("无法转换图片像素");
         }
         
         /// <summary>

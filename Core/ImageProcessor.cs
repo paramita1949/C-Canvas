@@ -32,6 +32,7 @@ namespace ImageColorChanger.Core
         private SKBitmap currentImage;
         private BitmapSource currentPhoto;
         private string currentImagePath;
+        private string currentImageCacheKey;
         
         // 显示模式
         private bool originalMode = false;
@@ -47,6 +48,9 @@ namespace ImageColorChanger.Core
         // 缓存管理
         private readonly Dictionary<string, BitmapSource> imageCache = new Dictionary<string, BitmapSource>();
         private readonly Dictionary<string, DateTime> imageCacheAccessTime = new Dictionary<string, DateTime>(); //  LRU访问时间
+        private readonly object _renderCacheLock = new object();
+        private int _renderCacheGeneration;
+        private bool _disposed;
         private readonly IMemoryCache _imageMemoryCache; //  LRU图片缓存
         
         // 性能优化
@@ -73,7 +77,7 @@ namespace ImageColorChanger.Core
             //  初始化LRU图片缓存
             _imageMemoryCache = new MemoryCache(new MemoryCacheOptions
             {
-                SizeLimit = 100, // 最多缓存100张图片（基于权重计算）
+                SizeLimit = 100, // 100MiB解码权重（每项向上取整）；既有共享native拥有权不变
                 CompactionPercentage = 0.25, // 达到上限时清理25%最少使用的项
                 ExpirationScanFrequency = TimeSpan.FromMinutes(5) // 每5分钟扫描过期项
             });
@@ -110,60 +114,36 @@ namespace ImageColorChanger.Core
         {
             try
             {
-                // 生成缓存键
-                string cacheKey = $"{imagePath}_{targetWidth}x{targetHeight}_{(applyInvert ? "inverted" : "normal")}";
-                
-                // 如果已经在渲染缓存中，跳过
-                if (imageCache.ContainsKey(cacheKey))
+                if (targetWidth <= 0 || targetHeight <= 0) return false;
+                string rawKey = ImageFileCacheKey.GetRawKey(imagePath);
+                if (rawKey == null || !_imageMemoryCache.TryGetValue(rawKey, out SKBitmap rawImage)) return false;
+                double scale = Math.Min((double)targetWidth / rawImage.Width, (double)targetHeight / rawImage.Height);
+                int width = Math.Max(1, (int)(rawImage.Width * scale));
+                int height = Math.Max(1, (int)(rawImage.Height * scale));
+                string key = ImageFileCacheKey.GetRenderKey(rawKey, width, height, applyInvert);
+                int generation;
+                lock (_renderCacheLock)
                 {
-                    return true;
+                    if (_disposed) return false;
+                    generation = _renderCacheGeneration;
+                    if (imageCache.ContainsKey(key)) { imageCacheAccessTime[key] = DateTime.Now; return true; }
                 }
-                
-                // 尝试从LRU缓存加载原始图片
-                if (!_imageMemoryCache.TryGetValue(imagePath, out SKBitmap rawImage))
+                // 显式预渲染允许后台调用，不能使用UI线程拥有的OpenGL上下文。
+                using var resized = rawImage.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                if (resized == null) return false;
+                if (applyInvert) ApplyYellowTextEffect(resized);
+                var photo = ConvertToBitmapSource(resized);
+                if (photo == null) return false;
+                lock (_renderCacheLock)
                 {
-                    // LRU缓存中没有，无法预渲染
-                    return false;
+                    if (_disposed || generation != _renderCacheGeneration || rawKey != ImageFileCacheKey.GetRawKey(imagePath)) return false;
+                    imageCache[key] = photo;
+                    imageCacheAccessTime[key] = DateTime.Now;
+                    ClearOldCache();
                 }
-                
-                // 计算缩放
-                double scaleX = (double)targetWidth / rawImage.Width;
-                double scaleY = (double)targetHeight / rawImage.Height;
-                double scaleRatio = Math.Min(scaleX, scaleY);
-                
-                int finalWidth = (int)(rawImage.Width * scaleRatio);
-                int finalHeight = (int)(rawImage.Height * scaleRatio);
-                
-                // 缩放并应用效果
-                var resizedImage = ResizeImage(rawImage, finalWidth, finalHeight);
-                
-                if (resizedImage != null)
-                {
-                    // 应用效果
-                    if (applyInvert)
-                    {
-                        ApplyYellowTextEffect(resizedImage);
-                    }
-                    
-                    // 转换为BitmapSource
-                    var bitmapSource = ConvertToBitmapSource(resizedImage);
-                    resizedImage.Dispose();
-                    
-                    if (bitmapSource != null)
-                    {
-                        // 加入渲染缓存
-                        imageCache[cacheKey] = bitmapSource;
-                        imageCacheAccessTime[cacheKey] = DateTime.Now;
-                        return true;
-                    }
-                }
-                
-                return false;
+                return true;
             }
-            catch (Exception)
-            {
-                return false;
-            }
+            catch (Exception) { return false; }
         }
         
         /// <summary>是否处于原图模式</summary>
@@ -287,7 +267,7 @@ namespace ImageColorChanger.Core
         internal Action CaptureImageRestoreAction()
         {
             var original = originalImage; var current = currentImage; var photo = currentPhoto;
-            var path = currentImagePath; var source = imageControl.Source;
+            var path = currentImagePath; var rawKey = currentImageCacheKey; var source = imageControl.Source;
             var imageLayout = (imageControl.Width, imageControl.Height, imageControl.Margin,
                 imageControl.HorizontalAlignment, imageControl.VerticalAlignment);
             var containerLayout = (imageContainer.Width, imageContainer.Height);
@@ -295,7 +275,7 @@ namespace ImageColorChanger.Core
             var state = (originalMode, originalDisplayMode, originalTopScalePercent, zoomRatio, isInverted, lastUpdateTime);
             return () =>
             {
-                originalImage = original; currentImage = current; currentPhoto = photo; currentImagePath = path;
+                originalImage = original; currentImage = current; currentPhoto = photo; currentImagePath = path; currentImageCacheKey = rawKey;
                 (originalMode, originalDisplayMode, originalTopScalePercent, zoomRatio, isInverted, lastUpdateTime) = state;
                 imageControl.Source = source;
                 (imageControl.Width, imageControl.Height, imageControl.Margin,
@@ -321,7 +301,10 @@ namespace ImageColorChanger.Core
                 ClearCurrentImageOnly();
                 
                 //  先检查LRU缓存
-                if (_imageMemoryCache.TryGetValue(path, out SKBitmap cachedImage))
+                string rawKey = ImageFileCacheKey.GetRawKey(path);
+                if (rawKey == null) return false;
+                currentImageCacheKey = rawKey;
+                if (_imageMemoryCache.TryGetValue(rawKey, out SKBitmap cachedImage))
                 {
                     //  性能优化：直接共享引用，不克隆（节省时间）
                     originalImage = cachedImage;
@@ -340,12 +323,13 @@ namespace ImageColorChanger.Core
                     var entryOptions = new MemoryCacheEntryOptions
                     {
                         // 按图片大小计算权重（1MB = 1权重单位）
-                        Size = Math.Max(1, (originalImage.Width * originalImage.Height * 4) / (1024 * 1024)),
+                        Size = Math.Max(1L, ((long)originalImage.ByteCount + 1024 * 1024 - 1) / (1024 * 1024)),
                         Priority = CacheItemPriority.Normal,
                         SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
                     };
                     
-                    _imageMemoryCache.Set(path, originalImage, entryOptions);
+                    if (rawKey == ImageFileCacheKey.GetRawKey(path))
+                        _imageMemoryCache.Set(rawKey, originalImage, entryOptions);
                 }
                 
                 //  重置节流时间戳，确保新图片能立即显示（不受节流限制）
@@ -483,6 +467,7 @@ namespace ImageColorChanger.Core
             currentImage = null;
             currentPhoto = null;
             currentImagePath = null;
+            currentImageCacheKey = null;
             
             imageControl.Source = null;
             
@@ -662,40 +647,33 @@ namespace ImageColorChanger.Core
         /// </summary>
         private BitmapSource GetOrCreateCachedImage(int newWidth, int newHeight)
         {
-            // 生成缓存键（包含效果状态）
-            string cacheKey = $"{currentImagePath}_{newWidth}x{newHeight}_{(isInverted ? "inverted" : "normal")}";
-            
-            // 检查缓存
-            if (imageCache.TryGetValue(cacheKey, out var cachedPhoto))
+            string key = ImageFileCacheKey.GetRenderKey(currentImageCacheKey ?? currentImagePath, newWidth, newHeight, isInverted);
+            int generation;
+            lock (_renderCacheLock)
             {
-                //  更新LRU访问时间
-                imageCacheAccessTime[cacheKey] = DateTime.Now;
-                return cachedPhoto;
-            }
-            
-            // 生成新图片
-            var resizedImage = ResizeAndApplyEffects(newWidth, newHeight);
-            if (resizedImage == null)
-                return null;
-            
-            // 转换为BitmapSource
-            var photo = ConvertToBitmapSource(resizedImage);
-            
-            // 缓存（效果模式也缓存，但会在切换时清空）
-            if (photo != null)
-            {
-                imageCache[cacheKey] = photo;
-                imageCacheAccessTime[cacheKey] = DateTime.Now; //  记录访问时间
-                
-                // 限制缓存大小
-                if (imageCache.Count > Constants.RenderCacheCleanupThreshold)
+                if (_disposed) return null;
+                generation = _renderCacheGeneration;
+                if (imageCache.TryGetValue(key, out var cached))
                 {
-                    ClearOldCache();
+                    imageCacheAccessTime[key] = DateTime.Now;
+                    return cached;
                 }
             }
-            
-            resizedImage.Dispose();
-            
+            using var resized = ResizeAndApplyEffects(newWidth, newHeight);
+            if (resized == null) return null;
+            var photo = ConvertToBitmapSource(resized);
+            if (photo != null)
+            {
+                lock (_renderCacheLock)
+                {
+                    if (!_disposed && generation == _renderCacheGeneration)
+                    {
+                        imageCache[key] = photo;
+                        imageCacheAccessTime[key] = DateTime.Now;
+                        ClearOldCache();
+                    }
+                }
+            }
             return photo;
         }
         
@@ -1066,8 +1044,12 @@ namespace ImageColorChanger.Core
         /// </summary>
         public void ClearCache()
         {
-            imageCache.Clear();
-            imageCacheAccessTime.Clear();
+            lock (_renderCacheLock)
+            {
+                _renderCacheGeneration++;
+                imageCache.Clear();
+                imageCacheAccessTime.Clear();
+            }
             ClearImageCache();
         }
         
@@ -1100,6 +1082,8 @@ namespace ImageColorChanger.Core
         /// </summary>
         private void ClearOldCache()
         {
+            lock (_renderCacheLock)
+            {
             if (imageCache.Count <= Constants.RenderCacheCleanupThreshold)
                 return;
             
@@ -1130,6 +1114,8 @@ namespace ImageColorChanger.Core
                 // 失败时简单清空
                 imageCache.Clear();
                 imageCacheAccessTime.Clear();
+            }
+
             }
         }
 
@@ -1176,14 +1162,16 @@ namespace ImageColorChanger.Core
 
         public void Dispose()
         {
-            ClearCurrentImage();
-            imageCache.Clear();
-            
-            // 释放MemoryCache
-            if (_imageMemoryCache is IDisposable disposable)
+            lock (_renderCacheLock)
             {
-                disposable.Dispose();
+                if (_disposed) return;
+                _disposed = true;
+                _renderCacheGeneration++;
+                imageCache.Clear();
+                imageCacheAccessTime.Clear();
             }
+            ClearCurrentImage();
+            if (_imageMemoryCache is IDisposable disposable) disposable.Dispose();
         }
 
         #endregion

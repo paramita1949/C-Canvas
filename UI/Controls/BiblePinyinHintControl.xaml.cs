@@ -30,7 +30,7 @@ namespace ImageColorChanger.UI.Controls
         private const double MatchItemHorizontalSpacing = 6d;
         private const double MatchRowBottomSpacing = 2d;
         private const double MatchItemFontSize = 15d;
-        private const double DefaultPreviewFontSize = 35d;
+        private const double DefaultPreviewFontSize = AppConfig.DefaultBiblePreviewFontSize;
         private const double MinPreviewFontSize = 15d;
         private const double MaxPreviewFontSize = 70d;
         private const double MinPreviewMaxHeight = 220d;
@@ -81,7 +81,7 @@ namespace ImageColorChanger.UI.Controls
             List<BibleBookMatch> matches,
             string previewReference = null,
             string previewContent = null,
-            double previewFontSize = 35d)
+            double previewFontSize = AppConfig.DefaultBiblePreviewFontSize)
         {
             bool hasPreview = !string.IsNullOrWhiteSpace(previewContent);
             bool hasMatches = matches != null && matches.Count > 0;

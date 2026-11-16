@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SkiaSharp;
 
@@ -25,17 +27,32 @@ namespace ImageColorChanger.Utils
             
             try
             {
-                using var image = SKImage.FromBitmap(skBitmap);
-                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                
-                var bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = data.AsStream();
-                bitmapImage.EndInit();
-                bitmapImage.Freeze(); //  线程安全：冻结对象，允许跨线程访问
-                
-                return bitmapImage;
+                if (RequiresEncodedCompatibility(skBitmap))
+                {
+                    return ConvertToWpfBitmapEncoded(skBitmap);
+                }
+
+                // BitmapSource.Create 复制像素；不能把已释放的 Skia 内存留给 WPF。
+                if (skBitmap.ColorType == SKColorType.Bgra8888 && skBitmap.AlphaType == SKAlphaType.Premul)
+                {
+                    return CopyPremultipliedPixels(skBitmap);
+                }
+
+                // Opaque/Rgb888x 的 alpha 字节可能未定义；必须真正转换而非仅换格式标签。
+                using var normalized = new SKBitmap(new SKImageInfo(
+                    skBitmap.Width, skBitmap.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
+                using var pixels = skBitmap.PeekPixels();
+                if (pixels == null || !pixels.ReadPixels(normalized.Info, normalized.GetPixels(), normalized.RowBytes))
+                {
+                    return ConvertToWpfBitmapEncoded(skBitmap);
+                }
+
+                if (skBitmap.AlphaType == SKAlphaType.Opaque)
+                {
+                    SetOpaqueAlpha(normalized);
+                }
+
+                return CopyPremultipliedPixels(normalized);
             }
             catch (Exception ex)
             {
@@ -90,16 +107,29 @@ namespace ImageColorChanger.Utils
             
             try
             {
-                // 将BitmapSource编码为PNG
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
-                
-                using var memoryStream = new MemoryStream();
-                encoder.Save(memoryStream);
-                memoryStream.Seek(0, SeekOrigin.Begin);
-                
-                // 使用SkiaSharp解码
-                return SKBitmap.Decode(memoryStream);
+                // 非8位/色彩管理输入先保持既有编码行为，避免静默截断精度或改变色彩。
+                if (!SupportsDirectWpfPixels(bitmapSource.Format) ||
+                    bitmapSource is BitmapFrame frame && frame.ColorContexts?.Count > 0)
+                {
+                    return ConvertToSkBitmapEncoded(bitmapSource);
+                }
+
+                var normalized = bitmapSource.Format == PixelFormats.Pbgra32
+                    ? bitmapSource
+                    : new FormatConvertedBitmap(bitmapSource, PixelFormats.Pbgra32, null, 0);
+                var bitmap = new SKBitmap(new SKImageInfo(
+                    normalized.PixelWidth, normalized.PixelHeight, SKColorType.Bgra8888, SKAlphaType.Premul));
+                try
+                {
+                    int capacity = checked(bitmap.RowBytes * bitmap.Height);
+                    normalized.CopyPixels(Int32Rect.Empty, bitmap.GetPixels(), capacity, bitmap.RowBytes);
+                    return bitmap;
+                }
+                catch
+                {
+                    bitmap.Dispose();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
@@ -110,6 +140,76 @@ namespace ImageColorChanger.Utils
 #endif
                 return null;
             }
+        }
+
+        private static BitmapSource CopyPremultipliedPixels(SKBitmap bitmap)
+        {
+            int capacity = checked(bitmap.RowBytes * bitmap.Height);
+            var result = BitmapSource.Create(
+                bitmap.Width, bitmap.Height, 96, 96, PixelFormats.Pbgra32, null,
+                bitmap.GetPixels(), capacity, bitmap.RowBytes);
+            result.Freeze();
+            return result;
+        }
+
+        private static bool SupportsDirectWpfPixels(PixelFormat format)
+        {
+            // 只优化已验证格式；其余格式保持既有编码器/色彩管理语义。
+            return format == PixelFormats.Pbgra32 || format == PixelFormats.Bgra32 ||
+                format == PixelFormats.Rgb24 || format == PixelFormats.Gray8 ||
+                format == PixelFormats.Indexed8;
+        }
+
+        private static unsafe void SetOpaqueAlpha(SKBitmap bitmap)
+        {
+            _ = checked(bitmap.RowBytes * bitmap.Height);
+            byte* pixels = (byte*)bitmap.GetPixels();
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                byte* row = pixels + y * bitmap.RowBytes;
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    row[x * 4 + 3] = 255;
+                }
+            }
+        }
+
+        private static bool RequiresEncodedCompatibility(SKBitmap bitmap)
+        {
+            if (bitmap.Info.ColorSpace != null && !bitmap.Info.ColorSpace.IsSrgb)
+            {
+                return true;
+            }
+
+            return bitmap.ColorType != SKColorType.Bgra8888 &&
+                bitmap.ColorType != SKColorType.Rgba8888 &&
+                bitmap.ColorType != SKColorType.Rgb888x &&
+                bitmap.ColorType != SKColorType.Rgb565 &&
+                bitmap.ColorType != SKColorType.Gray8;
+        }
+
+        private static BitmapSource ConvertToWpfBitmapEncoded(SKBitmap bitmap)
+        {
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var stream = data.AsStream();
+            var result = new BitmapImage();
+            result.BeginInit();
+            result.CacheOption = BitmapCacheOption.OnLoad;
+            result.StreamSource = stream;
+            result.EndInit();
+            result.Freeze();
+            return result;
+        }
+
+        private static SKBitmap ConvertToSkBitmapEncoded(BitmapSource bitmap)
+        {
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+            stream.Position = 0;
+            return SKBitmap.Decode(stream);
         }
         
         /// <summary>

@@ -67,25 +67,32 @@
                     <MenuItem x:Name="MenuBibleVerseScroll"
                               x:FieldModifier="public"
                               Header="经文滚动">
-                        <MenuItem x:Name="MenuBibleVerseScrollEnabled"
+                        <MenuItem x:Name="MenuBibleVerseScrollLegacy"
                                   x:FieldModifier="public"
-                                  Header="开启"
-                                  IsCheckable="True"/>
-                        <MenuItem x:Name="MenuBibleVerseScrollSpeedSlow"
+                                  Header="经典滑动">
+                            <MenuItem x:Name="MenuBibleVerseScrollSpeedSlow"
+                                      x:FieldModifier="public"
+                                      Header="慢"
+                                      IsCheckable="True"
+                                      Tag="0"/>
+                            <MenuItem x:Name="MenuBibleVerseScrollSpeedMedium"
+                                      x:FieldModifier="public"
+                                      Header="中"
+                                      IsCheckable="True"
+                                      Tag="1"/>
+                            <MenuItem x:Name="MenuBibleVerseScrollSpeedFast"
+                                      x:FieldModifier="public"
+                                      Header="快"
+                                      IsCheckable="True"
+                                      Tag="2"/>
+                        </MenuItem>
+                        <MenuItem x:Name="MenuBibleVerseScrollTest"
                                   x:FieldModifier="public"
-                                  Header="慢"
-                                  IsCheckable="True"
-                                  Tag="0"/>
-                        <MenuItem x:Name="MenuBibleVerseScrollSpeedMedium"
-                                  x:FieldModifier="public"
-                                  Header="中"
-                                  IsCheckable="True"
-                                  Tag="1"/>
-                        <MenuItem x:Name="MenuBibleVerseScrollSpeedFast"
-                                  x:FieldModifier="public"
-                                  Header="快"
-                                  IsCheckable="True"
-                                  Tag="2"/>
+                                  Header="柔滑滚动">
+                            <MenuItem Header="1档（最慢）" Tag="1" IsCheckable="True"/>
+                            <MenuItem Header="2档（较慢）" Tag="2" IsCheckable="True"/>
+                            <MenuItem Header="3档（基准，原1档）" Tag="3" IsCheckable="True"/>
+                        </MenuItem>
                     </MenuItem>
                     <MenuItem x:Name="MenuBibleClearScreen"
                               x:FieldModifier="public"

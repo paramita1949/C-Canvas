@@ -600,6 +600,8 @@ namespace ImageColorChanger.UI
         // 滚轮对齐相关字段
         private System.Windows.Threading.DispatcherTimer _scrollAlignTimer;
         private System.EventHandler _scrollAlignTickHandler;
+        private BibleVerseSpringScroller _bibleSpringScroller;
+        private long _bibleScrollGeneration;
         private DateTime _lastScrollTime = DateTime.MinValue; // 上次滚动时间
         private const int SCROLL_THROTTLE_MS = 50; // 滚动节流时间（毫秒）
 
@@ -697,12 +699,20 @@ namespace ImageColorChanger.UI
             if (BibleVerseList == null || verseIndex < 0 || verseIndex >= BibleVerseList.Items.Count)
                 return;
 
-            StopBibleVerseScrollAnimation();
+            _bibleScrollGeneration++;
 
             int anchorIndex = GetBibleScrollAnchorIndex(verseIndex);
-
-            // 计算目标滚动位置
             double targetOffset = GetClampedBibleScrollOffset(CalculateVerseOffset(anchorIndex));
+            if (_configManager?.BibleVerseScrollAlgorithm == BibleVerseScrollAlgorithm.CriticalDampedTest)
+            {
+                StopLegacyBibleVerseScrollAnimation();
+                _bibleSpringScroller ??= new BibleVerseSpringScroller(BibleVerseScrollViewer);
+                _bibleSpringScroller.SetSpeedLevel(_configManager.BibleVerseSpringSpeedLevel);
+                _bibleSpringScroller.ScrollTo(targetOffset, () => QueueBibleScrollCorrection(anchorIndex));
+                return;
+            }
+
+            StopBibleVerseScrollAnimation();
 
             // 使用计时器实现平滑滚动
             double startOffset = BibleVerseScrollViewer.VerticalOffset;
@@ -736,8 +746,8 @@ namespace ImageColorChanger.UI
                 {
                     // 最后一步，精确到目标位置
                     BibleVerseScrollViewer.ScrollToVerticalOffset(targetOffset);
-                    QueueBibleScrollCorrection(anchorIndex);
                     StopBibleVerseScrollAnimation();
+                    QueueBibleScrollCorrection(anchorIndex);
                 }
                 else
                 {
@@ -754,6 +764,13 @@ namespace ImageColorChanger.UI
         }
 
         private void StopBibleVerseScrollAnimation()
+        {
+            _bibleScrollGeneration++;
+            _bibleSpringScroller?.Stop();
+            StopLegacyBibleVerseScrollAnimation();
+        }
+
+        private void StopLegacyBibleVerseScrollAnimation()
         {
             if (_scrollAlignTimer == null)
             {
@@ -819,8 +836,10 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            long generation = _bibleScrollGeneration;
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (generation != _bibleScrollGeneration) return;
                 if (anchorIndex < 0 || anchorIndex >= BibleVerseList.Items.Count)
                 {
                     return;
@@ -1450,7 +1469,7 @@ namespace ImageColorChanger.UI
                 matches,
                 _lastPinyinPreviewReference,
                 _lastPinyinPreviewContent,
-                _configManager?.BiblePreviewFontSize ?? 35d);
+                _configManager?.BiblePreviewFontSize ?? AppConfig.DefaultBiblePreviewFontSize);
             LogBibleQuickLocateDebug(
                 "OnPinyinHintUpdate",
                 $"displayText={displayText ?? "<null>"}, matches={matches?.Count ?? 0}, currentInput={_pinyinInputManager?.CurrentInput ?? "<null>"}");

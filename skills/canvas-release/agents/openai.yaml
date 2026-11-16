@@ -1,0 +1,6 @@
+interface:
+  display_name: "Canvas 全流程发布"
+  short_description: "Canvas 自动发布：版本日志、GitHub、DLL加密、三包网盘、官网和桌面清理"
+  default_prompt: "使用 $canvas-release 执行本次 Canvas 更新版本全流程，全部验收成功后清理桌面更新包。"
+policy:
+  allow_implicit_invocation: true

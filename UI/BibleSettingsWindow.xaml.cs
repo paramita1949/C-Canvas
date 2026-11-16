@@ -25,7 +25,7 @@ namespace ImageColorChanger.UI
     {
         private const int BiblePreviewFontSizeMin = 15;
         private const int BiblePreviewFontSizeMax = 70;
-        private const int BiblePreviewFontSizeDefault = 35;
+        private const int BiblePreviewFontSizeDefault = AppConfig.DefaultBiblePreviewFontSize;
 
         private readonly ConfigManager _configManager;
         private readonly IBibleService _bibleService;

@@ -161,7 +161,7 @@ namespace ImageColorChanger.UI
                 new List<ImageColorChanger.Services.BibleBookMatch>(),
                 reference,
                 previewContent,
-                _configManager?.BiblePreviewFontSize ?? 35d);
+                _configManager?.BiblePreviewFontSize ?? AppConfig.DefaultBiblePreviewFontSize);
             hintControl.SetConfirmActionsVisible(true, "确认投影", "取消");
 
             _projectionVersePreviewControl = hintControl;

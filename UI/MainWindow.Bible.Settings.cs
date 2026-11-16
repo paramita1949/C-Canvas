@@ -373,7 +373,7 @@ namespace ImageColorChanger.UI
 
         private void ApplyBibleTitleDisplayMode(bool visible)
         {
-            bool fixedTitle = _configManager?.BibleFixedTitle ?? true;
+            bool fixedTitle = _configManager?.BibleFixedTitle ?? AppConfig.DefaultBibleFixedTitle;
 
             if (BibleChapterTitleBorder != null)
             {

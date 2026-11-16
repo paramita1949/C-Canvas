@@ -50,6 +50,9 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        // 幻灯片原图像素只读缓存；变色使用私有副本，窗口关闭时释放。
+        private readonly DecodedImageCache _slideDecodedImageCache = new DecodedImageCache();
+
         #region 辅助方法
 
         private TextBoxPointerSelectionController _textBoxPointerSelection;
@@ -1941,22 +1944,21 @@ namespace ImageColorChanger.UI
                         //#endif
                         
                         // 加载背景图
-                        var bgBitmap = SKBitmap.Decode(_currentSlide.BackgroundImagePath);
+                        using var bgLease = _slideDecodedImageCache.Borrow(_currentSlide.BackgroundImagePath);
+                        var bgBitmap = bgLease?.Bitmap;
                         if (bgBitmap != null)
                         {
                             // 绘制背景图，铺满整个画布（使用原始尺寸，canvas.Scale 会自动缩放）
                             var destRect = new SKRect(0, 0, (float)canvasWidth, (float)canvasHeight);
                             // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
                             using var image = SKImage.FromBitmap(bgBitmap);
-                            var paint = new SKPaint
+                            using var paint = new SKPaint
                             {
                                 IsAntialias = true
                             };
                             var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
                             // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
                             canvas.DrawImage(image, destRect, sampling, paint);
-                            paint.Dispose();
-                            bgBitmap.Dispose();
                             
                             //#if DEBUG
                             //bgSw.Stop();
@@ -1996,6 +1998,10 @@ namespace ImageColorChanger.UI
                     //#endif
                     
                     SKBitmap skBitmap = null;
+                    SKBitmap ownedBitmap = null;
+                    DecodedImageCache.Lease imageLease = null;
+                    try
+                    {
                     
                     // 优先从原始文件加载高质量图片
                     if (_regionImagePaths.ContainsKey(regionIndex) && 
@@ -2004,7 +2010,8 @@ namespace ImageColorChanger.UI
                         try
                         {
                             string imagePath = _regionImagePaths[regionIndex];
-                            skBitmap = SKBitmap.Decode(imagePath);
+                            imageLease = _slideDecodedImageCache.Borrow(imagePath);
+                            skBitmap = imageLease?.Bitmap;
                             
                             //#if DEBUG
                             //System.Diagnostics.Debug.WriteLine($"[Compose] 区域 {regionIndex} - 原始图片尺寸: {skBitmap.Width}×{skBitmap.Height}");
@@ -2020,7 +2027,7 @@ namespace ImageColorChanger.UI
                             //}
                             //#endif
                             
-                            if (_regionImageColorEffects.ContainsKey(regionIndex) && 
+                            if (skBitmap != null && _regionImageColorEffects.ContainsKey(regionIndex) &&
                                 _regionImageColorEffects[regionIndex])
                             {
                                 //#if DEBUG
@@ -2028,7 +2035,10 @@ namespace ImageColorChanger.UI
                                 //#endif
                                 
                                 // 应用变色效果
-                                _imageProcessor.ApplyYellowTextEffect(skBitmap);
+                                // 不允许变色污染共享原图，只处理本次合成拥有的副本。
+                                ownedBitmap = skBitmap.Copy();
+                                skBitmap = ownedBitmap;
+                                if (skBitmap != null) _imageProcessor.ApplyYellowTextEffect(skBitmap);
                                 
                                 //#if DEBUG
                                 //System.Diagnostics.Debug.WriteLine($" [Compose] 区域 {regionIndex} - 变色效果已应用");
@@ -2047,7 +2057,11 @@ namespace ImageColorChanger.UI
                         }
                         catch
                         {
-                            // 加载失败，回退到BitmapSource
+                            // 加载失败，回退到BitmapSource；释放本次变色副本及借用。
+                            ownedBitmap?.Dispose();
+                            ownedBitmap = null;
+                            imageLease?.Dispose();
+                            imageLease = null;
                             skBitmap = null;
                         }
                     }
@@ -2055,7 +2069,8 @@ namespace ImageColorChanger.UI
                     // 回退方案：从WPF控件的BitmapSource转换
                     if (skBitmap == null && imageControl?.Source is BitmapSource bitmapSource)
                     {
-                        skBitmap = ConvertBitmapSourceToSKBitmap(bitmapSource);
+                        ownedBitmap = ConvertBitmapSourceToSKBitmap(bitmapSource);
+                        skBitmap = ownedBitmap;
                         
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"  [Compose] 处理图片 {regionIndex}: 从BitmapSource转换 {bitmapSource.PixelWidth}×{bitmapSource.PixelHeight}, 位置: ({left}, {top}), 显示: {width}×{height}");
@@ -2121,21 +2136,26 @@ namespace ImageColorChanger.UI
                         // 使用高质量过滤模式，确保投影质量
                         // 使用 DrawImage 替代 DrawBitmap，支持 SKSamplingOptions
                         using var image = SKImage.FromBitmap(skBitmap);
-                        var paint = new SKPaint
+                        using var paint = new SKPaint
                         {
                             IsAntialias = true
                         };
                         var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
                         // 使用 DrawImage(SKImage, SKRect, SKSamplingOptions, SKPaint) 重载
                         canvas.DrawImage(image, destRect, sampling, paint);
-                        paint.Dispose();
                         
                         //#if DEBUG
                         //System.Diagnostics.Debug.WriteLine($"  [Compose] 绘制耗时: {imgSw.ElapsedMilliseconds}ms");
                         //#endif
                         
-                            skBitmap.Dispose();
                         }
+                    }
+                    finally
+                    {
+                        // SKImage/Paint 先结束作用域，再释放私有像素与借用。
+                        ownedBitmap?.Dispose();
+                        imageLease?.Dispose();
+                    }
                     }
                 }
                 

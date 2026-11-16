@@ -973,7 +973,7 @@ namespace ImageColorChanger.Core
                 double raw = _config.BiblePreviewFontSize;
                 if (raw <= 0)
                 {
-                    raw = 35.0;
+                    raw = AppConfig.DefaultBiblePreviewFontSize;
                 }
 
                 return Math.Clamp(raw, 15.0, 70.0);
@@ -1436,6 +1436,10 @@ namespace ImageColorChanger.Core
     /// </summary>
     public partial class AppConfig
     {
+        // 圣经默认值统一供配置初始化和界面回退使用；已保存的 JSON 字段仍优先。
+        public const bool DefaultBibleFixedTitle = false;
+        public const double DefaultBibleVerseSpacing = 30.0;
+        public const int DefaultBiblePreviewFontSize = 39;
         /// <summary>
         /// 原图显示模式（默认：适中）
         /// </summary>
@@ -2568,9 +2572,9 @@ namespace ImageColorChanger.Core
         public double BibleTitleFontSize { get; set; } = 61.3;
 
         /// <summary>
-        /// 圣经标题是否固定（默认：true）
+        /// 圣经标题是否固定（默认：false，随经文滚动）
         /// </summary>
-        public bool BibleFixedTitle { get; set; } = true;
+        public bool BibleFixedTitle { get; set; } = DefaultBibleFixedTitle;
 
         /// <summary>
         /// 圣经下一节是否使用平滑滚动动画（默认：true）
@@ -2598,9 +2602,9 @@ namespace ImageColorChanger.Core
         public double BibleMargin { get; set; } = 15.0;
 
         /// <summary>
-        /// 圣经节间距（节与节之间的间距，默认：15）
+        /// 圣经节间距（内部默认：30，界面节距显示为3）
         /// </summary>
-        public double BibleVerseSpacing { get; set; } = 15.0;
+        public double BibleVerseSpacing { get; set; } = DefaultBibleVerseSpacing;
 
         /// <summary>
         /// 圣经搜索结果悬浮模式字号（默认：15）
@@ -2613,9 +2617,9 @@ namespace ImageColorChanger.Core
         public double BibleSearchEmbeddedFontSize { get; set; } = 15.0;
 
         /// <summary>
-        /// 圣经拼音预览字号（默认：35）
+        /// 圣经拼音预览字号（默认：39）
         /// </summary>
-        public double BiblePreviewFontSize { get; set; } = 35.0;
+        public double BiblePreviewFontSize { get; set; } = DefaultBiblePreviewFontSize;
 
         /// <summary>
         /// 圣经设置窗口X坐标（默认：null，使用自动计算位置）

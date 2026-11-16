@@ -298,9 +298,10 @@ namespace ImageColorChanger.UI
             }
             
             // 滚动到可见区域
+            // 选中的算法始终用于向下滚动；历史开启字段不再控制导航，向上仍直接定位。
             if (BibleVerseScrollAnimationPolicy.ShouldAnimate(
                 direction,
-                BibleVerseScrollAnimationPolicy.ResolveEnabled(_configManager?.BibleVerseScrollAnimationEnabled)))
+                true))
             {
                 ScrollToVerseSmooth(targetIndex);
             }
@@ -340,7 +341,7 @@ namespace ImageColorChanger.UI
             string title = BibleChapterTitle?.Text?.Trim() ?? string.Empty;
             bool visible = BibleUiBehaviorResolver.ShouldKeepProjectionBibleTitleVisible(
                 _isBibleMode,
-                _configManager?.BibleFixedTitle ?? true,
+                _configManager?.BibleFixedTitle ?? AppConfig.DefaultBibleFixedTitle,
                 TextEditorPanel?.Visibility == Visibility.Visible,
                 _currentTextProject != null,
                 !string.IsNullOrWhiteSpace(title));

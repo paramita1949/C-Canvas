@@ -33,10 +33,12 @@ namespace ImageColorChanger.UI
         private MenuItem MenuBibleCopyStyleFull => BibleSectionView?.MenuBibleCopyStyleFull;
         private MenuItem MenuBibleCopyStyleChapter => BibleSectionView?.MenuBibleCopyStyleChapter;
         private MenuItem MenuBibleVerseScroll => BibleSectionView?.MenuBibleVerseScroll;
-        private MenuItem MenuBibleVerseScrollEnabled => BibleSectionView?.MenuBibleVerseScrollEnabled;
+        private MenuItem MenuBibleVerseScrollLegacy => BibleSectionView?.MenuBibleVerseScrollLegacy;
         private MenuItem MenuBibleVerseScrollSpeedSlow => BibleSectionView?.MenuBibleVerseScrollSpeedSlow;
         private MenuItem MenuBibleVerseScrollSpeedMedium => BibleSectionView?.MenuBibleVerseScrollSpeedMedium;
         private MenuItem MenuBibleVerseScrollSpeedFast => BibleSectionView?.MenuBibleVerseScrollSpeedFast;
+        private MenuItem MenuBibleVerseScrollTest => BibleSectionView?.MenuBibleVerseScrollTest;
+        private MenuItem MenuBibleVerseScrollTestSpeed => MenuBibleVerseScrollTest;
         private MenuItem MenuBibleClearScreen => BibleSectionView?.MenuBibleClearScreen;
 
         private void InitializeBibleSectionBindings()
@@ -52,6 +54,7 @@ namespace ImageColorChanger.UI
                 BibleVerseScrollViewer.PreviewMouseDown += BibleVerseScrollViewer_PreviewMouseDown;
                 BibleVerseScrollViewer.PreviewMouseWheel += BibleVerseScrollViewer_PreviewMouseWheel;
                 BibleVerseScrollViewer.ScrollChanged += BibleVerseContentScroller_ScrollChanged;
+                BibleVerseScrollViewer.Unloaded += (s, e) => StopBibleVerseScrollAnimation();
             }
 
             if (BibleVerseList != null)
@@ -106,11 +109,6 @@ namespace ImageColorChanger.UI
                 MenuBibleCopyStyleChapter.Click += SetBibleCopyStyle_Click;
             }
 
-            if (MenuBibleVerseScrollEnabled != null)
-            {
-                MenuBibleVerseScrollEnabled.Click += BibleVerseScrollAnimation_Click;
-            }
-
             if (MenuBibleVerseScrollSpeedSlow != null)
             {
                 MenuBibleVerseScrollSpeedSlow.Click += BibleVerseScrollSpeed_Click;
@@ -126,52 +124,48 @@ namespace ImageColorChanger.UI
                 MenuBibleVerseScrollSpeedFast.Click += BibleVerseScrollSpeed_Click;
             }
 
+            if (MenuBibleVerseScrollTestSpeed != null)
+            {
+                foreach (object child in MenuBibleVerseScrollTestSpeed.Items)
+                    if (child is MenuItem item) item.Click += BibleVerseScrollTestSpeed_Click;
+            }
+
             RefreshBibleVerseScrollMenuState();
             _isBibleSectionEventsWired = true;
         }
 
         private void RefreshBibleVerseScrollMenuState()
         {
-            if (MenuBibleVerseScrollEnabled != null)
-            {
-                MenuBibleVerseScrollEnabled.IsChecked =
-                    ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.ResolveEnabled(
-                        _configManager?.BibleVerseScrollAnimationEnabled);
-            }
-
             UpdateBibleVerseScrollSpeedMenu();
         }
 
         private void UpdateBibleVerseScrollSpeedMenu()
         {
-            int speed = _configManager?.BibleVerseScrollSpeed ?? ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.MediumSpeed;
-            if (MenuBibleVerseScrollSpeedSlow != null)
-            {
-                MenuBibleVerseScrollSpeedSlow.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.SlowSpeed;
-            }
-            if (MenuBibleVerseScrollSpeedMedium != null)
-            {
-                MenuBibleVerseScrollSpeedMedium.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.MediumSpeed;
-            }
-            if (MenuBibleVerseScrollSpeedFast != null)
-            {
-                MenuBibleVerseScrollSpeedFast.IsChecked = speed == ImageColorChanger.UI.Modules.BibleVerseScrollAnimationPolicy.FastSpeed;
-            }
-        }
-
-        private void BibleVerseScrollAnimation_Click(object sender, RoutedEventArgs e)
-        {
-            if (_configManager != null)
-            {
-                _configManager.BibleVerseScrollAnimationEnabled = MenuBibleVerseScrollEnabled?.IsChecked == true;
-            }
+            ImageColorChanger.UI.Modules.BibleVerseScrollMenuPolicy.Refresh(
+                _configManager, MenuBibleVerseScrollSpeedSlow,
+                MenuBibleVerseScrollSpeedMedium, MenuBibleVerseScrollSpeedFast, MenuBibleVerseScrollTest);
+            ImageColorChanger.UI.Modules.BibleVerseScrollMenuPolicy.RefreshTestSpeed(
+                _configManager, MenuBibleVerseScrollTestSpeed);
+            ImageColorChanger.UI.Modules.BibleVerseScrollMenuPolicy.RefreshLegacy(
+                _configManager, MenuBibleVerseScrollLegacy);
         }
 
         private void BibleVerseScrollSpeed_Click(object sender, RoutedEventArgs e)
         {
             if (_configManager != null && sender is MenuItem menuItem && int.TryParse(menuItem.Tag as string, out int speed))
             {
-                _configManager.BibleVerseScrollSpeed = speed;
+                StopBibleVerseScrollAnimation();
+                ImageColorChanger.UI.Modules.BibleVerseScrollMenuPolicy.SelectLegacy(_configManager, speed);
+                RefreshBibleVerseScrollMenuState();
+            }
+        }
+        private void BibleVerseScrollTestSpeed_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configManager != null && sender is MenuItem item && int.TryParse(item.Tag as string, out int level))
+            {
+                StopLegacyBibleVerseScrollAnimation();
+                ImageColorChanger.UI.Modules.BibleVerseScrollMenuPolicy.SelectTestSpeed(_configManager, level);
+                _bibleSpringScroller?.SetSpeedLevel(_configManager.BibleVerseSpringSpeedLevel);
                 RefreshBibleVerseScrollMenuState();
             }
         }

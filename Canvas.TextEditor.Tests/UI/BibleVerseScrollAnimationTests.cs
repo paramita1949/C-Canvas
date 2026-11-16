@@ -53,7 +53,7 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
         }
 
         [Fact]
-        public void BibleVerseScrollAnimation_ContextMenu_IsCheckableAndWired()
+        public void BibleVerseScrollAnimation_ContextMenu_HasOnlyAlgorithmsAndLeafHandlers()
         {
             string root = FindRepoRoot();
             string xaml = File.ReadAllText(Path.Combine(root, "UI", "Views", "BibleSectionView.xaml")).Replace("\r\n", "\n");
@@ -62,12 +62,15 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
             Assert.Contains("x:Name=\"MenuBibleVerseScroll\"", xaml, StringComparison.Ordinal);
             Assert.Contains("Header=\"经文滚动\"", xaml, StringComparison.Ordinal);
             Assert.DoesNotContain("<Separator/>\n                    <MenuItem x:Name=\"MenuBibleVerseScroll\"", xaml, StringComparison.Ordinal);
-            Assert.Contains("x:Name=\"MenuBibleVerseScrollEnabled\"", xaml, StringComparison.Ordinal);
-            Assert.Contains("Header=\"开启\"", xaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("MenuBibleVerseScrollEnabled", xaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("Header=\"开启\"", xaml, StringComparison.Ordinal);
+            Assert.Contains("Header=\"经典滑动\"", xaml, StringComparison.Ordinal);
+            Assert.Contains("Header=\"柔滑滚动\"", xaml, StringComparison.Ordinal);
             Assert.Contains("x:Name=\"MenuBibleVerseScrollSpeedSlow\"", xaml, StringComparison.Ordinal);
             Assert.Contains("x:Name=\"MenuBibleVerseScrollSpeedMedium\"", xaml, StringComparison.Ordinal);
             Assert.Contains("x:Name=\"MenuBibleVerseScrollSpeedFast\"", xaml, StringComparison.Ordinal);
-            Assert.Contains("MenuBibleVerseScrollEnabled.Click += BibleVerseScrollAnimation_Click", bindings, StringComparison.Ordinal);
+            Assert.DoesNotContain("MenuBibleVerseScrollEnabled", bindings, StringComparison.Ordinal);
+            Assert.DoesNotContain("BibleVerseScrollAnimation_Click", bindings, StringComparison.Ordinal);
             Assert.Contains("MenuBibleVerseScrollSpeedSlow.Click += BibleVerseScrollSpeed_Click", bindings, StringComparison.Ordinal);
             Assert.Contains("MenuBibleVerseScrollSpeedMedium.Click += BibleVerseScrollSpeed_Click", bindings, StringComparison.Ordinal);
             Assert.Contains("MenuBibleVerseScrollSpeedFast.Click += BibleVerseScrollSpeed_Click", bindings, StringComparison.Ordinal);
@@ -116,6 +119,9 @@ namespace ImageColorChanger.CanvasTextEditor.Tests.UI
             Assert.Contains("BibleVerseScrollAnimationPolicy.ShouldAnimate", navigation, StringComparison.Ordinal);
             Assert.Contains("ScrollToVerseSmooth(targetIndex)", navigation, StringComparison.Ordinal);
             Assert.Contains("ScrollToVerseInstant(targetIndex)", navigation, StringComparison.Ordinal);
+            Assert.DoesNotContain("BibleVerseScrollAnimationEnabled", navigation, StringComparison.Ordinal);
+            Assert.DoesNotContain("ResolveEnabled", navigation, StringComparison.Ordinal);
+            Assert.Matches(@"ShouldAnimate\(\s*direction,\s*true\)", navigation);
             Assert.Contains("StopBibleVerseScrollAnimation()", helpers, StringComparison.Ordinal);
             Assert.Contains("GetDurationMilliseconds", helpers, StringComparison.Ordinal);
             Assert.DoesNotContain("_scrollAlignTimer.Tick -= null", helpers, StringComparison.Ordinal);

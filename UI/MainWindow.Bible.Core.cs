@@ -649,6 +649,8 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载章节: {verses.Count}条经文，{bookInfo?.Name}{chapter}章");
                 //#endif
                 
+                // 内容换页前取消旧定位及排队纠偏，避免下一渲染帧覆盖新章节的置顶。
+                StopBibleVerseScrollAnimation();
                 // 清空并添加新数据
                 _mergedVerses.Clear();
                 foreach (var verse in verses)
@@ -1238,6 +1240,8 @@ namespace ImageColorChanger.UI
                 //System.Diagnostics.Debug.WriteLine($"[非锁定模式] 加载经文: {verses.Count}条，{book?.Name}{chapter}:{startVerse}-{endVerse}");
                 //#endif
 
+                // 内容换页前取消旧定位及排队纠偏，避免下一渲染帧覆盖新范围的置顶。
+                StopBibleVerseScrollAnimation();
                 // 清空并添加新数据
                 _mergedVerses.Clear();
                 foreach (var verse in verses)

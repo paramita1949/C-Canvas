@@ -23,12 +23,7 @@ namespace ImageColorChanger.Core
         
         // 预缓存配置
         private const int SEQUENCE_PRELOAD_COUNT = 10; // 顺序模式预缓存数量
-        private const int MAX_CONCURRENT_LOADS = 3;    // 最大并发加载数
-        private const bool ENABLE_PRERENDER = true;    //  启用预渲染功能（提升切换速度）
-        
-        // 取消令牌，用于取消上一次的预缓存任务
-        private CancellationTokenSource _currentPreloadCts;
-        private readonly object _preloadLock = new object();
+        private readonly ImagePreloadPipeline _pipeline;
         
         // 预渲染目标尺寸（从主窗口/投影窗口获取）
         private int _prerenderWidth = 1637;  // 默认主窗口尺寸
@@ -43,6 +38,7 @@ namespace ImageColorChanger.Core
             _imageMemoryCache = imageMemoryCache ?? throw new ArgumentNullException(nameof(imageMemoryCache));
             _dbManager = dbManager ?? throw new ArgumentNullException(nameof(dbManager));
             _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
+            _pipeline = new ImagePreloadPipeline(_imageMemoryCache);
         }
         
         /// <summary>
@@ -72,21 +68,13 @@ namespace ImageColorChanger.Core
         /// </summary>
         public async Task PreloadForLoopModeAsync(int currentImageId, List<(int id, string name, string path)> similarImages)
         {
+            using var batch = _pipeline.BeginBatch();
             if (similarImages == null || similarImages.Count <= 1)
             {
                 //System.Diagnostics.Debug.WriteLine(" [预缓存] 循环模式: 没有需要预缓存的相似图片");
                 return;
             }
             
-            // 取消之前的预缓存任务
-            CancelCurrentPreload();
-            
-            // 创建新的取消令牌
-            var cts = new CancellationTokenSource();
-            lock (_preloadLock)
-            {
-                _currentPreloadCts = cts;
-            }
             
             try
             {
@@ -128,7 +116,7 @@ namespace ImageColorChanger.Core
                 //System.Diagnostics.Debug.WriteLine($" [预缓存] 循环模式: 准备预缓存 {preloadList.Count} 张相似图片");
                 
                 // 异步加载
-                await PreloadImagesAsync(preloadList, cts.Token);
+                await PreloadImagesAsync(preloadList, batch);
             }
             catch (OperationCanceledException)
             {
@@ -145,15 +133,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         public async Task PreloadForSequenceModeAsync(int currentImageId, int folderId, int preloadCount = SEQUENCE_PRELOAD_COUNT)
         {
-            // 取消之前的预缓存任务
-            CancelCurrentPreload();
-            
-            // 创建新的取消令牌
-            var cts = new CancellationTokenSource();
-            lock (_preloadLock)
-            {
-                _currentPreloadCts = cts;
-            }
+            using var batch = _pipeline.BeginBatch();
             
             try
             {
@@ -198,7 +178,7 @@ namespace ImageColorChanger.Core
                 //System.Diagnostics.Debug.WriteLine($" [预缓存] 顺序模式: 准备预缓存后续 {preloadList.Count} 张图片");
                 
                 // 异步加载
-                await PreloadImagesAsync(preloadList, cts.Token);
+                await PreloadImagesAsync(preloadList, batch);
             }
             catch (OperationCanceledException)
             {
@@ -234,116 +214,10 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 异步预加载图片列表
         /// </summary>
-        private async Task PreloadImagesAsync(List<string> imagePaths, CancellationToken cancellationToken)
+        private async Task PreloadImagesAsync(List<string> imagePaths, ImagePreloadPipeline.Batch batch)
         {
-            if (imagePaths == null || imagePaths.Count == 0)
-                return;
-            
-            // 过滤掉已经在缓存中的图片
-            var pathsToLoad = imagePaths
-                .Where(path => !_imageMemoryCache.TryGetValue(path, out _))
-                .ToList();
-            
-            if (pathsToLoad.Count == 0)
-            {
-                //System.Diagnostics.Debug.WriteLine(" [预缓存] 所有图片已在缓存中");
-                return;
-            }
-            
-            //System.Diagnostics.Debug.WriteLine($" [预缓存] 开始加载 {pathsToLoad.Count} 张图片 (跳过 {imagePaths.Count - pathsToLoad.Count} 张已缓存)");
-            
-            // 使用信号量限制并发数量
-            using var semaphore = new SemaphoreSlim(MAX_CONCURRENT_LOADS, MAX_CONCURRENT_LOADS);
-            
-            var loadTasks = pathsToLoad.Select(async (path, index) =>
-            {
-                await semaphore.WaitAsync(cancellationToken);
-                
-                try
-                {
-                    // 检查是否被取消
-                    if (cancellationToken.IsCancellationRequested)
-                        return;
-                    
-                    // 检查文件是否存在
-                    if (!System.IO.File.Exists(path))
-                    {
-                        //System.Diagnostics.Debug.WriteLine($" [预缓存] 文件不存在: {System.IO.Path.GetFileName(path)}");
-                        return;
-                    }
-                    
-                    // 检查是否已在缓存中（双重检查，因为可能在等待信号量时已被其他线程加载）
-                    if (_imageMemoryCache.TryGetValue(path, out _))
-                    {
-                        //System.Diagnostics.Debug.WriteLine($" [预缓存] 已在缓存: {System.IO.Path.GetFileName(path)}");
-                        return;
-                    }
-                    
-                    // 异步加载图片
-                    await Task.Run(() =>
-                    {
-                        try
-                        {
-                            var image = SKBitmap.Decode(path);
-                            
-                            if (image == null)
-                                return;
-                            
-                            // 加入LRU缓存
-                            var entryOptions = new MemoryCacheEntryOptions
-                            {
-                                Size = Math.Max(1, (image.Width * image.Height * 4) / (1024 * 1024)),
-                                Priority = CacheItemPriority.Normal,
-                                SlidingExpiration = TimeSpan.FromMinutes(10)
-                            };
-                            
-                            _imageMemoryCache.Set(path, image, entryOptions);
-                            
-                            //System.Diagnostics.Debug.WriteLine($" [预缓存{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} (权重:{entryOptions.Size})");
-                            
-                            //  如果启用预渲染，立即渲染到渲染缓存（主窗口 + 投影窗口）
-                            if (ENABLE_PRERENDER)
-                            {
-                                // 预渲染主窗口尺寸
-                                bool mainRenderSuccess = _imageProcessor.PreRenderImage(
-                                    path, 
-                                    _prerenderWidth, 
-                                    _prerenderHeight, 
-                                    _imageProcessor.IsInverted
-                                );
-                                
-                                // 预渲染投影窗口尺寸（动态获取）
-                                bool projRenderSuccess = _imageProcessor.PreRenderImage(
-                                    path, 
-                                    _projectionWidth, 
-                                    _projectionHeight, 
-                                    _imageProcessor.IsInverted
-                                );
-                                
-                                if (mainRenderSuccess || projRenderSuccess)
-                                {
-                                    string sizes = (mainRenderSuccess && projRenderSuccess) ? "主屏+投影" : 
-                                                   mainRenderSuccess ? "主屏" : "投影";
-                                    //System.Diagnostics.Debug.WriteLine($" [预渲染{index + 1}/{pathsToLoad.Count}] {System.IO.Path.GetFileName(path)} ({sizes})");
-                                }
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            //System.Diagnostics.Debug.WriteLine($" [预缓存] 加载失败: {System.IO.Path.GetFileName(path)} - {ex.Message}");
-                        }
-                    }, cancellationToken);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
-            
-            // 等待所有预加载任务完成
-            await Task.WhenAll(loadTasks);
-            
-            //System.Diagnostics.Debug.WriteLine($" [预缓存] 完成: 共加载 {pathsToLoad.Count} 张图片");
+            // 保留DB的下一张/上一张优先顺序。默认不再后台做双尺寸GPU预渲染。
+            await _pipeline.LoadAsync(batch, imagePaths).ConfigureAwait(false);
         }
         
         /// <summary>
@@ -351,16 +225,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         private void CancelCurrentPreload()
         {
-            lock (_preloadLock)
-            {
-                if (_currentPreloadCts != null && !_currentPreloadCts.IsCancellationRequested)
-                {
-                    _currentPreloadCts.Cancel();
-                    _currentPreloadCts.Dispose();
-                    _currentPreloadCts = null;
-                    //System.Diagnostics.Debug.WriteLine(" [预缓存] 已取消上一次预缓存任务");
-                }
-            }
+            _pipeline.Cancel();
         }
         
         #endregion
@@ -372,7 +237,7 @@ namespace ImageColorChanger.Core
         /// </summary>
         public void Dispose()
         {
-            CancelCurrentPreload();
+            _pipeline.Dispose();
         }
         
         #endregion
