@@ -1345,6 +1345,27 @@ namespace ImageColorChanger.Core
             };
         }
 
+        private bool MigrateLegacyLiveCaptionInputDefaults(string json)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+            if (root.TryGetProperty(nameof(AppConfig.LiveCaptionInputDefaultsSchemaVersion), out var version) &&
+                version.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                version.TryGetInt32(out int current) && current >= 1) return false;
+
+            // 旧输入法配置采用新默认组合；已有程序内语音来源继续保留。
+            // 标记写入后，用户主动取消经文识别不会在重载时再次被开启。
+            if (!_config.LiveCaptionRealtimeEnabled &&
+                (_config.LiveCaptionInputMethodEnabled || !_config.LiveCaptionShortPhraseEnabled))
+            {
+                _config.LiveCaptionInputMethodEnabled = true;
+                _config.LiveCaptionShortPhraseEnabled = true;
+            }
+            _config.LiveCaptionInputDefaultsSchemaVersion = 1;
+            return true;
+        }
+
         private bool MigrateLegacyLiveCaptionSpacing(string json)
         {
             using var document = System.Text.Json.JsonDocument.Parse(json);
@@ -1367,7 +1388,8 @@ namespace ImageColorChanger.Core
         public string LiveCaptionSpeechMode { get; set; } = "realtime";
         public bool LiveCaptionInputMethodEnabled { get; set; } = true;
         public bool LiveCaptionRealtimeEnabled { get; set; } = false;
-        public bool LiveCaptionShortPhraseEnabled { get; set; } = false;
+        public bool LiveCaptionShortPhraseEnabled { get; set; } = true;
+        public int LiveCaptionInputDefaultsSchemaVersion { get; set; } = 1;
         /// <summary>
         /// 经文识别文本来源：shortPhrase=短语ASR, realtime=实时语音ASR, both=双路
         /// </summary>

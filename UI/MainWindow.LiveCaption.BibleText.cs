@@ -72,7 +72,13 @@ namespace ImageColorChanger.UI
         private void OnCaptionBibleTextTimerTick(object sender, EventArgs e)
         {
             if (!IsLiveCaptionInputMethodActive() || !_configManager.LiveCaptionShortPhraseEnabled ||
-                _liveCaptionOverlayWindow?.HasPendingCaptionSnapshot != false || _liveCaptionOverlayWindow.IsCaptionTextComposing) return;
+                _liveCaptionOverlayWindow == null) return;
+
+            // 语音输入法可在整次听写中保持合成状态，投影发布快照也可能暂时滞后。
+            // 文字识别独立读取编辑器快照，由缓冲按停顿/连续输入节流，不强制提交输入法。
+            ObserveInputMethodBibleText(_liveCaptionOverlayWindow.CaptionCurrentText);
+            // 当前批次未完成时保留缓冲增量，不累积后台任务。
+            if (!_captionBibleWorkTail.IsCompleted) return;
             QueueCaptionBibleProbes(_captionBibleTextBuffer.TryFlush(DateTimeOffset.UtcNow));
         }
 
@@ -91,6 +97,7 @@ namespace ImageColorChanger.UI
             int revision = _captionBibleTextRevision;
             int stateRevision = _liveCaptionStateRevision;
             int documentRevision = _captionDocumentRevision;
+            bool inputMethodSource = IsLiveCaptionInputMethodActive();
             var service = _captionBibleTextService;
             var token = _captionBibleToken;
             var previous = _captionBibleWorkTail;
@@ -106,6 +113,13 @@ namespace ImageColorChanger.UI
                         if (!result.Success || result.IsDuplicate) continue;
                         await Dispatcher.InvokeAsync(() =>
                         {
+                            if (!_configManager.LiveCaptionShortPhraseEnabled) return;
+                            if (inputMethodSource)
+                            {
+                                if (!IsLiveCaptionInputMethodActive() || _liveCaptionOverlayWindow == null) return;
+                                // 未发布的合成回缩/改写同样会使旧结果失效，回填前再核对可见文字。
+                                ObserveInputMethodBibleText(_liveCaptionOverlayWindow.CaptionCurrentText);
+                            }
                             if (_isDisposingLiveCaption || token.IsCancellationRequested || revision != _captionBibleTextRevision ||
                                 stateRevision != _liveCaptionStateRevision || documentRevision != _captionDocumentRevision) return;
                             PresentCaptionBibleResult(result);

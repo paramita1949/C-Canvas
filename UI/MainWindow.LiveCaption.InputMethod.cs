@@ -125,7 +125,7 @@ namespace ImageColorChanger.UI
                 if (IsLiveCaptionInputMethodActive())
                 {
                     ForwardInputMethodTextToAi(text);
-                    ObserveInputMethodBibleText(text);
+                    ObserveInputMethodBibleText(_liveCaptionOverlayWindow.CaptionCurrentText);
                 }
                 // 所有字幕输入共享文档；投影和 NDI 使用各自的行容量，不依赖主屏控件大小。
                 long leading = _liveCaptionOverlayWindow.CaptionLeadingTextElementCount;

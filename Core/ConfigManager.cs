@@ -133,6 +133,7 @@ namespace ImageColorChanger.Core
                     bool migrated = MigrateLegacyNdiConfig();
                     migrated = MigrateLegacyAiProviderConfig(json) || migrated;
                     migrated = MigrateLegacyLiveCaptionSpacing(json) || migrated;
+                    migrated = MigrateLegacyLiveCaptionInputDefaults(json) || migrated;
                     if (migrated)
                     {
                         SaveConfig();

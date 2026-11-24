@@ -619,7 +619,7 @@ namespace ImageColorChanger.UI
                 _bibleShortPhraseRuntime?.Abort();
                 _sharedAudioCaptureSession?.Stop();
                 _configManager.LiveCaptionRealtimeEnabled = false;
-                _configManager.LiveCaptionShortPhraseEnabled = false;
+                // 关闭字幕只停止运行时，经文识别的用户选择保留到下次打开。
                 _liveCaptionOverlayWindow?.SetRecognitionToggleStates(false, false);
                 PersistLiveCaptionFloatingBoundsToConfig("stop");
 
