@@ -65,7 +65,9 @@ namespace ImageColorChanger.UI
                 return;
             }
             var frame = new LiveCaptionRenderFrame(captionText, highlightStart, hasChanged: true);
-            GetLiveCaptionNdiOutput()?.Submit(frame, CreateLiveCaptionNdiRenderOptions());
+            var output = GetLiveCaptionNdiOutput();
+            if (IsLiveCaptionDisplayActive() || allowEmptyStart) output?.Resume();
+            output?.Submit(frame, CreateLiveCaptionNdiRenderOptions());
         }
 
         private LiveCaptionNdiRenderOptions CreateLiveCaptionNdiRenderOptions()
@@ -89,13 +91,12 @@ namespace ImageColorChanger.UI
 
         private void ClearLiveCaptionNdiOutput(bool stopSender = false)
         {
-            if (_liveCaptionNdiOutput != null)
+            var output = _liveCaptionNdiOutput ?? GetLiveCaptionNdiOutput();
+            if (output != null)
             {
-                if (stopSender) _liveCaptionNdiOutput.Stop();
-                else _liveCaptionNdiOutput.Clear();
+                if (stopSender) output.Stop();
+                else output.Clear();
             }
-            else if (stopSender) _ndiRouter?.StopCaptionOutput();
-            else _ndiRouter?.PushCaptionIdleFrame();
         }
 
         private void OnCaptionNdiPublishCompleted(bool sent, Exception failure)

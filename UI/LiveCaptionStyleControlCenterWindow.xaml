@@ -260,7 +260,7 @@
                                 <Button x:Name="FontSizePlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
                             </Grid>
 
-                            <Grid Margin="0,0,0,6">
+                            <Grid x:Name="LetterSpacingRow" Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="92"/>
                                     <ColumnDefinition Width="*"/>
@@ -278,7 +278,7 @@
                                 <Button x:Name="LetterSpacingPlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="StepButton_Click"/>
                             </Grid>
 
-                            <Grid Margin="0,0,0,6">
+                            <Grid x:Name="LineGapRow" Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="92"/>
                                     <ColumnDefinition Width="*"/>
@@ -350,7 +350,7 @@
                                     <Button x:Name="TextColorMoreButton" Content="更多" Style="{StaticResource CompactMoreButtonStyle}" Click="PickColorButton_Click"/>
                                 </StackPanel>
 
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel x:Name="LatestColorRow" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="最新色" Style="{StaticResource FieldLabelStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <WrapPanel x:Name="LatestColorSwatchPanel" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <Button x:Name="LatestColorMoreButton" Content="更多" Style="{StaticResource CompactMoreButtonStyle}" Click="PickColorButton_Click"/>

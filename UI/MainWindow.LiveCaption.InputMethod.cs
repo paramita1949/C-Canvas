@@ -9,13 +9,19 @@ namespace ImageColorChanger.UI
     {
         private bool _inputMethodSessionActive;
         private int _liveCaptionStateRevision;
+        private int _captionDocumentRevision;
         private readonly SemaphoreSlim _liveCaptionRecognitionGate = new(1, 1);
 
         private bool IsLiveCaptionInputMethodActive() =>
             _inputMethodSessionActive && _configManager?.LiveCaptionInputMethodEnabled == true;
 
         private bool IsLiveCaptionDisplayActive() =>
-            IsLiveCaptionInputMethodActive() || IsLiveCaptionRealtimeConnected();
+            IsLiveCaptionInputMethodActive() || IsLiveCaptionSpeechInputActive();
+
+        private bool IsLiveCaptionSpeechInputActive() =>
+            (_liveCaptionEngine?.IsRunning == true && (_configManager?.LiveCaptionRealtimeEnabled == true ||
+                (_configManager?.LiveCaptionShortPhraseEnabled == true && IsVerseSourceRealtime()))) ||
+            (_bibleShortPhraseRuntime?.IsRunning == true && _configManager?.LiveCaptionShortPhraseEnabled == true);
 
         private async void OnInputMethodToggleRequested(bool enabled)
         {
@@ -32,6 +38,7 @@ namespace ImageColorChanger.UI
         private async Task ApplyRecognitionStateAsync()
         {
             int revision = ++_liveCaptionStateRevision;
+            ResetCaptionBibleRecognition(_liveCaptionOverlayWindow?.CaptionText ?? string.Empty);
             await _liveCaptionRecognitionGate.WaitAsync();
             try
             {
@@ -60,9 +67,11 @@ namespace ImageColorChanger.UI
                         ResetAiCaptionInput();
                     }
                     _inputMethodSessionActive = true;
-                    _liveCaptionOverlayWindow.SetRecognitionToggleStates(false, false);
+                    _liveCaptionOverlayWindow.SetRecognitionToggleStates(false, _configManager.LiveCaptionShortPhraseEnabled);
+                    SyncRecognitionPlatformNamesToOverlay();
+                    StartInputMethodBibleRecognition();
                     _liveCaptionOverlayWindow.SetInputMethodMode(true);
-                    OnInputMethodTextChanged(_liveCaptionOverlayWindow.InputMethodText);
+                    OnCaptionTextChanged(_liveCaptionOverlayWindow.CaptionText);
                     RegisterLiveCaptionF4HotKey();
                     SyncAiCaptionUiState();
                     InputMethodCaptionDiagnostics.Log($"session=active revision={revision} capture=false");
@@ -73,7 +82,7 @@ namespace ImageColorChanger.UI
                 if (_inputMethodSessionActive)
                 {
                     _inputMethodSessionActive = false;
-                    ResetAiCaptionInput();
+                    ResetAiCaptionInput(retainInputMethodBaseline: false);
                     ResetLiveCaptionInputOutput();
                     InputMethodCaptionDiagnostics.Log($"session=inactive revision={revision}");
                 }
@@ -95,30 +104,56 @@ namespace ImageColorChanger.UI
         {
             _liveCaptionComposer.Reset();
             _liveCaptionNdiComposer.Reset();
-            _liveCaptionOverlayWindow?.UpdateCaption(string.Empty, 0);
             _projectionManager?.HideProjectionCaptionOverlay();
             ClearLiveCaptionNdiOutput();
         }
 
-        private void OnInputMethodTextChanged(string text)
+        private void OnCaptionDocumentCleared()
         {
-            if (!IsLiveCaptionInputMethodActive() || _liveCaptionOverlayWindow == null) return;
-            ForwardInputMethodTextToAi(text);
-            // 渲染保留完整快照；AI接收由当前会话控制，不触发语音识别。
-            RecalculateLiveCaptionComposerLayout();
-            // 主字幕帧同时用于投影；仅在本机放不下时缩短，不能超过投影原有30字行上限。
-            _liveCaptionComposer.SetLineCharLimit(Math.Min(LiveCaptionMainLineCharLimit,
-                _liveCaptionOverlayWindow.GetInputMethodLineCharLimit()));
-            LiveCaptionRenderFrame frame = _liveCaptionComposer.PushInputSnapshot(text);
-            _liveCaptionNdiComposer.SetLineCharLimit(Math.Clamp(_configManager.LiveCaptionNdiLineCharLimit, 8, 80));
-            LiveCaptionRenderFrame ndiFrame = _liveCaptionNdiComposer.PushInputSnapshot(text);
-            if (ndiFrame.HasChanged) UpdateLiveCaptionNdiCaption(ndiFrame.Display, ndiFrame.HighlightStart);
-            if (frame.HasChanged)
+            ++_captionDocumentRevision;
+            ResetCaptionBibleRecognition();
+            if (IsLiveCaptionInputMethodActive()) StartInputMethodBibleRecognition();
+            ResetLiveCaptionInputOutput();
+            ResetAiCaptionInput(retainInputMethodBaseline: false);
+        }
+
+        private void OnCaptionTextChanged(string text)
+        {
+            if (_liveCaptionOverlayWindow == null || !IsLiveCaptionDisplayActive()) return;
+            try
             {
-                _liveCaptionOverlayWindow.UpdateCaption(frame.Display, frame.HighlightStart);
-                UpdateLiveCaptionProjectionCaption(frame.Display, frame.HighlightStart);
+                if (IsLiveCaptionInputMethodActive())
+                {
+                    ForwardInputMethodTextToAi(text);
+                    ObserveInputMethodBibleText(text);
+                }
+                // 所有字幕输入共享文档；投影和 NDI 使用各自的行容量，不依赖主屏控件大小。
+                long leading = _liveCaptionOverlayWindow.CaptionLeadingTextElementCount;
+                _liveCaptionComposer.SetLineCharLimit(LiveCaptionMainLineCharLimit);
+                LiveCaptionRenderFrame frame = _liveCaptionComposer.PushInputSnapshot(text, leading);
+                _liveCaptionNdiComposer.SetLineCharLimit(Math.Clamp(_configManager.LiveCaptionNdiLineCharLimit, 8, 80));
+                LiveCaptionRenderFrame ndiFrame = _liveCaptionNdiComposer.PushInputSnapshot(text, leading);
+                if (ndiFrame.HasChanged) UpdateLiveCaptionNdiCaption(ndiFrame.Display, ndiFrame.HighlightStart);
+                if (frame.HasChanged) UpdateLiveCaptionProjectionCaption(frame.Display, frame.HighlightStart);
+                InputMethodCaptionDiagnostics.Log($"render chars={text?.Length ?? 0} display={frame.Display.Length} changed={frame.HasChanged} ndiChanged={ndiFrame.HasChanged}");
             }
-            InputMethodCaptionDiagnostics.Log($"render chars={text?.Length ?? 0} display={frame.Display.Length} changed={frame.HasChanged} ndiChanged={ndiFrame.HasChanged}");
+            catch (Exception ex)
+            {
+                InputMethodCaptionDiagnostics.Log($"render failed={ex.GetType().Name}");
+                ShowStatus($"字幕显示更新失败：{ex.Message}");
+            }
+        }
+
+        private void OnCaptionPrefixArchived(string prefix)
+        {
+            if (!IsLiveCaptionInputMethodActive()) return;
+            QueueCaptionBibleProbes(_captionBibleTextBuffer.TryFlush(DateTimeOffset.UtcNow, force: true));
+            _captionBibleTextBuffer.Rebase(prefix);
+            // 整理旧文不是用户修订。先交付尚未发送的稳定增量，再平移 AI 的比较基线。
+            if (_aiSermonCoordinator != null && _aiSermonReceiveAsr && IsLiveCaptionInputMethodActive() &&
+                _aiInputMethodTurnAggregator.TryFlush(DateTimeOffset.Now, out var turn, force: true))
+                SubmitAsrTurnToAi(turn);
+            _aiInputMethodTurnAggregator.Rebase(prefix);
         }
     }
 }

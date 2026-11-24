@@ -25,10 +25,19 @@ namespace ImageColorChanger.Services.Projection.Output
         private short[] _audioInterleaved16Buffer = Array.Empty<short>();
         private int _lastConnectionCount = -1;
         private ProjectionNdiOutputOptions _options;
+        private bool _ownsNdiReference;
 
-        public bool IsRunning => _senderHandle != IntPtr.Zero;
+        public bool IsRunning
+        {
+            get { lock (_sync) return _senderHandle != IntPtr.Zero; }
+        }
 
         public bool Start(ProjectionNdiOutputOptions options)
+        {
+            lock (_sync) return StartCore(options);
+        }
+
+        private bool StartCore(ProjectionNdiOutputOptions options)
         {
             if (IsRunning)
             {
@@ -43,6 +52,7 @@ namespace ImageColorChanger.Services.Projection.Output
                 ProjectionNdiDiagnostics.Log("Sender start failed: NDI runtime initialization failed.");
                 return false;
             }
+            _ownsNdiReference = true;
 
             try
             {
@@ -70,7 +80,7 @@ namespace ImageColorChanger.Services.Projection.Output
                 if (_senderHandle == IntPtr.Zero)
                 {
                     ProjectionNdiDiagnostics.Log("Sender start failed: NDIlib_send_create returned null.");
-                    ReleaseNdi();
+                    ReleaseOwnedNdi();
                     return false;
                 }
 
@@ -80,25 +90,25 @@ namespace ImageColorChanger.Services.Projection.Output
             catch (DllNotFoundException)
             {
                 ProjectionNdiDiagnostics.Log("Sender start failed: NDI DLL not found.");
-                ReleaseNdi();
+                ReleaseOwnedNdi();
                 return false;
             }
             catch (EntryPointNotFoundException)
             {
                 ProjectionNdiDiagnostics.Log("Sender start failed: NDI entry point missing.");
-                ReleaseNdi();
+                ReleaseOwnedNdi();
                 return false;
             }
             catch (BadImageFormatException)
             {
                 ProjectionNdiDiagnostics.Log("Sender start failed: bad image format (x64/x86 mismatch).");
-                ReleaseNdi();
+                ReleaseOwnedNdi();
                 return false;
             }
             catch (Exception ex)
             {
                 ProjectionNdiDiagnostics.LogException("Sender start exception", ex);
-                ReleaseNdi();
+                ReleaseOwnedNdi();
                 return false;
             }
         }
@@ -119,7 +129,7 @@ namespace ImageColorChanger.Services.Projection.Output
                 int width = frame.Width;
                 int height = frame.Height;
                 int rowBytes = frame.RowBytes;
-                int byteCount = rowBytes * height;
+                int byteCount = checked(rowBytes * height);
                 if (width <= 0 || height <= 0 || byteCount <= 0)
                 {
                     return false;
@@ -247,15 +257,14 @@ namespace ImageColorChanger.Services.Projection.Output
         {
             lock (_sync)
             {
-                FreeAsyncBuffers();
-            }
-
-            if (_senderHandle != IntPtr.Zero)
-            {
                 try
                 {
-                    NativeNdiInterop.SendDestroy(_senderHandle);
-                    ProjectionNdiDiagnostics.Log("Sender stopped.");
+                    if (_senderHandle != IntPtr.Zero)
+                    {
+                        // send_destroy 是异步发送的同步点。原生库仍持有的帧不能提前释放。
+                        NativeNdiInterop.SendDestroy(_senderHandle);
+                        ProjectionNdiDiagnostics.Log("Sender stopped.");
+                    }
                 }
                 catch
                 {
@@ -263,13 +272,19 @@ namespace ImageColorChanger.Services.Projection.Output
                 finally
                 {
                     _senderHandle = IntPtr.Zero;
+                    FreeAsyncBuffers();
+                    _audioInterleaved16Buffer = Array.Empty<short>();
+                    ReleaseOwnedNdi();
                 }
             }
-
-            ReleaseNdi();
         }
 
         public int GetConnectionCount()
+        {
+            lock (_sync) return GetConnectionCountCore();
+        }
+
+        private int GetConnectionCountCore()
         {
             if (_senderHandle == IntPtr.Zero)
             {
@@ -309,6 +324,9 @@ namespace ImageColorChanger.Services.Projection.Output
                 return;
             }
 
+            // 分辨率变化时，上一帧仍可能由 NDI 使用。先等待完成，再替换缓冲区。
+            if (_senderHandle != IntPtr.Zero && _asyncBuffers[0] != IntPtr.Zero)
+                NativeNdiInterop.SendSendVideoAsyncV2(_senderHandle, IntPtr.Zero);
             FreeAsyncBuffers();
 
             for (int i = 0; i < AsyncBufferCount; i++)
@@ -411,6 +429,13 @@ namespace ImageColorChanger.Services.Projection.Output
                     }
                 }
             }
+        }
+
+        private void ReleaseOwnedNdi()
+        {
+            if (!_ownsNdiReference) return;
+            _ownsNdiReference = false;
+            ReleaseNdi();
         }
 
         private static IntPtr AllocUtf8(string text)

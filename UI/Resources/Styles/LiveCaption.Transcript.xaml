@@ -1,0 +1,131 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 仅字幕输入窗口使用；编辑行为仍由标准 TextBox / PART_ContentHost 管理。 -->
+    <SolidColorBrush x:Key="CaptionEditorSurfaceBrush" Color="#1C1E22"/>
+    <SolidColorBrush x:Key="CaptionEditorTextBrush" Color="#F5F6F8"/>
+    <SolidColorBrush x:Key="CaptionEditorMutedBrush" Color="#AFB4BD"/>
+    <SolidColorBrush x:Key="CaptionEditorBorderBrush" Color="#484C54"/>
+    <SolidColorBrush x:Key="CaptionEditorHoverBorderBrush" Color="#737984"/>
+    <Geometry x:Key="CaptionIconEraser">M16 3L22 9L11 20H6L2 16Z M9 9L15 15 M11 20H22</Geometry>
+    <Geometry x:Key="CaptionIconScissors">M6 3A3 3 0 1 0 6 9A3 3 0 1 0 6 3 M6 15A3 3 0 1 0 6 21A3 3 0 1 0 6 15 M8 8L20 20 M8 16L20 4</Geometry>
+    <Geometry x:Key="CaptionIconClipboard">M9 4H6V21H20V4H17 M9 2H17V6H9Z M9 11H17 M9 15H17</Geometry>
+
+    <Style x:Key="CaptionTranscriptEditorStyle" TargetType="TextBox">
+        <Setter Property="Foreground" Value="{StaticResource CaptionEditorTextBrush}"/>
+        <Setter Property="Background" Value="{StaticResource CaptionEditorSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource CaptionEditorBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="CaretBrush" Value="{StaticResource CaptionEditorTextBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource BrushGlobalIcon}"/>
+        <Setter Property="SelectionOpacity" Value="0.4"/>
+        <Setter Property="IsInactiveSelectionHighlightEnabled" Value="True"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="EditorBorder" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                        <Grid Margin="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"/>
+                            <TextBlock x:Name="EmptyHint" Text="在这里输入字幕…" IsHitTestVisible="False"
+                                       Foreground="{StaticResource CaptionEditorMutedBrush}"
+                                       Visibility="Collapsed" TextWrapping="Wrap"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsReadOnly" Value="True">
+                            <Setter TargetName="EmptyHint" Property="Text" Value="等待语音识别结果…"/>
+                        </Trigger>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="EmptyHint" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="EditorBorder" Property="BorderBrush" Value="{StaticResource CaptionEditorHoverBorderBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="EditorBorder" Property="BorderBrush" Value="{DynamicResource BrushGlobalIcon}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CaptionTranscriptMenuItemStyle" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource BrushMenuText}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="MinHeight" Value="40"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter ContentSource="Icon" VerticalAlignment="Center"/>
+                            <ContentPresenter Grid.Column="1" ContentSource="Header" Margin="10,0,16,0"
+                                              RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}"
+                                       Foreground="{TemplateBinding Foreground}" Opacity="0.65"
+                                       FontSize="12" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource BrushMenuDisabledText}"/>
+                            <Setter TargetName="ItemBorder" Property="Opacity" Value="0.65"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CaptionTranscriptMenuStyle" TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource BrushMenuSurface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource BrushMenuText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushMenuBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="MinWidth" Value="248"/>
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10"
+                            Padding="{TemplateBinding Padding}">
+                        <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CaptionTranscriptMenuSeparatorStyle" TargetType="Separator">
+        <Setter Property="Margin" Value="12,5"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Background="{DynamicResource BrushMenuBorder}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

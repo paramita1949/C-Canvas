@@ -7,6 +7,8 @@ namespace ImageColorChanger.Services.Projection.Output
         private readonly IProjectionNdiConfigProvider _configProvider;
         private readonly IProjectionNdiModeResolver _modeResolver;
         private readonly IProjectionNdiSender _sender;
+        private readonly object _sync = new();
+        private bool _retired;
         private long _lastStartFailLogTick;
 
         public ProjectionNdiOutputManager(
@@ -20,6 +22,11 @@ namespace ImageColorChanger.Services.Projection.Output
         }
 
         public bool PublishFrame(SKBitmap frame, ProjectionNdiContentType contentType, SKColor? transparencyKeyColor = null)
+        {
+            lock (_sync) return !_retired && PublishFrameCore(frame, contentType, transparencyKeyColor);
+        }
+
+        private bool PublishFrameCore(SKBitmap frame, ProjectionNdiContentType contentType, SKColor? transparencyKeyColor)
         {
             if (frame == null)
             {
@@ -70,6 +77,11 @@ namespace ImageColorChanger.Services.Projection.Output
 
         public bool PublishFrameDirect(SKBitmap frame, bool transparent = false, SKColor? transparencyKeyColor = null)
         {
+            lock (_sync) return !_retired && PublishFrameDirectCore(frame, transparent, transparencyKeyColor);
+        }
+
+        private bool PublishFrameDirectCore(SKBitmap frame, bool transparent, SKColor? transparencyKeyColor)
+        {
             if (frame == null)
             {
                 return false;
@@ -106,6 +118,11 @@ namespace ImageColorChanger.Services.Projection.Output
 
         public bool PublishAudio(ProjectionNdiAudioFrame audioFrame)
         {
+            lock (_sync) return !_retired && PublishAudioCore(audioFrame);
+        }
+
+        private bool PublishAudioCore(ProjectionNdiAudioFrame audioFrame)
+        {
             if (audioFrame == null)
             {
                 return false;
@@ -122,10 +139,26 @@ namespace ImageColorChanger.Services.Projection.Output
 
         public void Stop()
         {
-            _sender.Stop();
+            lock (_sync) _sender.Stop();
+        }
+
+        /// <summary>通道移除后，已经拿到旧管理器的发布回调也不能重建发送器。</summary>
+        public void Retire()
+        {
+            lock (_sync)
+            {
+                if (_retired) return;
+                _retired = true;
+                _sender.Stop();
+            }
         }
 
         public int GetClientConnectionCount()
+        {
+            lock (_sync) return _retired ? 0 : GetClientConnectionCountCore();
+        }
+
+        private int GetClientConnectionCountCore()
         {
             if (_sender is NativeProjectionNdiSender nativeSender)
             {
@@ -136,6 +169,14 @@ namespace ImageColorChanger.Services.Projection.Output
         }
 
         public void ClearToBlackAndStop()
+        {
+            lock (_sync)
+            {
+                if (!_retired) ClearToBlackAndStopCore();
+            }
+        }
+
+        private void ClearToBlackAndStopCore()
         {
             try
             {
@@ -159,6 +200,14 @@ namespace ImageColorChanger.Services.Projection.Output
         }
 
         public void PushTransparentIdleFrame(bool startSenderIfNeeded = true)
+        {
+            lock (_sync)
+            {
+                if (!_retired) PushTransparentIdleFrameCore(startSenderIfNeeded);
+            }
+        }
+
+        private void PushTransparentIdleFrameCore(bool startSenderIfNeeded)
         {
             try
             {

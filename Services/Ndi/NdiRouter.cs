@@ -46,7 +46,7 @@ namespace ImageColorChanger.Services.Ndi
                     _configManager.LiveCaptionNdiEnabled = enabled;
                     break;
             }
-            if (channel == NdiChannel.Caption && !enabled) StopCaptionOutput();
+            // 开关只改变状态。字幕发送、清屏与停止由 LiveCaptionNdiOutput 的同一工作循环执行。
         }
 
         public bool PublishLyricsFrame(SKBitmap frame, SKBitmap transparentFrame, bool transparentEnabled, bool transparentLyricsMode, SKColor backgroundColor)

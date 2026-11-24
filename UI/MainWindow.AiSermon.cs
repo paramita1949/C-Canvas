@@ -741,16 +741,17 @@ namespace ImageColorChanger.UI
                 StartLiveCaption(_liveCaptionCurrentSource);
         }
 
-        private void ResetAiCaptionInput()
+        private void ResetAiCaptionInput(bool retainInputMethodBaseline = true)
         {
             _aiAsrTurnAggregator.Reset();
-            _aiInputMethodTurnAggregator.Reset(_liveCaptionOverlayWindow?.InputMethodCurrentText);
+            _aiInputMethodTurnAggregator.Reset(retainInputMethodBaseline
+                ? _liveCaptionOverlayWindow?.CaptionCurrentText : string.Empty);
         }
 
         private void ForwardInputMethodTextToAi(string text)
         {
             if (_aiSermonCoordinator == null || !_aiSermonReceiveAsr || !IsLiveCaptionInputMethodActive()) return;
-            if (_liveCaptionOverlayWindow?.HasPendingInputMethodSnapshot == true) return;
+            if (_liveCaptionOverlayWindow?.HasPendingCaptionSnapshot == true) return;
             _aiInputMethodTurnAggregator.Observe(text, DateTimeOffset.Now);
         }
 
@@ -781,7 +782,7 @@ namespace ImageColorChanger.UI
 
             if (_configManager.LiveCaptionInputMethodEnabled)
             {
-                if (IsLiveCaptionInputMethodActive() && _liveCaptionOverlayWindow?.HasPendingInputMethodSnapshot != true &&
+                if (IsLiveCaptionInputMethodActive() && _liveCaptionOverlayWindow?.HasPendingCaptionSnapshot != true &&
                     _aiInputMethodTurnAggregator.TryFlush(DateTimeOffset.Now, out var inputTurn))
                     SubmitAsrTurnToAi(inputTurn);
                 return;

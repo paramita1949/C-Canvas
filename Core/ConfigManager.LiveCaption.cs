@@ -49,13 +49,12 @@ namespace ImageColorChanger.Core
             set
             {
                 if (_config.LiveCaptionInputMethodEnabled != value ||
-                    (value && (_config.LiveCaptionRealtimeEnabled || _config.LiveCaptionShortPhraseEnabled)))
+                    (value && _config.LiveCaptionRealtimeEnabled))
                 {
                     _config.LiveCaptionInputMethodEnabled = value;
                     if (value)
                     {
                         _config.LiveCaptionRealtimeEnabled = false;
-                        _config.LiveCaptionShortPhraseEnabled = false;
                     }
                     SaveConfig();
                 }
@@ -85,12 +84,12 @@ namespace ImageColorChanger.Core
 
         public bool LiveCaptionShortPhraseEnabled
         {
-            get => !_config.LiveCaptionInputMethodEnabled && _config.LiveCaptionShortPhraseEnabled;
+            // 经文识别是文字能力开关；是否采音由当前输入来源决定。
+            get => _config.LiveCaptionShortPhraseEnabled;
             set
             {
-                if (_config.LiveCaptionShortPhraseEnabled != value || (value && _config.LiveCaptionInputMethodEnabled))
+                if (_config.LiveCaptionShortPhraseEnabled != value)
                 {
-                    if (value) _config.LiveCaptionInputMethodEnabled = false;
                     _config.LiveCaptionShortPhraseEnabled = value;
                     SaveConfig();
                 }

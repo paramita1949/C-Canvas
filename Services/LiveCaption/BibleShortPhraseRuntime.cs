@@ -235,6 +235,15 @@ namespace ImageColorChanger.Services.LiveCaption
 
                 return result;
             }
+            catch (OperationCanceledException)
+            {
+                return new BibleShortPhraseConsumer.Result { FailureReason = "canceled" };
+            }
+            catch (Exception ex)
+            {
+                LiveCaptionDebugLogger.Log($"[短句转写] error {ex.GetType().Name}: {ex.Message}");
+                return new BibleShortPhraseConsumer.Result { FailureReason = "recognition-error" };
+            }
             finally
             {
                 lock (_gate)

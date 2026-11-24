@@ -16,7 +16,6 @@ namespace ImageColorChanger.UI
         private CancellationTokenSource _bibleAiVoiceCts;
         private bool _isBibleAiVoiceListening;
         private BibleBaiduShortSpeechClient _bibleBaiduShortSpeechClient;
-        private BibleSpeechReverseLookupService _bibleSpeechReverseLookupService;
         /// <summary>
         /// 经文内容内存索引（Bigram 倒排），由 EnsureLiveCaptionComponents 负责创建并预热，
         /// 同时在圣经译本切换后触发重建。MainWindow.Bible.AiVoice 的单次识别路径共享此实例。
@@ -167,41 +166,17 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            BibleSpeechReference reference;
-            if (!BibleSpeechReferenceParser.TryParse(recognized, out reference))
+            EnsureCaptionBibleTextComponents();
+            // 单次语音工具使用自己的文字识别会话，不污染持续字幕的上下文。
+            var textRecognizer = CreateCaptionBibleTextService();
+            var match = await Task.Run(() => textRecognizer.ResolveAsync(recognized, true, CancellationToken.None));
+            if (!match.Success)
             {
-                LogBibleAiVoice("Direct parser failed. Trying reverse lookup.");
-                // 优先使用带索引的实例；若索引尚未就绪，服务内部会降级到 DB 路径
-                _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService(
-                    _bibleVerseContentIndex,
-                    msg => LogBibleAiVoice(msg));
-                var reversed = await _bibleSpeechReverseLookupService.TryResolveAsync(
-                    _bibleService,
-                    recognized,
-                    CancellationToken.None);
-
-                if (!reversed.HasValue)
-                {
-                    LogBibleAiVoice("Reverse lookup failed.");
-                    ShowStatus($"未识别到经文引用：{recognized}");
-                    return;
-                }
-
-                reference = reversed.Value;
-                LogBibleAiVoice($"Reverse lookup resolved: book={reference.BookId}, chapter={reference.Chapter}, start={reference.StartVerse}, end={reference.EndVerse}");
+                ShowStatus($"未识别到经文引用：{recognized}");
+                return;
             }
-            else
-            {
-                LogBibleAiVoice($"Direct parse resolved: book={reference.BookId}, chapter={reference.Chapter}, start={reference.StartVerse}, end={reference.EndVerse}");
-            }
-
-            int endVerse = reference.EndVerse;
-            if (endVerse <= 0)
-            {
-                int verseCount = await _bibleService.GetVerseCountAsync(reference.BookId, reference.Chapter);
-                endVerse = verseCount > 0 ? verseCount : reference.StartVerse;
-                LogBibleAiVoice($"Chapter-only resolved verse count. verseCount={verseCount}, finalEndVerse={endVerse}");
-            }
+            var reference = match.Reference;
+            int endVerse = match.FinalEndVerse;
 
             var finalReference = new BibleSpeechReference(
                 reference.BookId,

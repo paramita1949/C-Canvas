@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -36,7 +35,7 @@ namespace ImageColorChanger.UI
         ReserveWithAppBar = 1
     }
 
-    internal sealed class LiveCaptionOverlayWindow : Window
+    internal sealed partial class LiveCaptionOverlayWindow : Window
     {
         private const uint ABM_NEW = 0x00000000;
         private const uint ABM_REMOVE = 0x00000001;
@@ -45,7 +44,6 @@ namespace ImageColorChanger.UI
         private const uint ABE_TOP = 1;
         private const uint ABE_BOTTOM = 3;
         private const double FloatingResizeHitThickness = 10;
-        private const int VisibleCaptionLines = 2;
         private const double DefaultActionButtonHeight = 28;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -88,7 +86,6 @@ namespace ImageColorChanger.UI
         private static extern uint GetDpiForWindow(IntPtr hWnd);
 
         private readonly Border _captionSurface;
-        private readonly TextBlock _captionText;
         private readonly TextBlock _projectionActionText;
         private readonly TextBlock _ndiActionText;
         private readonly Border _projectionAction;
@@ -101,29 +98,18 @@ namespace ImageColorChanger.UI
         private readonly Border _closeAction;
         private readonly TextBlock _recognitionDebugMarkerText;
         private readonly System.Windows.Controls.CheckBox _inputMethodToggle;
-        private readonly System.Windows.Controls.TextBox _inputMethodEditor;
-        private readonly InputMethodCaptionTextBoxAdapter _inputMethodAdapter;
-        private readonly System.Collections.Generic.Dictionary<string, double> _inputMethodGlyphWidths = new(StringComparer.Ordinal);
+        private readonly System.Windows.Controls.TextBox _captionEditor;
+        private readonly CaptionTranscriptTextBoxAdapter _captionTextAdapter;
+        private readonly TextBlock _captionStatusText;
+        private readonly ResourceDictionary _captionEditorResources;
         private bool _inputMethodEnabled;
-        private bool _inputMethodLayoutQueued;
         private string _realtimeRecognitionPlatformName = "百度";
         private string _shortPhraseRecognitionPlatformName = "百度";
         private bool _realtimeRecognitionEnabled;
         private bool _shortPhraseRecognitionEnabled;
         private readonly System.Windows.Controls.CheckBox _realtimeRecognitionToggle;
         private readonly System.Windows.Controls.CheckBox _shortPhraseRecognitionToggle;
-        private readonly DispatcherTimer _typingTimer;
         private readonly DispatcherTimer _floatingBoundsChangedTimer;
-        private string _typingTarget = string.Empty;
-        private string _currentCaptionRawText = string.Empty;
-        private int _typingIndex;
-        private int _highlightStartIndex;
-        private bool _typingAnimationEnabled;
-        private bool _latestTextHighlightEnabled = true;
-        private System.Windows.Media.Brush _baseTextBrush = WpfBrushes.White;
-        private System.Windows.Media.Brush _latestTextHighlightBrush = new WpfSolidColorBrush(WpfColor.FromRgb(255, 255, 0));
-        private double _captionLetterSpacing;
-        private double _captionParagraphGap = 4;
         private ProjectionCaptionOrientation _captionOrientation = ProjectionCaptionOrientation.Horizontal;
         private ProjectionCaptionHorizontalAnchor _captionHorizontalAnchor = ProjectionCaptionHorizontalAnchor.Center;
         private ProjectionCaptionVerticalAnchor _captionVerticalAnchor = ProjectionCaptionVerticalAnchor.Top;
@@ -140,6 +126,7 @@ namespace ImageColorChanger.UI
         private IntPtr _handle = IntPtr.Zero;
         private bool _appBarRegistered;
         private bool _layoutApplyScheduled;
+        private DispatcherOperation _layoutApplyOperation;
         private LiveCaptionWorkAreaMode _workAreaMode = LiveCaptionWorkAreaMode.WindowOnly;
         private bool _isResizingFromEdge;
         private ResizeAnchor _activeResizeAnchor = ResizeAnchor.None;
@@ -162,10 +149,17 @@ namespace ImageColorChanger.UI
         public event Action<bool> RealtimeRecognitionToggleRequested;
         public event Action<bool> ShortPhraseRecognitionToggleRequested;
         public event Action<bool> InputMethodToggleRequested;
-        public event Action<string> InputMethodTextChanged;
+        public event Action<string> CaptionTextChanged;
 
-        public LiveCaptionOverlayWindow()
+        public LiveCaptionOverlayWindow() : this(null) { }
+
+        internal LiveCaptionOverlayWindow(InputMethodCaptionHistoryStore history)
         {
+            _captionEditorResources = new ResourceDictionary
+            {
+                Source = new Uri("/CanvasCast;component/UI/Resources/Styles/LiveCaption.Transcript.xaml", UriKind.Relative)
+            };
+            Resources.MergedDictionaries.Add(_captionEditorResources);
             Width = _floatingWidth;
             Height = _floatingHeight;
             MinWidth = 640;
@@ -200,11 +194,6 @@ namespace ImageColorChanger.UI
             };
             _captionSurface.SetResourceReference(Border.BorderBrushProperty, "BrushGlobalIcon");
             _captionSurface.MouseLeftButtonDown += CaptionSurface_MouseLeftButtonDown;
-            _typingTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(16)
-            };
-            _typingTimer.Tick += TypingTimer_Tick;
             _floatingBoundsChangedTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(320)
@@ -218,61 +207,50 @@ namespace ImageColorChanger.UI
             captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _captionText = new TextBlock
+            _captionEditor = new System.Windows.Controls.TextBox
             {
-                Foreground = WpfBrushes.White,
-                FontSize = 29,
-                FontWeight = FontWeights.Bold,
-                TextWrapping = TextWrapping.NoWrap,
-                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
-                LineHeight = 46,
-                TextAlignment = TextAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                Margin = new Thickness(0, 2, 0, 2),
-                Text = string.Empty
-            };
-            TextOptions.SetTextFormattingMode(_captionText, TextFormattingMode.Display);
-            TextOptions.SetTextHintingMode(_captionText, TextHintingMode.Fixed);
-            // 透明窗口使用灰度字形，避免自动 ClearType 路径在离屏/透明合成中丢失文字。
-            TextOptions.SetTextRenderingMode(_captionText, TextRenderingMode.Grayscale);
-            Grid.SetColumn(_captionText, 0);
-            Grid.SetColumnSpan(_captionText, 2);
-            Grid.SetRow(_captionText, 1);
-
-            _inputMethodEditor = new System.Windows.Controls.TextBox
-            {
-                FontSize = 16,
+                FontSize = 26,
                 FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI"),
-                Foreground = WpfBrushes.White,
-                Background = WpfBrushes.Transparent,
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(6, 3, 6, 3),
                 Margin = new Thickness(0, 8, 0, 0),
-                Height = 64,
+                MinHeight = 96,
+                Height = double.NaN,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Top,
+                VerticalAlignment = VerticalAlignment.Stretch,
                 AcceptsReturn = true,
                 AcceptsTab = false,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalContentAlignment = VerticalAlignment.Top,
-                Visibility = Visibility.Collapsed,
-                IsEnabled = false,
-                CaretBrush = WpfBrushes.White,
-                ToolTip = "输入字幕，可选中修改、粘贴和撤销；上方预览与投影保留最近两行"
+                IsReadOnly = true,
+                ToolTip = "语音识别结果自动显示；勾选输入法后可编辑，右键清屏或保存导出"
             };
-            _inputMethodEditor.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "BrushMenuBorder");
-            InputMethod.SetIsInputMethodEnabled(_inputMethodEditor, true);
-            _inputMethodAdapter = new InputMethodCaptionTextBoxAdapter(_inputMethodEditor);
-            _inputMethodAdapter.SnapshotPublished += text => InputMethodTextChanged?.Invoke(text);
-            _inputMethodEditor.LostKeyboardFocus += (_, _) =>
+            _captionEditor.SetResourceReference(FrameworkElement.StyleProperty, "CaptionTranscriptEditorStyle");
+            System.Windows.Automation.AutomationProperties.SetName(_captionEditor, "字幕输入文本框");
+            InputMethod.SetIsInputMethodEnabled(_captionEditor, false);
+            _captionTextAdapter = new CaptionTranscriptTextBoxAdapter(_captionEditor, history);
+            _captionTextAdapter.SnapshotPublished += text => CaptionTextChanged?.Invoke(text);
+            _captionTextAdapter.PrefixArchived += text => CaptionPrefixArchived?.Invoke(text);
+            _captionStatusText = new TextBlock
+            {
+                Text = "语音识别自动显示    ·    右键清屏、保存导出    ·    Ctrl+S 保存",
+                FontSize = 12,
+                Foreground = WpfBrushes.White,
+                Opacity = 0.8,
+                Margin = new Thickness(2, 6, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+            _captionTextAdapter.ArchiveStatusChanged += text => _captionStatusText.Text = text;
+            InitializeCaptionEditorMenu();
+            _captionTextAdapter.SetEnabled(true);
+            _captionEditor.LostKeyboardFocus += (_, _) =>
             {
                 QueueInputMethodFocus();
             };
-            Grid.SetColumnSpan(_inputMethodEditor, 2);
-            Grid.SetRow(_inputMethodEditor, 2);
+            Grid.SetColumnSpan(_captionEditor, 2);
+            Grid.SetRow(_captionEditor, 1);
+            Grid.SetColumnSpan(_captionStatusText, 2);
+            Grid.SetRow(_captionStatusText, 2);
 
             _recognitionDebugMarkerText = new TextBlock
             {
@@ -440,8 +418,8 @@ namespace ImageColorChanger.UI
             accentBar.SetResourceReference(Border.BackgroundProperty, "BrushGlobalIcon");
             Grid.SetRow(accentBar, 0);
 
-            captionGrid.Children.Add(_captionText);
-            captionGrid.Children.Add(_inputMethodEditor);
+            captionGrid.Children.Add(_captionEditor);
+            captionGrid.Children.Add(_captionStatusText);
             captionGrid.Children.Add(_recognitionDebugMarkerText);
             captionGrid.Children.Add(_actionPanel);
             Grid.SetRow(captionGrid, 1);
@@ -460,21 +438,6 @@ namespace ImageColorChanger.UI
             AddHandler(Mouse.PreviewMouseUpEvent, new MouseButtonEventHandler((_, _) => QueueInputMethodFocus()), true);
             AddHandler(ContextMenuService.ContextMenuClosingEvent,
                 new ContextMenuEventHandler((_, _) => QueueInputMethodFocus()), true);
-            _captionSurface.SizeChanged += (_, e) =>
-            {
-                if (_inputMethodEnabled && e.WidthChanged)
-                {
-                    UpdateInputMethodCaptionWidth();
-                    if (_inputMethodLayoutQueued) return;
-                    _inputMethodLayoutQueued = true;
-                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                    {
-                        _inputMethodLayoutQueued = false;
-                        if (_inputMethodEnabled)
-                            InputMethodTextChanged?.Invoke(InputMethodText);
-                    }));
-                }
-            };
 
             Loaded += (_, _) =>
             {
@@ -526,14 +489,19 @@ namespace ImageColorChanger.UI
                 }
                 else
                 {
+                    CancelOverlayUiOperations();
+                    _floatingBoundsChangedTimer.Stop();
                     RemoveAppBar(force: true);
                 }
             };
 
             Closed += (_, _) =>
             {
-                _inputMethodAdapter.Dispose();
+                _isClosed = true;
+                _captionTextAdapter.Dispose();
                 _inputMethodEnabled = false;
+                _floatingBoundsChangedTimer.Stop();
+                _floatingBoundsChangedTimer.Tick -= FloatingBoundsChangedTimer_Tick;
                 RemoveAppBar(force: true);
             };
 
@@ -583,8 +551,6 @@ namespace ImageColorChanger.UI
         public UIElement GetSettingsAnchorElement() => _settingsAction;
         public UIElement GetStyleAnchorElement() => _styleAction;
 
-        public bool IsTypingAnimationEnabled => _typingAnimationEnabled;
-
         public void SetCaptionOrientationState(ProjectionCaptionOrientation orientation)
         {
             _captionOrientation = orientation == ProjectionCaptionOrientation.Vertical
@@ -600,54 +566,13 @@ namespace ImageColorChanger.UI
             UpdateCaptionPositionActionState();
         }
 
-        public void SetTypingAnimationEnabled(bool enabled)
+        public void SetCaptionTypography(string fontFamily, double fontSize, double margin)
         {
-            _typingAnimationEnabled = enabled;
-            if (!enabled)
-            {
-                _typingTimer.Stop();
-                if (!string.IsNullOrEmpty(_typingTarget))
-                {
-                    RenderCaption(_typingTarget, _highlightStartIndex);
-                }
-            }
-        }
-
-        public bool IsLatestTextHighlightEnabled => _latestTextHighlightEnabled;
-
-        public void SetLatestTextHighlightEnabled(bool enabled)
-        {
-            _latestTextHighlightEnabled = enabled;
-            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
-        }
-
-        public void SetCaptionTypography(string fontFamily, double fontSize, double margin, double lineHeight)
-        {
-            if (_captionSurface == null || _captionText == null)
-            {
-                return;
-            }
-
-            string nextFamily = string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily.Trim();
-            double nextSize = Math.Clamp(fontSize, 20, 112);
-            double nextMargin = Math.Clamp(margin, 6, 120);
-            double nextLineHeight = Math.Max(nextSize, lineHeight);
-
-            if (_captionText.FontFamily.Source != nextFamily || Math.Abs(_captionText.FontSize - nextSize) > 0.001)
-                _inputMethodGlyphWidths.Clear();
-            _captionText.FontFamily = new System.Windows.Media.FontFamily(nextFamily);
-            _inputMethodEditor.FontFamily = _captionText.FontFamily;
-            _captionText.FontSize = nextSize;
-            _captionParagraphGap = Math.Clamp(nextLineHeight - nextSize, 0, 60);
-            _captionText.LineHeight = nextSize + _captionParagraphGap;
-            _captionSurface.Padding = new Thickness(nextMargin);
+            _captionEditor.FontFamily = new System.Windows.Media.FontFamily(
+                string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily.Trim());
+            _captionEditor.FontSize = Math.Clamp(fontSize, 20, 36);
+            _captionSurface.Padding = new Thickness(Math.Clamp(margin, 6, 120));
             EnsureAutoCaptionHeight();
-        }
-
-        public void SetCaptionLetterSpacing(double spacing)
-        {
-            _captionLetterSpacing = Math.Clamp(spacing, 0, 10);
-            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
         }
 
         private void EnsureAutoCaptionHeight()
@@ -697,23 +622,17 @@ namespace ImageColorChanger.UI
             }
 
             ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
-                $"CaptionAutoHeight: min={_autoMinCaptionHeight:0.##}, lineHeight={_captionText.LineHeight:0.##}, fontSize={_captionText.FontSize:0.##}, padding={_captionSurface.Padding.Top:0.##}/{_captionSurface.Padding.Bottom:0.##}, mode={_dockMode}, floating={_floatingHeight:0.##}, band={_bandHeight:0.##}");
+                $"CaptionAutoHeight: min={_autoMinCaptionHeight:0.##}, fontSize={_captionEditor.FontSize:0.##}, padding={_captionSurface.Padding.Top:0.##}/{_captionSurface.Padding.Bottom:0.##}, mode={_dockMode}, floating={_floatingHeight:0.##}, band={_bandHeight:0.##}");
         }
 
         private double ComputeCaptionAutoMinHeight()
         {
-            double lineHeight = _captionText.FontSize + _captionParagraphGap;
-
-            double textAreaNeed = (lineHeight * VisibleCaptionLines)
-                + _captionText.Margin.Top
-                + _captionText.Margin.Bottom;
-
             double actionNeed = Math.Max(
                 Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_styleAction)),
                 Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)));
 
-            double editorNeed = _inputMethodEnabled ? _inputMethodEditor.Height + _inputMethodEditor.Margin.Top : 0;
-            double bodyNeed = actionNeed + textAreaNeed + editorNeed;
+            double bodyNeed = actionNeed + Math.Max(96, _captionEditor.FontSize * 3.2) + _captionEditor.Margin.Top +
+                _captionStatusText.FontSize * 1.5 + _captionStatusText.Margin.Top + _captionStatusText.Margin.Bottom;
 
             double shellNeed = 2 + bodyNeed;
             double surfaceNeed =
@@ -745,32 +664,17 @@ namespace ImageColorChanger.UI
             return DefaultActionButtonHeight;
         }
 
-        public void SetLatestTextHighlightColor(string hexColor)
-        {
-            if (TryParseColor(hexColor, out WpfColor color))
-            {
-                _latestTextHighlightBrush = new WpfSolidColorBrush(color);
-            }
-            else
-            {
-                _latestTextHighlightBrush = new WpfSolidColorBrush(WpfColor.FromRgb(255, 255, 0));
-            }
-
-            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
-        }
-
         public void SetCaptionTextColor(string hexColor)
         {
             if (TryParseColor(hexColor, out WpfColor color))
             {
-                _baseTextBrush = new WpfSolidColorBrush(color);
+                _captionEditor.Foreground = new WpfSolidColorBrush(color);
             }
             else
             {
-                _baseTextBrush = WpfBrushes.White;
+                _captionEditor.Foreground = WpfBrushes.White;
             }
-
-            RenderCaption(_currentCaptionRawText, _highlightStartIndex);
+            _captionEditor.CaretBrush = _captionEditor.Foreground;
         }
 
         private void CaptionSurface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -811,7 +715,7 @@ namespace ImageColorChanger.UI
             while (current != null)
             {
                 if (ReferenceEquals(current, _aiPanelAction) ||
-                    ReferenceEquals(current, _inputMethodEditor) ||
+                    ReferenceEquals(current, _captionEditor) ||
                     ReferenceEquals(current, _inputMethodToggle) ||
                     ReferenceEquals(current, _realtimeRecognitionToggle) ||
                     ReferenceEquals(current, _shortPhraseRecognitionToggle) ||
@@ -1107,135 +1011,6 @@ namespace ImageColorChanger.UI
         }
 
         // 样式/布局刷新也必须使用同一可发布快照，不能绕过合成提交保护。
-        public string InputMethodText => _inputMethodAdapter.PublishedText;
-        internal string InputMethodCurrentText => _inputMethodEditor.Text;
-        internal bool HasPendingInputMethodSnapshot => _inputMethodAdapter.HasPendingSnapshot;
-
-        private double GetInputMethodCaptionWidth()
-        {
-            double surfaceWidth = _captionSurface.ActualWidth > 0
-                ? _captionSurface.ActualWidth
-                : Width - _captionSurface.Margin.Left - _captionSurface.Margin.Right;
-            return Math.Max(1, surfaceWidth - _captionSurface.Padding.Left - _captionSurface.Padding.Right
-                - _captionSurface.BorderThickness.Left - _captionSurface.BorderThickness.Right);
-        }
-
-        private void UpdateInputMethodCaptionWidth()
-        {
-            _captionText.MaxWidth = _inputMethodEnabled ? GetInputMethodCaptionWidth() : double.PositiveInfinity;
-            _captionText.HorizontalAlignment = _inputMethodEnabled
-                ? System.Windows.HorizontalAlignment.Left : System.Windows.HorizontalAlignment.Stretch;
-        }
-
-        public int GetInputMethodLineCharLimit()
-        {
-            UpdateInputMethodCaptionWidth();
-            double available = GetInputMethodCaptionWidth();
-
-            var probe = new TextBlock
-            {
-                FontFamily = _captionText.FontFamily,
-                FontSize = _captionText.FontSize,
-                FontWeight = _captionText.FontWeight,
-                FontStyle = _captionText.FontStyle,
-                TextWrapping = TextWrapping.NoWrap
-            };
-            TextOptions.SetTextFormattingMode(probe, TextFormattingMode.Display);
-
-            // 用当前输入中最宽的字形测量；包含W和汉字，覆盖中英混输及字体差异。
-            double maxGlyph = 0;
-            var glyphs = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-            if (_inputMethodGlyphWidths.Count > 1024) _inputMethodGlyphWidths.Clear();
-            var elements = System.Globalization.StringInfo.GetTextElementEnumerator("国W" + InputMethodText);
-            while (elements.MoveNext())
-            {
-                string glyph = elements.GetTextElement();
-                if (!glyphs.Add(glyph)) continue;
-                if (string.IsNullOrWhiteSpace(glyph)) continue;
-                if (!_inputMethodGlyphWidths.TryGetValue(glyph, out double glyphWidth))
-                {
-                    probe.Text = glyph;
-                    probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-                    glyphWidth = probe.DesiredSize.Width;
-                    _inputMethodGlyphWidths[glyph] = glyphWidth;
-                }
-                maxGlyph = Math.Max(maxGlyph, glyphWidth);
-            }
-            probe.Text = new string('\u200A', Math.Clamp((int)Math.Round(_captionLetterSpacing), 1, 10));
-            probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-            double gap = _captionLetterSpacing > 0.01 ? probe.DesiredSize.Width : 0;
-            return Math.Clamp((int)Math.Floor((available - 2 + gap) / Math.Max(1, maxGlyph + gap)), 1, 120);
-        }
-
-        public void SetInputMethodMode(bool enabled)
-        {
-            bool changed = _inputMethodEnabled != enabled;
-            bool wasSuppressed = _suppressRecognitionToggleEvents;
-            _suppressRecognitionToggleEvents = true;
-            try
-            {
-                _inputMethodEnabled = enabled;
-                _inputMethodAdapter.SetEnabled(enabled);
-                _inputMethodToggle.IsChecked = enabled;
-                _inputMethodEditor.IsEnabled = enabled;
-                _inputMethodEditor.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
-                UpdateInputMethodCaptionWidth();
-                if (!enabled && _inputMethodEditor.IsKeyboardFocusWithin)
-                {
-                    Keyboard.ClearFocus();
-                    FocusManager.SetFocusedElement(this, null);
-                }
-            }
-            finally
-            {
-                _suppressRecognitionToggleEvents = wasSuppressed;
-            }
-
-            if (changed)
-            {
-                EnsureAutoCaptionHeight();
-                if (enabled)
-                {
-                    FocusInputMethodEditor();
-                }
-            }
-        }
-
-        public void ClearInputMethodText()
-        {
-            _inputMethodAdapter.Clear();
-        }
-
-        public void FocusInputMethodEditor()
-        {
-            if (!_inputMethodEnabled || !IsVisible)
-            {
-                return;
-            }
-
-            Activate();
-            RestoreInputMethodFocus();
-            QueueInputMethodFocus();
-        }
-
-        private void QueueInputMethodFocus()
-        {
-            if (!_inputMethodEnabled || !IsVisible) return;
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-            {
-                if (!_inputMethodEnabled || !IsVisible || !IsActive || _inputMethodAdapter.IsComposing) return;
-                if (Mouse.Captured != null) return;
-                if (Keyboard.FocusedElement is DependencyObject focused && Window.GetWindow(focused) != this) return;
-                RestoreInputMethodFocus();
-            }));
-        }
-
-        private void RestoreInputMethodFocus()
-        {
-            if (_inputMethodAdapter.IsComposing) return;
-            _inputMethodEditor.Focus();
-        }
-
         public void SetRecognitionToggleStates(bool realtimeEnabled, bool shortPhraseEnabled)
         {
             _suppressRecognitionToggleEvents = true;
@@ -1509,67 +1284,6 @@ namespace ImageColorChanger.UI
             return path;
         }
 
-        public void UpdateCaption(string text, int? highlightStart = null)
-        {
-            string target = text ?? string.Empty;
-            if (target.Length == 0)
-            {
-                _typingTimer.Stop();
-                _typingTarget = string.Empty;
-                _currentCaptionRawText = string.Empty;
-                _typingIndex = 0;
-                _highlightStartIndex = 0;
-                RenderCaption(string.Empty, 0);
-                return;
-            }
-
-            if (highlightStart.HasValue)
-            {
-                _typingTimer.Stop();
-                _typingTarget = target;
-                _currentCaptionRawText = target;
-                _typingIndex = target.Length;
-                _highlightStartIndex = Math.Clamp(highlightStart.Value, 0, target.Length);
-                RenderCaption(target, _highlightStartIndex);
-                return;
-            }
-
-            string baseline = string.IsNullOrEmpty(_typingTarget) ? _currentCaptionRawText : _typingTarget;
-            if (string.Equals(baseline, target, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            int common = FindCommonPrefix(baseline, target);
-            bool isPureAppend = baseline.Length > 0
-                                && target.Length > baseline.Length
-                                && common == baseline.Length
-                                && target.StartsWith(baseline, StringComparison.Ordinal);
-            bool canStream = isPureAppend && _typingAnimationEnabled;
-            // Highlight only when content is true append; for rewrites/reflows keep full white to avoid "all yellow".
-            _highlightStartIndex = isPureAppend
-                ? Math.Clamp(common, 0, target.Length)
-                : target.Length;
-            if (!canStream)
-            {
-                _typingTimer.Stop();
-                _typingTarget = target;
-                _currentCaptionRawText = target;
-                _typingIndex = target.Length;
-                RenderCaption(target, _highlightStartIndex);
-                return;
-            }
-
-            _typingTarget = target;
-            _currentCaptionRawText = target;
-            _typingIndex = common;
-            RenderCaption(target.Substring(0, common), _highlightStartIndex);
-            if (!_typingTimer.IsEnabled)
-            {
-                _typingTimer.Start();
-            }
-        }
-
         public void SetDockMode(LiveCaptionDockMode mode)
         {
             if (_dockMode == mode)
@@ -1706,7 +1420,7 @@ namespace ImageColorChanger.UI
 
         private void ScheduleApplyLayout()
         {
-            if (!IsVisible || _handle == IntPtr.Zero)
+            if (_isClosing || _isClosed || !IsVisible || _handle == IntPtr.Zero || Dispatcher.HasShutdownStarted)
             {
                 ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log(
                     $"ScheduleApplyLayout: skipped visible={IsVisible}, handle=0x{_handle.ToInt64():X}, dock={_dockMode}, cachedFloating=({_floatingLeft:0.##},{_floatingTop:0.##},{_floatingWidth:0.##}x{_floatingHeight:0.##})");
@@ -1719,10 +1433,11 @@ namespace ImageColorChanger.UI
             }
 
             _layoutApplyScheduled = true;
-            Dispatcher.BeginInvoke(new Action(() =>
+            _layoutApplyOperation = Dispatcher.BeginInvoke(new Action(() =>
             {
+                _layoutApplyOperation = null;
                 _layoutApplyScheduled = false;
-                ApplyLayout();
+                if (!_isClosing && !_isClosed && IsVisible) ApplyLayout();
             }), DispatcherPriority.Background);
         }
 
@@ -1736,7 +1451,7 @@ namespace ImageColorChanger.UI
             _ = Dispatcher.InvokeAsync(async () =>
             {
                 await Task.Delay(140);
-                if (!IsVisible || _dockMode == LiveCaptionDockMode.Floating)
+                if (_isClosing || _isClosed || !IsVisible || _dockMode == LiveCaptionDockMode.Floating)
                 {
                     return;
                 }
@@ -1975,74 +1690,6 @@ namespace ImageColorChanger.UI
             ImageColorChanger.Services.LiveCaption.LiveCaptionDebugLogger.Log("RemoveAppBar: released.");
         }
 
-        private void TypingTimer_Tick(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(_typingTarget))
-            {
-                _typingTimer.Stop();
-                return;
-            }
-
-            if (_typingIndex >= _typingTarget.Length)
-            {
-                RenderCaption(_typingTarget, _highlightStartIndex);
-                _typingTimer.Stop();
-                return;
-            }
-
-            int remain = _typingTarget.Length - _typingIndex;
-            int step = remain > 30 ? 8 : remain > 15 ? 6 : 4;
-            _typingIndex = CaptionTextElements.CeilingBoundary(_typingTarget, _typingIndex + step);
-            RenderCaption(_typingTarget.Substring(0, _typingIndex), _highlightStartIndex);
-        }
-
-        private void RenderCaption(string text, int highlightFrom)
-        {
-            _captionText.Inlines.Clear();
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            bool hasSecondLine = text.IndexOf('\n') >= 0;
-            double size = _captionText.FontSize > 0 ? _captionText.FontSize : 30;
-            double effectiveGap = hasSecondLine ? _captionParagraphGap : 0;
-            _captionText.LineHeight = size + effectiveGap;
-
-            int split = CaptionTextElements.FloorBoundary(text, highlightFrom);
-            string spaced = ApplyLetterSpacing(text, out int[] indexMap);
-            int splitSpaced = indexMap[Math.Clamp(split, 0, indexMap.Length - 1)];
-            if (!_latestTextHighlightEnabled)
-            {
-                _captionText.Inlines.Add(new Run(spaced)
-                {
-                    Foreground = _baseTextBrush
-                });
-                return;
-            }
-
-            if (splitSpaced > 0)
-            {
-                _captionText.Inlines.Add(new Run(spaced.Substring(0, splitSpaced))
-                {
-                    Foreground = _baseTextBrush
-                });
-            }
-
-            if (splitSpaced < spaced.Length)
-            {
-                _captionText.Inlines.Add(new Run(spaced.Substring(splitSpaced))
-                {
-                    Foreground = _latestTextHighlightBrush
-                });
-            }
-        }
-
-        private string ApplyLetterSpacing(string text, out int[] indexMap)
-        {
-            return CaptionTextElements.ApplyLetterSpacing(text, _captionLetterSpacing, out indexMap);
-        }
-
         private static bool TryParseColor(string value, out WpfColor color)
         {
             color = default;
@@ -2065,25 +1712,6 @@ namespace ImageColorChanger.UI
             }
 
             return false;
-        }
-
-        private static int FindCommonPrefix(string a, string b)
-        {
-            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
-            {
-                return 0;
-            }
-
-            int max = Math.Min(a.Length, b.Length);
-            for (int i = 0; i < max; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return i;
-                }
-            }
-
-            return max;
         }
 
         private double GetWindowScale()

@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using ImageColorChanger.Services.Interfaces;
 
 namespace ImageColorChanger.Services.LiveCaption
 {
@@ -12,31 +10,36 @@ namespace ImageColorChanger.Services.LiveCaption
         internal sealed class Result
         {
             public bool Success { get; init; }
+            public bool IsDuplicate { get; init; }
+            public CancellationToken SessionToken { get; init; }
             public string RecognizedText { get; init; } = string.Empty;
             public BibleSpeechReference Reference { get; init; }
             public int FinalEndVerse { get; init; }
             public string FailureReason { get; init; } = string.Empty;
         }
 
-        private readonly IBibleService _bibleService;
         private readonly Func<byte[], CancellationToken, Task<string>> _transcribeAsync;
-        private readonly BibleSpeechReverseLookupService _reverseLookupService;
+        private readonly Func<string, bool, CancellationToken, Task<BibleTextRecognitionResult>> _recognizeTextAsync;
         private readonly Action<string> _log;
+        private readonly Func<CancellationToken> _getSessionToken;
 
         public BibleShortPhraseConsumer(
-            IBibleService bibleService,
             Func<byte[], CancellationToken, Task<string>> transcribeAsync,
-            BibleSpeechReverseLookupService reverseLookupService = null,
-            Action<string> log = null)
+            Func<string, bool, CancellationToken, Task<BibleTextRecognitionResult>> recognizeTextAsync,
+            Action<string> log = null,
+            Func<CancellationToken> getSessionToken = null)
         {
-            _bibleService = bibleService ?? throw new ArgumentNullException(nameof(bibleService));
             _transcribeAsync = transcribeAsync ?? throw new ArgumentNullException(nameof(transcribeAsync));
-            _reverseLookupService = reverseLookupService ?? new BibleSpeechReverseLookupService();
+            _recognizeTextAsync = recognizeTextAsync ?? throw new ArgumentNullException(nameof(recognizeTextAsync));
             _log = log ?? (_ => { });
+            _getSessionToken = getSessionToken ?? (() => CancellationToken.None);
         }
 
         public async Task<Result> ProcessPcmAsync(byte[] pcmBytes, CancellationToken cancellationToken)
         {
+            var sessionToken = _getSessionToken();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, sessionToken);
+            cancellationToken = linked.Token;
             byte[] pcm = pcmBytes ?? Array.Empty<byte>();
             if (pcm.Length < 3200)
             {
@@ -67,105 +70,20 @@ namespace ImageColorChanger.Services.LiveCaption
 
             _log($"Transcribe result: {recognized}");
 
-            // ── 并行双路识别 ──────────────────────────────────────────────────
-            // Path2（内容反查）提前启动，与 Path1（引用解析）并行执行。
-            // 当索引已就绪时，Path2 为 <1ms 的内存操作，几乎无额外开销；
-            // 当 Path2 走 DB 降级路径时，提前启动可消除 Path1 成功后的等待浪费。
-            var reverseLookupTask = _reverseLookupService.TryResolveAsync(
-                _bibleService, recognized, cancellationToken);
-
-            var parseCandidates = BibleSpeechTextNormalizer.BuildReferenceCandidates(recognized, aggressive: true);
-            BibleSpeechReference reference;
-            if (TryParseReferenceFromCandidates(parseCandidates, out reference, out string matchedCandidate))
+            // 转写只负责提供文字；经文能力由可替换的文字接口接入。
+            try
             {
-                // Path1 成功：引用格式精确解析，置信度最高，直接采纳
-                // reverseLookupTask 在后台自然完成，不阻塞当前路径
-                _reverseLookupService.NotifyDirectParse(reference.BookId, reference.Chapter, Math.Max(1, reference.StartVerse));
-                _log($"Direct parse succeeded. matched='{matchedCandidate}'");
+                cancellationToken.ThrowIfCancellationRequested();
+                var match = await _recognizeTextAsync(recognized, true, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                return new Result
+                {
+                    SessionToken = sessionToken,
+                    Success = match.Success, RecognizedText = recognized, Reference = match.Reference,
+                    FinalEndVerse = match.FinalEndVerse, FailureReason = match.FailureReason, IsDuplicate = match.IsDuplicate
+                };
             }
-            else
-            {
-                _log("Direct parse failed. Waiting for reverse lookup.");
-                BibleSpeechReference? reversed = await reverseLookupTask.ConfigureAwait(false);
-                if (!reversed.HasValue)
-                {
-                    _log("Reverse lookup failed.");
-                    return new Result
-                    {
-                        RecognizedText = recognized,
-                        FailureReason = "unresolved-reference"
-                    };
-                }
-                reference = reversed.Value;
-            }
-
-            int finalEndVerse = reference.EndVerse;
-            if (finalEndVerse <= 0)
-            {
-                int verseCount = await _bibleService.GetVerseCountAsync(reference.BookId, reference.Chapter);
-                finalEndVerse = verseCount > 0 ? verseCount : Math.Max(1, reference.StartVerse);
-            }
-
-            _log($"Resolved reference: book={reference.BookId}, chapter={reference.Chapter}, start={reference.StartVerse}, end={finalEndVerse}");
-            return new Result
-            {
-                Success = true,
-                RecognizedText = recognized,
-                Reference = reference,
-                FinalEndVerse = finalEndVerse
-            };
-        }
-
-        private static bool TryParseReferenceFromCandidates(
-            IReadOnlyList<string> candidates,
-            out BibleSpeechReference reference,
-            out string matchedCandidate)
-        {
-            reference = default;
-            matchedCandidate = string.Empty;
-            if (candidates == null || candidates.Count == 0)
-            {
-                return false;
-            }
-
-            int bestScore = int.MinValue;
-            bool matched = false;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                string candidate = candidates[i];
-                if (!BibleSpeechReferenceParser.TryParse(candidate, out var parsed))
-                {
-                    continue;
-                }
-
-                int score = 0;
-                if (parsed.EndVerse > 0)
-                {
-                    score += 6;
-                }
-                if (parsed.StartVerse > 1)
-                {
-                    score += 3;
-                }
-                if (candidate.Contains("节", StringComparison.Ordinal) || candidate.Contains(":", StringComparison.Ordinal))
-                {
-                    score += 2;
-                }
-                if (candidate.Contains("章", StringComparison.Ordinal))
-                {
-                    score += 1;
-                }
-
-                if (!matched || score > bestScore)
-                {
-                    matched = true;
-                    bestScore = score;
-                    reference = parsed;
-                    matchedCandidate = candidate;
-                }
-            }
-
-            return matched;
+            catch (OperationCanceledException) { return new Result { FailureReason = "canceled" }; }
         }
 
         internal static byte[] BuildWavFromPcm16kMono(byte[] pcmBytes)

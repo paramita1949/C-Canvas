@@ -41,10 +41,14 @@ namespace ImageColorChanger.Services.Ai
         }
 
         public bool TryFlush(DateTimeOffset now, out AiAsrTurnEnvelope turn)
+            => TryFlush(now, out turn, force: false);
+
+        public bool TryFlush(DateTimeOffset now, out AiAsrTurnEnvelope turn, bool force)
         {
             turn = null;
-            if (!_pending || now - _lastSentAt < TimeSpan.FromSeconds(4)) return false;
-            if (now - _changedAt < TimeSpan.FromSeconds(1) && now - _pendingSince < TimeSpan.FromSeconds(4)) return false;
+            if (!_pending) return false;
+            if (!force && (now - _lastSentAt < TimeSpan.FromSeconds(4) ||
+                (now - _changedAt < TimeSpan.FromSeconds(1) && now - _pendingSince < TimeSpan.FromSeconds(4)))) return false;
 
             bool append = _snapshot.StartsWith(_delivered, StringComparison.Ordinal);
             string text = (append ? _snapshot[_delivered.Length..] : _snapshot).Trim();
@@ -62,6 +66,13 @@ namespace ImageColorChanger.Services.Ai
                 Source = append ? "input-method" : "input-method-correction"
             };
             return true;
+        }
+
+        public void Rebase(string removedPrefix)
+        {
+            if (string.IsNullOrEmpty(removedPrefix)) return;
+            if (_snapshot.StartsWith(removedPrefix, StringComparison.Ordinal)) _snapshot = _snapshot[removedPrefix.Length..];
+            if (_delivered.StartsWith(removedPrefix, StringComparison.Ordinal)) _delivered = _delivered[removedPrefix.Length..];
         }
     }
 }

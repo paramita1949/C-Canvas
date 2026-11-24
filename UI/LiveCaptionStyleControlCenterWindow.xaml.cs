@@ -14,6 +14,7 @@ namespace ImageColorChanger.UI
         {
             public string FontFamily { get; set; } = "Microsoft YaHei UI";
             public double FontSize { get; set; }
+            public double FontSizeMaximum { get; set; } = 112;
             public double LetterSpacing { get; set; }
             public double LineGapLevel { get; set; }
             public string TextColor { get; set; } = "#FFFFFF";
@@ -54,10 +55,10 @@ namespace ImageColorChanger.UI
                 LoadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
                 SetFontFamily = setFontFamily ?? throw new ArgumentNullException(nameof(setFontFamily));
                 SetFontSize = setFontSize ?? throw new ArgumentNullException(nameof(setFontSize));
-                SetLetterSpacing = setLetterSpacing ?? throw new ArgumentNullException(nameof(setLetterSpacing));
-                SetLineGapLevel = setLineGapLevel ?? throw new ArgumentNullException(nameof(setLineGapLevel));
+                SetLetterSpacing = setLetterSpacing;
+                SetLineGapLevel = setLineGapLevel;
                 SetTextColor = setTextColor ?? throw new ArgumentNullException(nameof(setTextColor));
-                SetLatestColor = setLatestColor ?? throw new ArgumentNullException(nameof(setLatestColor));
+                SetLatestColor = setLatestColor;
                 SetNdiLineCharLimit = setNdiLineCharLimit;
                 SetNdiAlignment = setNdiAlignment;
                 SetProjectionOrientation = setProjectionOrientation;
@@ -241,7 +242,10 @@ namespace ImageColorChanger.UI
             _syncingUi = true;
 
             FontFamilyComboBox.SelectedValue = string.IsNullOrWhiteSpace(state.FontFamily) ? "Microsoft YaHei UI" : state.FontFamily.Trim();
+            FontSizeSlider.Maximum = Math.Clamp(state.FontSizeMaximum, FontSizeSlider.Minimum, 112);
             SetControlValue(FontSizeSlider, FontSizeTextBox, state.FontSize);
+            bool showTextEffects = _setLetterSpacing != null && _setLineGapLevel != null && _setLatestColor != null;
+            LetterSpacingRow.Visibility = LineGapRow.Visibility = LatestColorRow.Visibility = showTextEffects ? Visibility.Visible : Visibility.Collapsed;
             SetControlValue(LetterSpacingSlider, LetterSpacingTextBox, state.LetterSpacing);
             SetControlValue(LineGapSlider, LineGapTextBox, state.LineGapLevel);
             _textColor = NormalizeHex(state.TextColor, "#FFFFFF");
@@ -270,16 +274,16 @@ namespace ImageColorChanger.UI
                 UpdateProjectionLayoutButtons();
             }
             RenderColorSwatches();
-            ApplyWindowHeight(showNdiAdvanced, showProjectionLayout);
+            ApplyWindowHeight(showNdiAdvanced, showProjectionLayout, showTextEffects);
 
             _syncingUi = false;
         }
 
-        private void ApplyWindowHeight(bool showNdiAdvanced, bool showProjectionLayout)
+        private void ApplyWindowHeight(bool showNdiAdvanced, bool showProjectionLayout, bool showTextEffects)
         {
             double targetHeight = showNdiAdvanced
                 ? 535
-                : showProjectionLayout ? 510 : 475;
+                : showProjectionLayout ? 510 : showTextEffects ? 475 : 400;
 
             MinHeight = Math.Min(MinHeight, targetHeight);
             Height = targetHeight;
@@ -379,7 +383,7 @@ namespace ImageColorChanger.UI
             if (isLatest)
             {
                 _latestColor = NormalizeHex(picked, "#FFFF00");
-                _setLatestColor(_latestColor);
+                _setLatestColor?.Invoke(_latestColor);
             }
             else
             {
@@ -423,8 +427,8 @@ namespace ImageColorChanger.UI
             _syncingUi = false;
 
             if (slider == FontSizeSlider) _setFontSize(snapped);
-            else if (slider == LetterSpacingSlider) _setLetterSpacing(snapped);
-            else if (slider == LineGapSlider) _setLineGapLevel(snapped);
+            else if (slider == LetterSpacingSlider) _setLetterSpacing?.Invoke(snapped);
+            else if (slider == LineGapSlider) _setLineGapLevel?.Invoke(snapped);
             else if (slider == NdiLineCharSlider) _setNdiLineCharLimit?.Invoke(snapped);
         }
 
@@ -456,7 +460,7 @@ namespace ImageColorChanger.UI
             if (isLatest)
             {
                 _latestColor = NormalizeHex(hex, "#FFFF00");
-                _setLatestColor(_latestColor);
+                _setLatestColor?.Invoke(_latestColor);
             }
             else
             {

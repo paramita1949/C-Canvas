@@ -20,7 +20,7 @@ namespace ImageColorChanger.Services.LiveCaption
     internal sealed class RealtimeCaptionEngine : IDisposable
     {
         private readonly object _bufferGate = new();
-        private readonly CliProxyApiClient _client;
+        private readonly ILiveCaptionSpeechClient _client;
         private readonly MemoryStream _pcmBuffer = new();
         private readonly MemoryStream _realtimePcmBuffer = new();
         private readonly object _subtitleGate = new();
@@ -77,8 +77,11 @@ namespace ImageColorChanger.Services.LiveCaption
         public event Action<string> DebugInfoUpdated;
 
         public RealtimeCaptionEngine(ConfigManager config)
+            : this(new CliProxyApiClient(config, useRealtimeSettings: true)) { }
+
+        internal RealtimeCaptionEngine(ILiveCaptionSpeechClient client)
         {
-            _client = new CliProxyApiClient(config, useRealtimeSettings: true);
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             // 高频轮询：实时链路按 200ms 包（6400 bytes）发送。
             _flushTimer = new System.Timers.Timer(200);
             _flushTimer.AutoReset = true;
@@ -88,36 +91,10 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private void ConfigureRealtimeProfile()
         {
-            // 极速优先：
-            // - 百度：100ms 包（3200 bytes），降低首字延迟
-            // - 腾讯：40ms 包（1280 bytes，官方实时建议）
-            if (string.Equals(_client.AsrProvider, "baidu", StringComparison.OrdinalIgnoreCase))
-            {
-                _realtimeTickMs = 100;
-                _realtimePacketBytes = 3200;
-                _realtimeMaxQueueBytes = _realtimePacketBytes * 40;
-            }
-            else if (string.Equals(_client.AsrProvider, "doubao", StringComparison.OrdinalIgnoreCase))
-            {
-                // 豆包官方建议分包 100~200ms；默认使用 200ms，优先稳定性。
-                _realtimeTickMs = 200;
-                _realtimePacketBytes = 6400;
-                _realtimeMaxQueueBytes = _realtimePacketBytes * 30;
-            }
-            else if (string.Equals(_client.AsrProvider, "funasr", StringComparison.OrdinalIgnoreCase))
-            {
-                // FunASR 本地 websocket 推荐较稳妥分包，兼顾延迟与稳定。
-                _realtimeTickMs = 100;
-                _realtimePacketBytes = 3200;
-                _realtimeMaxQueueBytes = _realtimePacketBytes * 40;
-            }
-            else
-            {
-                _realtimeTickMs = 40;
-                _realtimePacketBytes = 1280;
-                _realtimeMaxQueueBytes = _realtimePacketBytes * 100;
-            }
-
+            var profile = _client.AudioProfile;
+            _realtimeTickMs = profile.TickMilliseconds;
+            _realtimePacketBytes = profile.PacketBytes;
+            _realtimeMaxQueueBytes = profile.MaxQueueBytes;
             _flushTimer.Interval = _realtimeTickMs;
         }
 
@@ -748,7 +725,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            if (string.Equals(_client.AsrProvider, "xfyun", StringComparison.OrdinalIgnoreCase))
+            if (_client.AudioProfile.EnableStallRecovery)
             {
                 await TryRecoverXfyunStalledSessionAsync();
                 if (!_client.IsRealtimeConnected)
@@ -844,27 +821,7 @@ namespace ImageColorChanger.Services.LiveCaption
             }
         }
 
-        private int GetRealtimeKeepAliveIntervalMs()
-        {
-            // 豆包在静音阶段如果长时间不发包会报 45000081（等包超时），保活要更积极。
-            if (string.Equals(_client.AsrProvider, "doubao", StringComparison.OrdinalIgnoreCase))
-            {
-                return 300;
-            }
-
-            if (string.Equals(_client.AsrProvider, "baidu", StringComparison.OrdinalIgnoreCase))
-            {
-                return 800;
-            }
-
-            if (string.Equals(_client.AsrProvider, "xfyun", StringComparison.OrdinalIgnoreCase))
-            {
-                // 讯飞在静默期长期无音频包时可能关闭会话，发送静音保活包维持链路。
-                return 800;
-            }
-
-            return 0;
-        }
+        private int GetRealtimeKeepAliveIntervalMs() => _client.AudioProfile.KeepAliveMilliseconds;
 
         private async Task TryRecoverRealtimeConnectionAsync()
         {
@@ -936,7 +893,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return;
             }
 
-            if (!_client.IsXfyunReceiveStalled(TimeSpan.FromSeconds(8)))
+            if (!_client.IsReceiveStalled(TimeSpan.FromSeconds(8)))
             {
                 return;
             }
@@ -949,7 +906,7 @@ namespace ImageColorChanger.Services.LiveCaption
             _xfyunStallRecoverLastUtc = now;
             _xfyunStallRecoverCount++;
 
-            long noRecvMs = _client.XfyunNoReceiveForMs;
+            long noRecvMs = _client.ReceiveIdleMilliseconds;
             LiveCaptionDebugLogger.Log($"ReconnectDiag: xfyun-stall detected noRecvMs={noRecvMs}, recoverCount={_xfyunStallRecoverCount}");
             StatusChanged?.Invoke($"讯飞链路{Math.Max(1, noRecvMs / 1000)}秒无回包，正在重建会话（{_xfyunStallRecoverCount}）");
 

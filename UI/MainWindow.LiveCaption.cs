@@ -24,6 +24,7 @@ namespace ImageColorChanger.UI
         private LiveCaptionStyleControlCenterWindow _captionStyleWindow;
         private LiveCaptionDockMode _liveCaptionDockMode = LiveCaptionDockMode.Floating;
         private bool _isDisposingLiveCaption;
+        private bool _liveCaptionStopInProgress;
         private bool _liveCaptionOverlayManuallyHidden;
         private bool _liveCaptionProjectionCaptionHidden = true;
         private bool _liveCaptionToggleInProgress;
@@ -48,25 +49,10 @@ namespace ImageColorChanger.UI
         private const int LiveCaptionMainLineCharLimit = 30;
         private static readonly TimeSpan LiveCaptionIdleShutdownCheckInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan LiveCaptionIdleShutdownTimeout = TimeSpan.FromMinutes(1);
-        private DateTime _realtimeVerseLastAttemptUtc = DateTime.MinValue;
-        private string _realtimeVerseLastText = string.Empty;
-        private int _realtimeLastResolvedBookId;
-        private int _realtimeLastResolvedChapter;
-        private DateTime _realtimeLastResolvedUtc = DateTime.MinValue;
 
         private string GetRealtimeLogTag()
         {
             return LiveCaptionPlatformLabelFormatter.BuildRealtimeTag(_configManager?.LiveCaptionRealtimeAsrProvider);
-        }
-
-        private string GetRealtimeVerseLogTag()
-        {
-            if (ShouldRouteXfyunShortPhraseToRealtime())
-            {
-                return $"[{GetShortPhraseProviderDisplayName()}短语(实时链路)]";
-            }
-
-            return GetRealtimeLogTag();
         }
 
         private string GetRealtimeProviderDisplayName()
@@ -86,6 +72,7 @@ namespace ImageColorChanger.UI
 
         private string GetVerseRecognitionProviderDisplayName()
         {
+            if (_configManager?.LiveCaptionInputMethodEnabled == true) return "输入法文字";
             string verseSource = (_configManager?.LiveCaptionVerseSource ?? "shortPhrase").Trim().ToLowerInvariant();
             string realtime = GetRealtimeProviderDisplayName();
             string shortPhrase = GetShortPhraseProviderDisplayName();
@@ -252,40 +239,34 @@ namespace ImageColorChanger.UI
                 _liveCaptionEngine.DebugInfoUpdated += OnLiveCaptionDebugInfoUpdated;
             }
 
-            if (_bibleService == null)
-            {
-                InitializeBibleService();
-            }
-
+            EnsureCaptionBibleTextComponents();
             _bibleBaiduShortSpeechClient ??= new BibleBaiduShortSpeechClient(_configManager);
-
-            if (_bibleVerseContentIndex == null)
-            {
-                _bibleVerseContentIndex = new BibleVerseContentIndex();
-                _ = Task.Run(() => _bibleVerseContentIndex.LoadAsync(_bibleService, dbFilePath: GetBibleDbFilePath()));
-            }
-
-            _bibleSpeechReverseLookupService ??= new BibleSpeechReverseLookupService(
-                _bibleVerseContentIndex,
-                msg => LogShortPhraseCaption(msg));
             _bibleShortPhraseRuntime ??= new BibleShortPhraseRuntime(
                 new BibleShortPhraseConsumer(
-                    _bibleService,
                     (wav, ct) => _bibleBaiduShortSpeechClient.TranscribeWavAsync(wav, ct),
-                    _bibleSpeechReverseLookupService,
-                    msg => LogShortPhraseCaption(msg)),
+                    ResolveCaptionBibleTextAsync,
+                    msg => LogShortPhraseCaption(msg),
+                    () => _captionBibleToken),
                 result =>
                 {
                     int revision = _liveCaptionStateRevision;
+                    int documentRevision = _captionDocumentRevision;
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (revision != _liveCaptionStateRevision || _configManager.LiveCaptionInputMethodEnabled || !_configManager.LiveCaptionShortPhraseEnabled) return;
-                        if (!string.IsNullOrWhiteSpace(result?.RecognizedText))
+                        if (revision != _liveCaptionStateRevision || documentRevision != _captionDocumentRevision || _configManager.LiveCaptionInputMethodEnabled || !_configManager.LiveCaptionShortPhraseEnabled) return;
+                        if (result == null || result.FailureReason == "canceled" || result.SessionToken.IsCancellationRequested) return;
+                        if (!string.IsNullOrWhiteSpace(result.RecognizedText))
                         {
                             TouchLiveCaptionRecognitionActivity();
+                            if (!_configManager.LiveCaptionRealtimeEnabled)
+                            {
+                                var update = new LiveCaptionAsrText(result.RecognizedText, isFinal: true);
+                                ForwardLiveCaptionAsrToAi(update);
+                                _liveCaptionOverlayWindow?.ApplyRecognitionText(update);
+                            }
                         }
 
-                        if (result.Success)
+                        if (result.Success && !result.IsDuplicate)
                         {
                             int startVs = Math.Max(1, result.Reference.StartVerse);
                             int endVs   = Math.Max(1, result.FinalEndVerse);
@@ -318,12 +299,13 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayWindow.CaptionPositionRequested += OnLiveCaptionOverlayCaptionPositionRequested;
                 _liveCaptionOverlayWindow.CloseRequested += StopLiveCaption;
                 _liveCaptionOverlayWindow.InputMethodToggleRequested += OnInputMethodToggleRequested;
-                _liveCaptionOverlayWindow.InputMethodTextChanged += OnInputMethodTextChanged;
+                _liveCaptionOverlayWindow.CaptionTextChanged += OnCaptionTextChanged;
+                _liveCaptionOverlayWindow.CaptionCleared += OnCaptionDocumentCleared;
+                _liveCaptionOverlayWindow.CaptionPrefixArchived += OnCaptionPrefixArchived;
                 _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested += OnRealtimeRecognitionToggleRequested;
                 _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested += OnShortPhraseRecognitionToggleRequested;
                 _liveCaptionOverlayWindow.FloatingBoundsChanged += OnLiveCaptionFloatingBoundsChanged;
                 _liveCaptionOverlayWindow.Closed += LiveCaptionOverlayWindow_Closed;
-                _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
                 _liveCaptionOverlayWindow.SetWorkAreaReservationEnabled(ShouldReserveWorkAreaForDockMode(_liveCaptionDockMode));
                 _liveCaptionOverlayWindow.SetProjectionToggleState(_liveCaptionProjectionCaptionHidden);
                 SyncRecognitionPlatformNamesToOverlay();
@@ -474,7 +456,7 @@ namespace ImageColorChanger.UI
 
         private void SyncAiPanelAsrConnectionStatus()
         {
-            _aiAssistantPanelWindow?.SetAsrConnectionState(_aiSermonReceiveAsr, IsLiveCaptionRealtimeConnected(), IsLiveCaptionInputMethodActive());
+            _aiAssistantPanelWindow?.SetAsrConnectionState(_aiSermonReceiveAsr, IsLiveCaptionSpeechInputActive(), IsLiveCaptionInputMethodActive());
         }
 
         private void OpenLiveCaptionPanel()
@@ -566,6 +548,7 @@ namespace ImageColorChanger.UI
             var sw = System.Diagnostics.Stopwatch.StartNew();
             _configManager.EnsureLiveCaptionSourceSelected();
             EnsureLiveCaptionComponents();
+            if (_liveCaptionEngine?.IsRunning != true) _liveCaptionOverlayWindow?.ResetRecognitionSession();
             LiveCaptionDebugLogger.Log($"StartPerf: ensure-components={sw.ElapsedMilliseconds}ms");
             LiveCaptionDebugLogger.Log($"Start: request source={source}, configured={_liveCaptionEngine?.IsConfigured}, running={_liveCaptionEngine?.IsRunning}");
 
@@ -591,8 +574,6 @@ namespace ImageColorChanger.UI
 
             _liveCaptionOverlayWindow.RefreshDockLayoutNow();
             ApplyLiveCaptionTypographyFromBible();
-            _liveCaptionOverlayWindow.UpdateCaption(string.Empty, 0);
-            _liveCaptionOverlayWindow.SetTypingAnimationEnabled(false);
             UpdateLiveCaptionProjectionActionState();
             UpdateLiveCaptionNdiActionState();
             SyncLiveCaptionProjectionCaptionForProjectionState(_projectionManager?.IsProjectionActive == true);
@@ -622,13 +603,17 @@ namespace ImageColorChanger.UI
 
         private void StopLiveCaption()
         {
+            if (_liveCaptionStopInProgress) return;
+            _liveCaptionStopInProgress = true;
             ++_liveCaptionStateRevision;
-            ResetAiCaptionInput();
             _inputMethodSessionActive = false;
-            _liveCaptionOverlayWindow?.SetInputMethodMode(false);
-            InputMethodCaptionDiagnostics.Log("session=stopped");
+            ResetCaptionBibleRecognition();
             try
             {
+                _liveCaptionOverlayWindow?.SetInputMethodMode(false);
+                _liveCaptionOverlayWindow?.ResetRecognitionSession();
+                ResetAiCaptionInput(retainInputMethodBaseline: false);
+                InputMethodCaptionDiagnostics.Log("session=stopped");
                 LiveCaptionDebugLogger.Log($"Stop: request running={_liveCaptionEngine?.IsRunning}, overlayVisible={_liveCaptionOverlayWindow?.IsVisible}");
                 _liveCaptionEngine?.Stop();
                 _bibleShortPhraseRuntime?.Abort();
@@ -665,11 +650,13 @@ namespace ImageColorChanger.UI
                 LiveCaptionDebugLogger.Log($"Stop: failed with {ex.GetType().Name}: {ex.Message}");
                 ShowStatus($"关闭字幕失败：{ex.Message}");
             }
+            finally { _liveCaptionStopInProgress = false; }
         }
 
         private void LiveCaptionOverlayWindow_Closed(object sender, EventArgs e)
         {
             LiveCaptionDebugLogger.Log($"OverlayClosed: disposing={_isDisposingLiveCaption}");
+            if (ReferenceEquals(sender, _liveCaptionOverlayWindow)) _liveCaptionOverlayWindow = null;
             if (_isDisposingLiveCaption)
             {
                 return;
@@ -895,9 +882,10 @@ namespace ImageColorChanger.UI
         private void OnLiveCaptionSubtitleUpdated(LiveCaptionAsrText update)
         {
             int revision = _liveCaptionStateRevision;
+            int documentRevision = _captionDocumentRevision;
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (revision != _liveCaptionStateRevision || _configManager.LiveCaptionInputMethodEnabled ||
+                if (revision != _liveCaptionStateRevision || documentRevision != _captionDocumentRevision || _configManager.LiveCaptionInputMethodEnabled ||
                     _liveCaptionEngine == null || !_liveCaptionEngine.IsRunning)
                 {
                     return;
@@ -910,79 +898,24 @@ namespace ImageColorChanger.UI
 
                 ForwardLiveCaptionAsrToAi(update);
 
-                // 经文匹配：不依赖 overlay 窗口，静默运行也能触发
-                // 策略分层：
-                // - interim: 尾部窗口 + 冷却，低频触发，避免抖动
-                // - final:   整句强制触发（不受冷却限制），提高经文入槽确定性
-                bool verseSourceRealtime = IsVerseSourceRealtime();
-                if (!verseSourceRealtime && update.IsFinal && !string.IsNullOrWhiteSpace(update.Text))
-                {
-                    LiveCaptionDebugLogger.Log($"{GetRealtimeVerseLogTag()} RealtimeVerse: ASR文本(final-passive) '{TrimForLog(update.Text.Trim())}'");
-                }
+                // 语音只提供文本和final标记；独立文字服务负责经文能力。
+                if (_configManager.LiveCaptionShortPhraseEnabled && IsVerseSourceRealtime() &&
+                    _captionBibleTextBuffer.TryCreateRealtimeProbe(update.Text, update.IsFinal, DateTimeOffset.UtcNow, out var probe))
+                    QueueCaptionBibleProbes(new[] { probe });
 
-                if (verseSourceRealtime && !string.IsNullOrWhiteSpace(update.Text))
-                {
-                    string rawText = update.Text.Trim();
-                    if (TryBuildRealtimeVerseProbeText(rawText, update.IsFinal, out string probeText, out string probeReason))
-                    {
-                        _realtimeVerseLastAttemptUtc = DateTime.UtcNow;
-                        _realtimeVerseLastText = probeText;
-                        LiveCaptionDebugLogger.Log($"{GetRealtimeVerseLogTag()} RealtimeVerse: ASR文本({probeReason}) '{TrimForLog(probeText)}'");
-                        _ = TryMatchVerseFromRealtimeAsync(probeText, update.IsFinal);
-                    }
-                }
-
-                // 实时语音未启用或 overlay 未创建 → 不渲染字幕
-                if (!_configManager.LiveCaptionRealtimeEnabled || _liveCaptionOverlayWindow == null)
-                    return;
-
-                // NDI 独立链路：不复用主屏/投影链路的排版与窗口更新条件。
-                LiveCaptionRenderFrame ndiFrame = PushNdiCaptionFrame(update);
-                if (ndiFrame.HasChanged)
-                {
-                    UpdateLiveCaptionNdiCaption(ndiFrame.Display, ndiFrame.HighlightStart);
-                }
-
-                RecalculateLiveCaptionComposerLayout();
-                LiveCaptionRenderFrame frame = _liveCaptionComposer.Push(update);
-                ProbeHorizontalShiftAnomaly(frame, update);
-                if (!frame.HasChanged)
-                {
-                    // unchanged, skip
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(frame.Display))
-                {
-                    // display empty, skip
-                    return;
-                }
-
-                if (!_hasShownRealtimeSubtitleFeedback)
+                // 主屏始终更新统一记录，隐藏窗口也继续接收文字；投影 / NDI 由文档快照独立排版。
+                if ((!_configManager.LiveCaptionRealtimeEnabled && !ShouldRouteXfyunShortPhraseToRealtime()) ||
+                    _liveCaptionOverlayWindow == null) return;
+                _liveCaptionOverlayWindow.ApplyRecognitionText(update);
+                if (!_hasShownRealtimeSubtitleFeedback && !string.IsNullOrWhiteSpace(update.Text))
                 {
                     _hasShownRealtimeSubtitleFeedback = true;
                     ShowStatus("实时字幕已接收");
                 }
-
-                // 投影字幕与本机字幕窗显示状态解耦：
-                // 即使本机字幕窗被手动隐藏，也要继续推送投影字幕。
-                UpdateLiveCaptionProjectionCaption(frame.Display, frame.HighlightStart);
-
-                if (_liveCaptionOverlayManuallyHidden)
-                {
-                    // overlay hidden manually, local render skipped
-                    return;
-                }
-
-                if (!_liveCaptionOverlayWindow.IsVisible)
-                {
-                    _liveCaptionOverlayWindow.Show();
-                }
-
-                _liveCaptionOverlayWindow.UpdateCaption(frame.Display, frame.HighlightStart);
+                if (_liveCaptionOverlayManuallyHidden) return;
+                if (!_liveCaptionOverlayWindow.IsVisible) _liveCaptionOverlayWindow.Show();
                 SyncLiveCaptionVisibilityWithMainWindowContext("subtitle-updated");
                 ApplyMainWindowLiveCaptionReservation();
-                // subtitle rendered
             }));
         }
 
@@ -1044,277 +977,6 @@ namespace ImageColorChanger.UI
             return string.Equals(shortProvider, "xfyun", StringComparison.OrdinalIgnoreCase);
         }
 
-        private async Task TryMatchVerseFromRealtimeAsync(string text, bool isFinal)
-        {
-            int revision = _liveCaptionStateRevision;
-            bool IsCurrent() => revision == _liveCaptionStateRevision && !_configManager.LiveCaptionInputMethodEnabled && _liveCaptionEngine?.IsRunning == true;
-            if (!IsCurrent()) return;
-            if (string.IsNullOrWhiteSpace(text) || _bibleSpeechReverseLookupService == null)
-                return;
-
-            try
-            {
-                var parseCandidates = BibleSpeechTextNormalizer.BuildReferenceCandidates(
-                    text,
-                    aggressive: isFinal,
-                    allowInferVerseUnit: isFinal);
-                if (TryParseReferenceFromCandidates(parseCandidates, out var directRef, out string matchedCandidate))
-                {
-                    int endVs = directRef.EndVerse;
-                    if (endVs <= 0)
-                    {
-                        int vc = await _bibleService.GetVerseCountAsync(directRef.BookId, directRef.Chapter);
-                        endVs = vc > 0 ? vc : Math.Max(1, directRef.StartVerse);
-                    }
-                    if (!IsCurrent()) return;
-                    _bibleSpeechReverseLookupService.NotifyDirectParse(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse));
-                    UpdateRealtimeVerseContext(directRef.BookId, directRef.Chapter);
-                    LiveCaptionDebugLogger.Log(
-                        $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 直接解析 book={directRef.BookId} ch={directRef.Chapter} vs={directRef.StartVerse}~{endVs} | src='{TrimForLog(text)}' matched='{TrimForLog(matchedCandidate)}'");
-                    ShowToast(FormatBibleReferenceToastText(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs));
-                    AddPinyinHistoryToEmptySlot(directRef.BookId, directRef.Chapter, Math.Max(1, directRef.StartVerse), endVs, focusHistorySlot: true);
-                    return;
-                }
-
-                // 实时 interim 片段只走规则解析，不走内容反查，避免半句触发误匹配。
-                if (!isFinal)
-                {
-                    return;
-                }
-
-                if (TryResolveWithRealtimeContext(parseCandidates, out var contextualRef, out string contextualCandidate))
-                {
-                    int contextualEnd = contextualRef.EndVerse;
-                    if (contextualEnd <= 0)
-                    {
-                        int vc = await _bibleService.GetVerseCountAsync(contextualRef.BookId, contextualRef.Chapter);
-                        contextualEnd = vc > 0 ? vc : Math.Max(1, contextualRef.StartVerse);
-                    }
-
-                    if (!IsCurrent()) return;
-                    _bibleSpeechReverseLookupService.NotifyDirectParse(
-                        contextualRef.BookId,
-                        contextualRef.Chapter,
-                        Math.Max(1, contextualRef.StartVerse));
-                    UpdateRealtimeVerseContext(contextualRef.BookId, contextualRef.Chapter);
-                    LiveCaptionDebugLogger.Log(
-                        $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 上下文补全 book={contextualRef.BookId} ch={contextualRef.Chapter} vs={contextualRef.StartVerse}~{contextualEnd} | src='{TrimForLog(text)}' matched='{TrimForLog(contextualCandidate)}'");
-                    ShowToast(FormatBibleReferenceToastText(
-                        contextualRef.BookId,
-                        contextualRef.Chapter,
-                        Math.Max(1, contextualRef.StartVerse),
-                        contextualEnd));
-                    AddPinyinHistoryToEmptySlot(
-                        contextualRef.BookId,
-                        contextualRef.Chapter,
-                        Math.Max(1, contextualRef.StartVerse),
-                        contextualEnd,
-                        focusHistorySlot: true);
-                    return;
-                }
-
-                var resolved = await _bibleSpeechReverseLookupService.TryResolveAsync(
-                    _bibleService, text, CancellationToken.None);
-                if (!IsCurrent() || !resolved.HasValue)
-                    return;
-
-                var r = resolved.Value;
-                int finalEnd = r.EndVerse;
-                if (finalEnd <= 0)
-                {
-                    int vc = await _bibleService.GetVerseCountAsync(r.BookId, r.Chapter);
-                    finalEnd = vc > 0 ? vc : Math.Max(1, r.StartVerse);
-                }
-                if (!IsCurrent()) return;
-                UpdateRealtimeVerseContext(r.BookId, r.Chapter);
-                LiveCaptionDebugLogger.Log(
-                    $"{GetRealtimeVerseLogTag()} RealtimeVerse: ✅ 内容反查 book={r.BookId} ch={r.Chapter} vs={r.StartVerse}~{finalEnd} | '{TrimForLog(text)}'");
-                _ = Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (!IsCurrent()) return;
-                    ShowToast(FormatBibleReferenceToastText(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd));
-                    AddPinyinHistoryToEmptySlot(r.BookId, r.Chapter, Math.Max(1, r.StartVerse), finalEnd, focusHistorySlot: true);
-                }));
-            }
-            catch (Exception ex)
-            {
-                LogRealtimeCaption($"RealtimeVerse: error {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-
-        private bool TryBuildRealtimeVerseProbeText(string rawText, bool isFinal, out string probeText, out string reason)
-        {
-            probeText = string.Empty;
-            reason = string.Empty;
-            string text = (rawText ?? string.Empty).Trim();
-            if (text.Length == 0)
-            {
-                return false;
-            }
-
-            if (isFinal)
-            {
-                probeText = text;
-                reason = "final";
-                return !string.Equals(probeText, _realtimeVerseLastText, StringComparison.Ordinal);
-            }
-
-            int tailLen = Math.Min(text.Length, 30);
-            string tail = text.Substring(text.Length - tailLen);
-            if (tail.Length < 6)
-            {
-                return false;
-            }
-
-            bool textChanged = !string.Equals(tail, _realtimeVerseLastText, StringComparison.Ordinal);
-            bool cooldownPassed = (DateTime.UtcNow - _realtimeVerseLastAttemptUtc).TotalMilliseconds >= 3000;
-            if (!textChanged || !cooldownPassed)
-            {
-                return false;
-            }
-
-            probeText = tail;
-            reason = "interim";
-            return true;
-        }
-
-        private static bool TryParseReferenceFromCandidates(
-            IReadOnlyList<string> candidates,
-            out BibleSpeechReference reference,
-            out string matchedCandidate)
-        {
-            reference = default;
-            matchedCandidate = string.Empty;
-            if (candidates == null || candidates.Count == 0)
-            {
-                return false;
-            }
-
-            int bestScore = int.MinValue;
-            bool matched = false;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                string candidate = candidates[i];
-                if (!BibleSpeechReferenceParser.TryParse(candidate, out var parsed))
-                {
-                    continue;
-                }
-
-                int score = 0;
-                if (parsed.EndVerse > 0)
-                {
-                    score += 6;
-                }
-                if (parsed.StartVerse > 1)
-                {
-                    score += 3;
-                }
-                if (candidate.Contains("节", StringComparison.Ordinal) || candidate.Contains(":", StringComparison.Ordinal))
-                {
-                    score += 2;
-                }
-                if (candidate.Contains("章", StringComparison.Ordinal))
-                {
-                    score += 1;
-                }
-
-                if (!matched || score > bestScore)
-                {
-                    matched = true;
-                    bestScore = score;
-                    reference = parsed;
-                    matchedCandidate = candidate;
-                }
-            }
-
-            return matched;
-        }
-
-        private void UpdateRealtimeVerseContext(int bookId, int chapter)
-        {
-            if (bookId <= 0 || chapter <= 0)
-            {
-                return;
-            }
-
-            _realtimeLastResolvedBookId = bookId;
-            _realtimeLastResolvedChapter = chapter;
-            _realtimeLastResolvedUtc = DateTime.UtcNow;
-        }
-
-        private bool TryResolveWithRealtimeContext(
-            IReadOnlyList<string> candidates,
-            out BibleSpeechReference reference,
-            out string matchedCandidate)
-        {
-            reference = default;
-            matchedCandidate = string.Empty;
-            if (_realtimeLastResolvedBookId <= 0 || _realtimeLastResolvedChapter <= 0)
-            {
-                return false;
-            }
-
-            if ((DateTime.UtcNow - _realtimeLastResolvedUtc).TotalSeconds > 12)
-            {
-                return false;
-            }
-
-            if (candidates == null || candidates.Count == 0)
-            {
-                return false;
-            }
-
-            string bookName = BibleBookConfig.GetBook(_realtimeLastResolvedBookId)?.Name;
-            if (string.IsNullOrWhiteSpace(bookName))
-            {
-                return false;
-            }
-
-            int bestScore = int.MinValue;
-            bool matched = false;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                string candidate = candidates[i];
-                string synthetic = $"{bookName}{_realtimeLastResolvedChapter}章{candidate}";
-                if (!BibleSpeechReferenceParser.TryParse(synthetic, out var parsed))
-                {
-                    continue;
-                }
-
-                if (parsed.BookId != _realtimeLastResolvedBookId || parsed.Chapter != _realtimeLastResolvedChapter)
-                {
-                    continue;
-                }
-
-                // 只接受带节号的补全，避免把“二章”再次补全成整章。
-                if (parsed.EndVerse <= 0)
-                {
-                    continue;
-                }
-
-                int score = 0;
-                if (candidate.Contains("节", StringComparison.Ordinal) || candidate.Contains(":", StringComparison.Ordinal))
-                {
-                    score += 3;
-                }
-                if (parsed.StartVerse > 1)
-                {
-                    score += 2;
-                }
-                score += 1;
-
-                if (!matched || score > bestScore)
-                {
-                    matched = true;
-                    bestScore = score;
-                    reference = parsed;
-                    matchedCandidate = synthetic;
-                }
-            }
-
-            return matched;
-        }
-
         private void OnLiveCaptionStatusChanged(string status)
         {
             LogRealtimeCaption($"EngineStatus: {status}");
@@ -1338,6 +1000,12 @@ namespace ImageColorChanger.UI
         {
             LiveCaptionDebugLogger.Log("Dispose: begin.");
             _isDisposingLiveCaption = true;
+            ResetCaptionBibleRecognition();
+            if (_captionBibleTextTimer != null) _captionBibleTextTimer.Tick -= OnCaptionBibleTextTimerTick;
+            _captionBibleTextTimer = null;
+            _captionBibleCts.Cancel();
+            _captionBibleCts.Dispose();
+            _captionBibleTextService = null;
             try
             {
                 if (_liveCaptionIdleShutdownTimer != null)
@@ -1384,7 +1052,9 @@ namespace ImageColorChanger.UI
                     _liveCaptionOverlayWindow.CaptionPositionRequested -= OnLiveCaptionOverlayCaptionPositionRequested;
                     _liveCaptionOverlayWindow.CloseRequested -= StopLiveCaption;
                     _liveCaptionOverlayWindow.InputMethodToggleRequested -= OnInputMethodToggleRequested;
-                    _liveCaptionOverlayWindow.InputMethodTextChanged -= OnInputMethodTextChanged;
+                    _liveCaptionOverlayWindow.CaptionTextChanged -= OnCaptionTextChanged;
+                    _liveCaptionOverlayWindow.CaptionCleared -= OnCaptionDocumentCleared;
+                    _liveCaptionOverlayWindow.CaptionPrefixArchived -= OnCaptionPrefixArchived;
                     _liveCaptionOverlayWindow.RealtimeRecognitionToggleRequested -= OnRealtimeRecognitionToggleRequested;
                     _liveCaptionOverlayWindow.ShortPhraseRecognitionToggleRequested -= OnShortPhraseRecognitionToggleRequested;
                     _liveCaptionOverlayWindow.FloatingBoundsChanged -= OnLiveCaptionFloatingBoundsChanged;
@@ -1400,7 +1070,6 @@ namespace ImageColorChanger.UI
             _projectionManager?.HideProjectionCaptionOverlay();
             _liveCaptionNdiOutput?.Dispose();
             _liveCaptionNdiOutput = null;
-            _ndiRouter?.StopCaptionOutput();
             _liveCaptionNdiComposer.Reset();
             ApplyMainWindowLiveCaptionReservation();
             UnregisterLiveCaptionF4HotKey();
@@ -1513,7 +1182,7 @@ namespace ImageColorChanger.UI
                 key: "local",
                 label: "本机",
                 title: "AI字幕 · 本机样式",
-                subtitle: "控制台模式：滑条 / 数值，步长 0.5。",
+                subtitle: "主屏统一文本框：设置字体、字号和文字颜色。",
                 loadState: () => new LiveCaptionStyleControlCenterWindow.State
                 {
                     FontFamily = string.IsNullOrWhiteSpace(_configManager.LiveCaptionLocalFontFamily)
@@ -1521,18 +1190,16 @@ namespace ImageColorChanger.UI
                             ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
                             : _configManager.LiveCaptionFontFamily.Trim())
                         : _configManager.LiveCaptionLocalFontFamily.Trim(),
-                    FontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
-                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing, 0, 10),
-                    LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLocalLineGap > 0 ? _configManager.LiveCaptionLocalLineGap : _configManager.LiveCaptionLineGap),
+                    FontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 36),
+                    FontSizeMaximum = 36,
                     TextColor = NormalizeColorHex(_configManager.LiveCaptionLocalTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
-                    LatestColor = NormalizeColorHex(_configManager.LiveCaptionLocalLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
                 },
                 setFontFamily: family => { _configManager.LiveCaptionLocalFontFamily = family; ApplyLiveCaptionTypographyFromBible(); },
                 setFontSize: SetLocalCaptionFontSize,
-                setLetterSpacing: SetLocalCaptionLetterSpacing,
-                setLineGapLevel: SetLocalCaptionLineGap,
+                setLetterSpacing: null,
+                setLineGapLevel: null,
                 setTextColor: hex => { _configManager.LiveCaptionLocalTextColor = NormalizeColorHex(hex, "#FFFFFF"); ApplyLiveCaptionTypographyFromBible(); },
-                setLatestColor: hex => { _configManager.LiveCaptionLocalLatestTextColor = NormalizeColorHex(hex, "#FFFF00"); ApplyLiveCaptionTypographyFromBible(); });
+                setLatestColor: null);
         }
 
         private LiveCaptionStyleControlCenterWindow.Profile CreateNdiCaptionStyleProfile()
@@ -1757,8 +1424,8 @@ namespace ImageColorChanger.UI
 
         private void PopulateLocalCaptionFontSizeMenu(MenuItem root)
         {
-            int current = (int)Math.Round(Math.Clamp((_configManager?.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager?.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager?.BibleFontSize ?? 36))), 20, 112));
-            int[] sizes = { 20, 24, 28, 32, 36, 40, 46, 52, 60, 68, 76, 88, 100, 112 };
+            int current = (int)Math.Round(Math.Clamp((_configManager?.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager?.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager?.BibleFontSize ?? 36))), 20, 36));
+            int[] sizes = { 20, 24, 28, 32, 36 };
             foreach (int size in sizes)
             {
                 int selected = size;
@@ -1766,101 +1433,12 @@ namespace ImageColorChanger.UI
             }
         }
 
-        private void ProbeHorizontalShiftAnomaly(in LiveCaptionRenderFrame frame, in LiveCaptionAsrText update)
-        {
-            string display = frame.Display ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(display))
-            {
-                _captionShiftProbePrevDisplay = display;
-                return;
-            }
-
-            string[] lines = display.Replace("\r", string.Empty).Split('\n');
-            int lineCount = lines.Length;
-            int maxLineLen = 0;
-            foreach (string line in lines)
-            {
-                if (line.Length > maxLineLen)
-                {
-                    maxLineLen = line.Length;
-                }
-            }
-
-            bool isHorizontal = !string.Equals(
-                NormalizeProjectionCaptionOrientation(_configManager?.LiveCaptionProjectionOrientation),
-                "vertical",
-                StringComparison.Ordinal);
-            bool hasWrap = display.IndexOf('\n') >= 0;
-            bool exceededLimitNoWrap = isHorizontal && !hasWrap && maxLineLen > LiveCaptionMainLineCharLimit + 1;
-            bool lostWrapUnexpectedly = isHorizontal
-                && _captionShiftProbePrevDisplay.IndexOf('\n') >= 0
-                && !hasWrap
-                && maxLineLen > LiveCaptionMainLineCharLimit / 2;
-
-            if (exceededLimitNoWrap || lostWrapUnexpectedly)
-            {
-                var now = DateTime.UtcNow;
-                if ((now - _captionShiftProbeLastLogUtc).TotalMilliseconds >= 350)
-                {
-                    _captionShiftProbeLastLogUtc = now;
-                    string msg =
-                        $"[CaptionShiftProbe:Main] anomaly wrapLost={lostWrapUnexpectedly}, exceededNoWrap={exceededLimitNoWrap}, " +
-                        $"lineCount={lineCount}, maxLineLen={maxLineLen}, limit={LiveCaptionMainLineCharLimit}, " +
-                        $"highlight={frame.HighlightStart}, final={update.IsFinal}, " +
-                        $"font={_configManager?.LiveCaptionLocalFontSize:0.##}/{_configManager?.LiveCaptionFontSize:0.##}, " +
-                        $"spacing={_configManager?.LiveCaptionLocalLetterSpacing:0.##}/{_configManager?.LiveCaptionLetterSpacing:0.##}, " +
-                        $"gap={_configManager?.LiveCaptionLocalLineGap:0.##}/{_configManager?.LiveCaptionLineGap:0.##}, " +
-                        $"display='{TrimForLog(display)}'";
-                    LiveCaptionDebugLogger.Log(msg);
-                }
-            }
-
-            _captionShiftProbePrevDisplay = display;
-        }
-
         private void SetLocalCaptionFontSize(double value)
         {
             if (_configManager == null) return;
-            _configManager.LiveCaptionLocalFontSize = Math.Clamp(value, 20, 112);
+            _configManager.LiveCaptionLocalFontSize = Math.Clamp(value, 20, 36);
             ApplyLiveCaptionTypographyFromBible();
-            ShowStatus($"本机字幕字号：{value:0}");
-        }
-
-        private void PopulateLocalCaptionLetterSpacingMenu(MenuItem root)
-        {
-            int current = (int)Math.Round(Math.Clamp(_configManager?.LiveCaptionLocalLetterSpacing ?? _configManager?.LiveCaptionLetterSpacing ?? 0, 0, 10));
-            for (int value = 0; value <= 10; value++)
-            {
-                int selected = value;
-                AddLiveCaptionNumericItem(root, value.ToString(), current == value, () => SetLocalCaptionLetterSpacing(selected));
-            }
-        }
-
-        private void SetLocalCaptionLetterSpacing(double value)
-        {
-            if (_configManager == null) return;
-            _configManager.LiveCaptionLocalLetterSpacing = Math.Clamp(value, 0, 10);
-            ApplyLiveCaptionTypographyFromBible();
-            ShowStatus($"本机字幕字间距：{value:0}");
-        }
-
-        private void PopulateLocalCaptionLineGapMenu(MenuItem root)
-        {
-            int currentLevel = LineGapToLevel(_configManager?.LiveCaptionLocalLineGap ?? _configManager?.LiveCaptionLineGap ?? 10);
-            for (int level = 0; level <= 10; level++)
-            {
-                int selectedLevel = level;
-                AddLiveCaptionNumericItem(root, level.ToString(), currentLevel == level, () => SetLocalCaptionLineGap(selectedLevel));
-            }
-        }
-
-        private void SetLocalCaptionLineGap(double value)
-        {
-            if (_configManager == null) return;
-            int level = (int)Math.Round(Math.Clamp(value, 0, 10));
-            _configManager.LiveCaptionLocalLineGap = LevelToLineGap(level);
-            ApplyLiveCaptionTypographyFromBible();
-            ShowStatus($"本机字幕段间距：{level}");
+            ShowStatus($"本机字幕字号：{_configManager.LiveCaptionLocalFontSize:0.#}");
         }
 
         private void PopulateLocalCaptionTextColorMenu(MenuItem root)
@@ -1889,32 +1467,6 @@ namespace ImageColorChanger.UI
                 });
         }
 
-        private void PopulateLocalCaptionLatestColorMenu(MenuItem root)
-        {
-            string current = NormalizeColorHex(_configManager?.LiveCaptionLocalLatestTextColor, NormalizeColorHex(_configManager?.LiveCaptionLatestTextColor, "#FFFF00"));
-            PopulateColorMenuFromPresets(
-                root,
-                current,
-                (hex, name) =>
-                {
-                    if (_configManager == null) return;
-                    _configManager.LiveCaptionLocalLatestTextColor = hex;
-                    ApplyLiveCaptionTypographyFromBible();
-                    ShowStatus($"本机最新字颜色：{name}");
-                });
-            AddCustomColorPickerMenuItem(
-                root,
-                "自定义颜色...",
-                current,
-                (hex) =>
-                {
-                    if (_configManager == null) return;
-                    _configManager.LiveCaptionLocalLatestTextColor = hex;
-                    ApplyLiveCaptionTypographyFromBible();
-                    ShowStatus($"本机最新字颜色：{hex}");
-                });
-        }
-
         private void PopulateLiveCaptionNdiCharsMenu(MenuItem root)
         {
             int current = Math.Clamp(_configManager?.LiveCaptionNdiLineCharLimit ?? 30, 8, 80);
@@ -1934,8 +1486,7 @@ namespace ImageColorChanger.UI
             }
 
             _configManager.LiveCaptionNdiLineCharLimit = Math.Clamp(value, 8, 80);
-            if (IsLiveCaptionInputMethodActive())
-                OnInputMethodTextChanged(_liveCaptionOverlayWindow?.InputMethodText);
+            OnCaptionTextChanged(_liveCaptionOverlayWindow?.CaptionText);
             ShowStatus($"NDI字数：{_configManager.LiveCaptionNdiLineCharLimit}");
         }
 
@@ -2421,13 +1972,6 @@ namespace ImageColorChanger.UI
             _projectionManager.UpdateProjectionCaptionOverlay(next, highlightStart);
         }
 
-        private LiveCaptionRenderFrame PushNdiCaptionFrame(in LiveCaptionAsrText update)
-        {
-            int ndiLineCharLimit = Math.Clamp(_configManager?.LiveCaptionNdiLineCharLimit ?? 30, 8, 80);
-            _liveCaptionNdiComposer.SetLineCharLimit(ndiLineCharLimit);
-            return _liveCaptionNdiComposer.Push(update);
-        }
-
         private void UpdateLiveCaptionNdiCaption(string captionText, int highlightStart)
         {
             PublishLiveCaptionToNdi(captionText, highlightStart);
@@ -2567,26 +2111,18 @@ namespace ImageColorChanger.UI
                 : _configManager.LiveCaptionLocalFontFamily.Trim();
             double localFontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : projectionFontSize, 20, 112);
             double localPadding = Math.Clamp(_configManager.LiveCaptionLocalPadding > 0 ? _configManager.LiveCaptionLocalPadding : projectionPadding, 6, 120);
-            double localLetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing, 0, 10);
-            double localLineGap = Math.Clamp(_configManager.LiveCaptionLocalLineGap, 10, 60);
-            double localLineHeight = localFontSize + localLineGap;
             string localTextColor = NormalizeColorHex(_configManager.LiveCaptionLocalTextColor, projectionTextColor);
-            string localLatestColor = NormalizeColorHex(_configManager.LiveCaptionLocalLatestTextColor, projectionLatestColor);
 
-            _liveCaptionOverlayWindow?.SetCaptionTypography(localFontFamily, localFontSize, localPadding, localLineHeight);
-            _liveCaptionOverlayWindow?.SetCaptionLetterSpacing(localLetterSpacing);
+            _liveCaptionOverlayWindow?.SetCaptionTypography(localFontFamily, localFontSize, localPadding);
             _liveCaptionOverlayWindow?.SetCaptionTextColor(localTextColor);
-            _liveCaptionOverlayWindow?.SetLatestTextHighlightColor(localLatestColor);
             _projectionManager?.SetProjectionCaptionTypography(projectionFontFamily, projectionFontSize, projectionPadding, projectionLineHeight, projectionLetterSpacing, projectionTextColor, projectionLatestColor);
-            RecalculateLiveCaptionComposerLayout(localFontSize, localPadding, localLetterSpacing);
+            RecalculateLiveCaptionComposerLayout();
 
-            if (IsLiveCaptionInputMethodActive())
-                OnInputMethodTextChanged(_liveCaptionOverlayWindow?.InputMethodText);
+            OnCaptionTextChanged(_liveCaptionOverlayWindow?.CaptionText);
 
             // 样式改动必须立即可见：强制用当前显示文本重绘一次，不依赖下一条 ASR 更新。
             if (!string.IsNullOrWhiteSpace(_liveCaptionComposer.CurrentDisplay))
             {
-                _liveCaptionOverlayWindow?.UpdateCaption(_liveCaptionComposer.CurrentDisplay, _liveCaptionComposer.CurrentHighlightStart);
                 if (_projectionManager?.IsProjectionActive == true && !_liveCaptionProjectionCaptionHidden)
                 {
                     _projectionManager.UpdateProjectionCaptionOverlay(
@@ -3201,9 +2737,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionOverlayManuallyHidden = false;
                 _liveCaptionOverlayWindow.Show();
                 _liveCaptionOverlayWindow.RefreshDockLayoutNow();
-                _liveCaptionOverlayWindow.UpdateCaption(
-                    _liveCaptionComposer?.CurrentDisplay ?? string.Empty,
-                    _liveCaptionComposer?.CurrentHighlightStart ?? -1);
+                _liveCaptionOverlayWindow.FocusInputMethodEditor();
                 ApplyMainWindowLiveCaptionReservation();
                 SyncAiCaptionUiState();
                 LiveCaptionDebugLogger.Log($"F4: overlay shown source={source}.");
@@ -3280,9 +2814,6 @@ namespace ImageColorChanger.UI
             {
                 _liveCaptionOverlayWindow.Show();
                 _liveCaptionOverlayWindow.RefreshDockLayoutNow();
-                _liveCaptionOverlayWindow.UpdateCaption(
-                    _liveCaptionComposer.CurrentDisplay,
-                    _liveCaptionComposer.CurrentHighlightStart);
                 LiveCaptionDebugLogger.Log($"WindowContext: overlay ensured visible source={source}");
             }
 

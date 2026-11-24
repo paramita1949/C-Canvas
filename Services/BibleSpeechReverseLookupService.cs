@@ -84,6 +84,7 @@ namespace ImageColorChanger.Services
             string recognizedText,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(recognizedText))
                 return null;
 
@@ -97,8 +98,10 @@ namespace ImageColorChanger.Services
                 var matches = _index.FindByContent(normalized, topN: 5);
                 DateTime now = DateTime.UtcNow;
 
+                cancellationToken.ThrowIfCancellationRequested();
                 lock (_evidenceLock)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     PruneUnsafe(now);
 
                     // 将 top 候选作为投票提交
@@ -280,10 +283,11 @@ namespace ImageColorChanger.Services
             foreach (string keyword in keywords)
             {
                 if (cancellationToken.IsCancellationRequested)
-                    return null;
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                List<BibleSearchResult> hits = await bibleService.SearchVersesAsync(keyword)
+                List<BibleSearchResult> hits = await bibleService.SearchVersesAsync(keyword).WaitAsync(cancellationToken)
                     .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (hits == null || hits.Count == 0)
                     continue;
 

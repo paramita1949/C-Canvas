@@ -52,33 +52,45 @@ namespace ImageColorChanger.Services.LiveCaption
         }
 
         public static string TakeLastWrappedLines(string text, int lineLimit, int maxLines)
+            => TakeLastWrappedLines(text, lineLimit, maxLines, 0);
+
+        public static string TakeLastWrappedLines(string text, int lineLimit, int maxLines, long firstLineOffset)
         {
             int limit = Math.Max(1, lineLimit);
-            var visible = new Queue<string>(Math.Max(1, maxLines));
-            void Add(string line)
+            int count = Math.Max(1, maxLines);
+            var visible = new List<string>(count);
+            // 从尾部读取所需段落，不为早已不可见的每一行和每一个字分配字符串。
+            foreach (CaptionTextLine rawLine in ReadLinesBackwards(text))
             {
-                visible.Enqueue(line);
-                while (visible.Count > Math.Max(1, maxLines)) visible.Dequeue();
-            }
-
-            foreach (CaptionTextLine rawLine in ReadLines(text))
-            {
-                var line = new StringBuilder();
-                int count = 0;
-                foreach (CaptionTextElement element in Enumerate(rawLine.Text))
+                int[] starts = StringInfo.ParseCombiningCharacters(rawLine.Text);
+                int firstCapacity = limit - (rawLine.SourceStart == 0 ? (int)(Math.Max(0, firstLineOffset) % limit) : 0);
+                int rows = starts.Length <= firstCapacity ? 1 : 1 + (starts.Length - firstCapacity + limit - 1) / limit;
+                for (int row = rows - 1; row >= 0 && visible.Count < count; row--)
                 {
-                    if (count == limit)
-                    {
-                        Add(line.ToString());
-                        line.Clear();
-                        count = 0;
-                    }
-                    line.Append(element.Text);
-                    count++;
+                    int elementStart = row == 0 ? 0 : firstCapacity + (row - 1) * limit;
+                    int elementEnd = Math.Min(starts.Length, elementStart + (row == 0 ? firstCapacity : limit));
+                    int start = elementStart < starts.Length ? starts[elementStart] : rawLine.Text.Length;
+                    int end = elementEnd < starts.Length ? starts[elementEnd] : rawLine.Text.Length;
+                    visible.Add(rawLine.Text.Substring(start, end - start));
                 }
-                Add(line.ToString());
+                if (visible.Count == count) break;
             }
+            visible.Reverse();
             return string.Join(Environment.NewLine, visible);
+        }
+
+        private static IEnumerable<CaptionTextLine> ReadLinesBackwards(string text)
+        {
+            string source = text ?? string.Empty;
+            int end = source.Length;
+            for (int i = source.Length - 1; i >= 0; i--)
+            {
+                if (source[i] != '\r' && source[i] != '\n') continue;
+                yield return new CaptionTextLine(source.Substring(i + 1, end - i - 1), i + 1);
+                if (source[i] == '\n' && i > 0 && source[i - 1] == '\r') i--;
+                end = i;
+            }
+            yield return new CaptionTextLine(source.Substring(0, end), 0);
         }
 
         public static int FloorBoundary(string text, int offset)

@@ -143,7 +143,7 @@ namespace ImageColorChanger.Services.Ndi
             {
                 if (_channelManagers.TryGetValue(channel, out var manager))
                 {
-                    manager.Stop();
+                    manager.Retire();
                     _channelManagers.Remove(channel);
                 }
             }
@@ -155,7 +155,7 @@ namespace ImageColorChanger.Services.Ndi
             {
                 foreach (var manager in _channelManagers.Values)
                 {
-                    manager.Stop();
+                    manager.Retire();
                 }
 
                 _channelManagers.Clear();

@@ -21,7 +21,7 @@ using ImageColorChanger.Core;
 
 namespace ImageColorChanger.Services.LiveCaption
 {
-    internal sealed class CliProxyApiClient : IDisposable
+    internal sealed class CliProxyApiClient : ILiveCaptionSpeechClient
     {
         private readonly HttpClient _httpClient;
         private readonly string _provider;
@@ -150,6 +150,9 @@ namespace ImageColorChanger.Services.LiveCaption
         private Action<string> _funAsrRealtimeStatusHandler;
         public string LastError { get; private set; } = string.Empty;
         public string AsrProvider => _provider;
+        public LiveCaptionSpeechAudioProfile AudioProfile => LiveCaptionSpeechAudioProfile.ForProvider(_provider);
+        public long ReceiveIdleMilliseconds => XfyunNoReceiveForMs;
+        public bool IsReceiveStalled(TimeSpan threshold) => IsXfyunReceiveStalled(threshold);
         public string AsrModel => _asrModel;
         public string LastTranscribeUrl { get; private set; } = string.Empty;
         public int LastTranscribeStatusCode { get; private set; }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace ImageColorChanger.Services.LiveCaption
 {
@@ -64,9 +63,12 @@ namespace ImageColorChanger.Services.LiveCaption
         }
 
         public LiveCaptionRenderFrame PushInputSnapshot(string text)
+            => PushInputSnapshot(text, 0);
+
+        public LiveCaptionRenderFrame PushInputSnapshot(string text, long leadingTextElements)
         {
-            // 输入法传入已发布的完整编辑内容；短暂回缩在输入适配层处理，不套用 ASR 合并策略。
-            string nextDisplay = BuildDisplayText(text, preserveLineBreaks: true);
+            // 已发布的工作区快照保留原始行进度；移出旧文不能让剩余字幕重新切行。
+            string nextDisplay = BuildDisplayText(text, preserveLineBreaks: true, leadingTextElements);
             if (string.Equals(nextDisplay, CurrentDisplay, StringComparison.Ordinal))
             {
                 return new LiveCaptionRenderFrame(CurrentDisplay, CurrentHighlightStart, hasChanged: false);
@@ -80,7 +82,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public LiveCaptionRenderFrame Push(in LiveCaptionAsrText update)
         {
-            string normalized = Normalize(update.Text);
+            string normalized = CaptionRecognitionTextPolicy.Normalize(update.Text);
             if (string.IsNullOrWhiteSpace(normalized))
             {
                 return new LiveCaptionRenderFrame(CurrentDisplay, CurrentHighlightStart, hasChanged: false);
@@ -124,7 +126,7 @@ namespace ImageColorChanger.Services.LiveCaption
 
         private bool AcceptInterim(string normalized)
         {
-            if (ShouldRotateDraftToNextUtterance(_draft, normalized))
+            if (CaptionRecognitionTextPolicy.ShouldRotateDraftToNextUtterance(_draft, normalized))
             {
                 // 某些实时接口只回中间结果且会“从新句起点重报”，这里把旧草稿滚入历史，避免界面卡住不更新。
                 EnqueueCommitted(_draft);
@@ -133,7 +135,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return true;
             }
 
-            string merged = MergeDraftStable(_draft, normalized);
+            string merged = CaptionRecognitionTextPolicy.MergeDraftStable(_draft, normalized);
             if (string.Equals(merged, _draft, StringComparison.Ordinal))
             {
                 return false;
@@ -141,35 +143,6 @@ namespace ImageColorChanger.Services.LiveCaption
 
             _draft = merged;
             return true;
-        }
-
-        private static bool ShouldRotateDraftToNextUtterance(string currentDraft, string incoming)
-        {
-            if (string.IsNullOrWhiteSpace(currentDraft) || string.IsNullOrWhiteSpace(incoming))
-            {
-                return false;
-            }
-
-            if (incoming.StartsWith(currentDraft, StringComparison.Ordinal) ||
-                currentDraft.StartsWith(incoming, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            int overlap = FindOverlap(currentDraft, incoming);
-            if (overlap >= 3)
-            {
-                return false;
-            }
-
-            // 新片段明显更短，且与旧草稿无前缀/后缀关系，可判定为“下一句话开始”。
-            if (incoming.Length + 3 < currentDraft.Length)
-            {
-                return true;
-            }
-
-            // 极短片段重启（如“在宁波”“他”）也视为新句启动，避免显示冻结。
-            return incoming.Length <= 8 && currentDraft.Length >= 20;
         }
 
         private void EnqueueCommitted(string text)
@@ -202,9 +175,9 @@ namespace ImageColorChanger.Services.LiveCaption
             return BuildDisplayText(source);
         }
 
-        private string BuildDisplayText(string source, bool preserveLineBreaks = false)
+        private string BuildDisplayText(string source, bool preserveLineBreaks = false, long leadingTextElements = 0)
         {
-            source = preserveLineBreaks ? source ?? string.Empty : Normalize(source);
+            source = preserveLineBreaks ? source ?? string.Empty : CaptionRecognitionTextPolicy.Normalize(source);
             if (source.Length == 0)
             {
                 return string.Empty;
@@ -225,18 +198,17 @@ namespace ImageColorChanger.Services.LiveCaption
                 }
             }
 
-            return RenderWindow(source);
+            return RenderWindow(source, leadingTextElements);
         }
 
-        private string RenderWindow(string source)
+        private string RenderWindow(string source, long leadingTextElements = 0)
         {
             if (string.IsNullOrWhiteSpace(source))
             {
                 return string.Empty;
             }
 
-            // 只裁剪输出；文档不删除。固定文本元素分段，并保留编辑者的显式换行。
-            return CaptionTextElements.TakeLastWrappedLines(source, _lineCharLimit, _displayLineLimit);
+            return CaptionTextElements.TakeLastWrappedLines(source, _lineCharLimit, _displayLineLimit, leadingTextElements);
         }
 
         private static int ComputeHighlightStart(string previous, string current)
@@ -257,7 +229,7 @@ namespace ImageColorChanger.Services.LiveCaption
                 return CaptionTextElements.FloorBoundary(current, previous.Length);
             }
 
-            int overlap = FindOverlap(previous, current);
+            int overlap = CaptionRecognitionTextPolicy.FindOverlap(previous, current);
             if (overlap >= 4 && overlap < current.Length)
             {
                 return CaptionTextElements.FloorBoundary(current, overlap);
@@ -265,96 +237,6 @@ namespace ImageColorChanger.Services.LiveCaption
 
             // 无法稳定识别新增片段时，不高亮，避免整段颜色跳变。
             return current.Length;
-        }
-
-        private static string MergeDraftStable(string currentDraft, string incoming)
-        {
-            if (string.IsNullOrWhiteSpace(incoming))
-            {
-                return currentDraft;
-            }
-
-            if (string.IsNullOrWhiteSpace(currentDraft))
-            {
-                return incoming;
-            }
-
-            if (incoming.StartsWith(currentDraft, StringComparison.Ordinal))
-            {
-                return incoming;
-            }
-
-            if (currentDraft.StartsWith(incoming, StringComparison.Ordinal))
-            {
-                // ASR中间结果经常回缩，直接保持较长内容，减少闪烁。
-                return currentDraft;
-            }
-
-            int overlap = FindOverlap(currentDraft, incoming);
-            if (overlap >= 3 && overlap < incoming.Length)
-            {
-                return currentDraft + incoming.Substring(overlap);
-            }
-
-            // 尽量保留已有草稿，只在明显新增时替换，避免一句话来回重写。
-            if (incoming.Length + 3 < currentDraft.Length)
-            {
-                return currentDraft;
-            }
-
-            return incoming;
-        }
-
-        private static int FindOverlap(string left, string right)
-        {
-            if (string.IsNullOrEmpty(left) || string.IsNullOrEmpty(right))
-            {
-                return 0;
-            }
-
-            int max = Math.Min(left.Length, right.Length);
-            for (int len = max; len >= 1; len--)
-            {
-                if (string.Compare(left, left.Length - len, right, 0, len, StringComparison.Ordinal) == 0)
-                {
-                    if (CaptionTextElements.FloorBoundary(left, left.Length - len) != left.Length - len ||
-                        CaptionTextElements.FloorBoundary(right, len) != len) continue;
-                    return len;
-                }
-            }
-
-            return 0;
-        }
-
-        private static string Normalize(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return string.Empty;
-            }
-
-            var sb = new StringBuilder(input.Length);
-            bool previousSpace = false;
-            foreach (char raw in input)
-            {
-                char c = raw;
-                if (c == '\r' || c == '\n' || char.IsWhiteSpace(c))
-                {
-                    if (previousSpace)
-                    {
-                        continue;
-                    }
-
-                    sb.Append(' ');
-                    previousSpace = true;
-                    continue;
-                }
-
-                previousSpace = false;
-                sb.Append(c);
-            }
-
-            return sb.ToString().Trim();
         }
 
         private static string TrimForLog(string text)

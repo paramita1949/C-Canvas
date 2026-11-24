@@ -12,9 +12,9 @@
     <Company>咏慕投影</Company>
     <Title>咏慕投影</Title>
     <Description>咏慕投影 - 专业的图片浏览与管理工具</Description>
-    <Version>6.1.3.6</Version>
-    <FileVersion>6.1.3.6</FileVersion>
-    <AssemblyVersion>6.1.3.6</AssemblyVersion>
+    <Version>6.1.3.7</Version>
+    <FileVersion>6.1.3.7</FileVersion>
+    <AssemblyVersion>6.1.3.7</AssemblyVersion>
     <ApplicationIcon>baodian.ico</ApplicationIcon>
     <Copyright>Copyright © 2026 咏慕投影</Copyright>
     <!-- 🔧 优化编译输出：禁用卫星程序集（不使用多语言资源） -->
@@ -35,33 +35,13 @@
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="Switch.System.Windows.DoNotScaleForDpiChanges" Value="true" />
   </ItemGroup>
-  <!-- 🔧 排除 Canvas111 旧版本备份文件夹 -->
+  <!-- 正式资源打包工具单独构建，不作为应用源码参与编译 -->
   <ItemGroup>
-    <Compile Remove="Canvas111\**" />
-    <Compile Remove="data\CLI-Anything\**" />
-    <EmbeddedResource Remove="Canvas111\**" />
-    <EmbeddedResource Remove="data\CLI-Anything\**" />
-    <None Remove="Canvas111\**" />
-    <None Remove="data\CLI-Anything\**" />
-    <Page Remove="Canvas111\**" />
-    <Page Remove="data\CLI-Anything\**" />
-    <Compile Remove="artifacts\**" />
-    <EmbeddedResource Remove="artifacts\**" />
-    <None Remove="artifacts\**" />
-    <Page Remove="artifacts\**" />
-    <!-- 验证事务目录只保存补丁、回滚副本和日志，不得作为应用源码参与编译 -->
-    <Compile Remove="release-txn\**" />
-    <EmbeddedResource Remove="release-txn\**" />
-    <None Remove="release-txn\**" />
-    <Page Remove="release-txn\**" />
+    <Compile Remove="BuildTools\**" />
     <Compile Remove="Canvas.TextEditor.Tests\**" />
+    <Page Remove="Canvas.TextEditor.Tests\**" />
     <EmbeddedResource Remove="Canvas.TextEditor.Tests\**" />
     <None Remove="Canvas.TextEditor.Tests\**" />
-    <Page Remove="Canvas.TextEditor.Tests\**" />
-    <Compile Remove="Tools\CanvasCli\**" />
-    <EmbeddedResource Remove="Tools\CanvasCli\**" />
-    <None Remove="Tools\CanvasCli\**" />
-    <Page Remove="Tools\CanvasCli\**" />
   </ItemGroup>
   <!-- Debug 配置：生成完整的调试信息 -->
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
@@ -315,21 +295,6 @@
     <RemoveDir Directories="$(PublishDir)libvlc\win-x86" ContinueOnError="true" />
     <Message Text="[清理发布] 清理完成" Importance="high" />
   </Target>
-  <ItemGroup>
-    <Compile Remove="BuildTools\**" />
-    <Compile Remove=".tmp\**" />
-    <Compile Remove=".tmp_build_obj\**" />
-    <Compile Remove=".tmp_build_out\**" />
-    <EmbeddedResource Remove=".tmp\**" />
-    <EmbeddedResource Remove=".tmp_build_obj\**" />
-    <EmbeddedResource Remove=".tmp_build_out\**" />
-    <None Remove=".tmp\**" />
-    <None Remove=".tmp_build_obj\**" />
-    <None Remove=".tmp_build_out\**" />
-    <Page Remove=".tmp\**" />
-    <Page Remove=".tmp_build_obj\**" />
-    <Page Remove=".tmp_build_out\**" />
-  </ItemGroup>
   <!-- Pack resources after build -->
   <Target Name="PackResources" AfterTargets="Build">
     <Message Text="[PAK] Building pack tool..." Importance="high" />

@@ -115,6 +115,10 @@ namespace ImageColorChanger.Services.Projection.Output
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_video_async_v2", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void SendSendVideoAsyncV2(IntPtr p_instance, ref NDIlib_video_frame_v2_t p_video_data);
 
+        // NULL 帧等待先前异步发送结束；释放或扩容像素缓冲区前必须完成同步。
+        [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_video_async_v2", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void SendSendVideoAsyncV2(IntPtr p_instance, IntPtr p_video_data);
+
         [DllImport(NdiLibrary, EntryPoint = "NDIlib_send_send_audio_v3", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void SendSendAudioV3(IntPtr p_instance, ref NDIlib_audio_frame_v3_t p_audio_data);
 
