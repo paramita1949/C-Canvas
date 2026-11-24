@@ -97,7 +97,7 @@ namespace ImageColorChanger.UI
             _liveCaptionNdiComposer.Reset();
             _liveCaptionOverlayWindow?.UpdateCaption(string.Empty, 0);
             _projectionManager?.HideProjectionCaptionOverlay();
-            _ndiRouter?.PushCaptionIdleFrame();
+            ClearLiveCaptionNdiOutput();
         }
 
         private void OnInputMethodTextChanged(string text)

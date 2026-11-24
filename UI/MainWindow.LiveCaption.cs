@@ -654,8 +654,7 @@ namespace ImageColorChanger.UI
                 UpdateLiveCaptionProjectionActionState();
                 UpdateLiveCaptionNdiActionState();
                 _projectionManager?.HideProjectionCaptionOverlay();
-                _ndiRouter?.PushCaptionIdleFrame();
-                StopProjectionNdiSenderIfUnused();
+                ClearLiveCaptionNdiOutput(stopSender: true);
                 ApplyMainWindowLiveCaptionReservation();
                 UnregisterLiveCaptionF4HotKey();
                 SyncAiCaptionUiState();
@@ -741,8 +740,7 @@ namespace ImageColorChanger.UI
                 _liveCaptionComposer.Reset();
                 _liveCaptionNdiComposer.Reset();
                 _projectionManager?.HideProjectionCaptionOverlay();
-                _ndiRouter?.PushCaptionIdleFrame();
-                StopProjectionNdiSenderIfUnused();
+                ClearLiveCaptionNdiOutput(stopSender: true);
                 UpdateLiveCaptionProjectionActionState();
                 UpdateLiveCaptionNdiActionState();
                 SyncAiCaptionUiState();
@@ -1400,8 +1398,9 @@ namespace ImageColorChanger.UI
             _liveCaptionOverlayManuallyHidden = false;
             _liveCaptionProjectionCaptionHidden = true;
             _projectionManager?.HideProjectionCaptionOverlay();
-            _ndiRouter?.PushCaptionIdleFrame();
-            StopProjectionNdiSenderIfUnused();
+            _liveCaptionNdiOutput?.Dispose();
+            _liveCaptionNdiOutput = null;
+            _ndiRouter?.StopCaptionOutput();
             _liveCaptionNdiComposer.Reset();
             ApplyMainWindowLiveCaptionReservation();
             UnregisterLiveCaptionF4HotKey();
@@ -1523,7 +1522,7 @@ namespace ImageColorChanger.UI
                             : _configManager.LiveCaptionFontFamily.Trim())
                         : _configManager.LiveCaptionLocalFontFamily.Trim(),
                     FontSize = Math.Clamp(_configManager.LiveCaptionLocalFontSize > 0 ? _configManager.LiveCaptionLocalFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
-                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing > 0 ? _configManager.LiveCaptionLocalLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
+                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionLocalLetterSpacing, 0, 10),
                     LineGapLevel = LineGapToLevel(_configManager.LiveCaptionLocalLineGap > 0 ? _configManager.LiveCaptionLocalLineGap : _configManager.LiveCaptionLineGap),
                     TextColor = NormalizeColorHex(_configManager.LiveCaptionLocalTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
                     LatestColor = NormalizeColorHex(_configManager.LiveCaptionLocalLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
@@ -1550,8 +1549,8 @@ namespace ImageColorChanger.UI
                             ? (string.IsNullOrWhiteSpace(_configManager.BibleFontFamily) ? "Microsoft YaHei UI" : _configManager.BibleFontFamily.Trim())
                             : _configManager.LiveCaptionFontFamily.Trim())
                         : _configManager.LiveCaptionNdiFontFamily.Trim(),
-                    FontSize = Math.Clamp(_configManager.LiveCaptionNdiFontSize > 0 ? _configManager.LiveCaptionNdiFontSize : (_configManager.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 36), 20, 112),
-                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionNdiLetterSpacing > 0 ? _configManager.LiveCaptionNdiLetterSpacing : _configManager.LiveCaptionLetterSpacing, 0, 10),
+                    FontSize = CreateLiveCaptionNdiRenderOptions().FontSize,
+                    LetterSpacing = Math.Clamp(_configManager.LiveCaptionNdiLetterSpacing, 0, 10),
                     LineGapLevel = LineGapToLevel(_configManager.LiveCaptionNdiLineGap > 0 ? _configManager.LiveCaptionNdiLineGap : _configManager.LiveCaptionLineGap),
                     TextColor = NormalizeColorHex(_configManager.LiveCaptionNdiTextColor, NormalizeColorHex(_configManager.LiveCaptionTextColor, "#FFFFFF")),
                     LatestColor = NormalizeColorHex(_configManager.LiveCaptionNdiLatestTextColor, NormalizeColorHex(_configManager.LiveCaptionLatestTextColor, "#FFFF00")),
@@ -1971,7 +1970,7 @@ namespace ImageColorChanger.UI
 
         private void PopulateNdiFontSizeMenu(MenuItem root)
         {
-            int current = (int)Math.Round(Math.Clamp((_configManager?.LiveCaptionNdiFontSize > 0 ? _configManager.LiveCaptionNdiFontSize : (_configManager?.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : (_configManager?.BibleFontSize ?? 36))), 20, 112));
+            int current = (int)Math.Round(CreateLiveCaptionNdiRenderOptions().FontSize);
             int[] sizes = { 20, 24, 28, 32, 36, 40, 46, 52, 60, 68, 76, 88, 100, 112 };
             foreach (int size in sizes)
             {
@@ -2384,44 +2383,12 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                if (_configManager == null)
-                {
-                    return;
-                }
-
-                bool nextEnabled = !IsLiveCaptionNdiEnabled();
-                if (nextEnabled)
-                {
-                    if (!TryRequirePremiumFeature(Services.Licensing.PremiumFeature.LiveCaption) ||
-                        !TryRequirePremiumFeature(Services.Licensing.PremiumFeature.Ndi))
-                    {
-                        _configManager.LiveCaptionNdiEnabled = false;
-                        UpdateLiveCaptionNdiActionState();
-                        _ndiRouter?.PushCaptionIdleFrame();
-                        StopProjectionNdiSenderIfUnused();
-                        return;
-                    }
-                }
-
-                _configManager.LiveCaptionNdiEnabled = nextEnabled;
-                if (nextEnabled)
-                {
-                    if (IsLiveCaptionInputMethodActive()) RefreshLiveCaptionNdiPreview();
-                    ShowStatus("字幕NDI已开启");
-                }
-                else
-                {
-                    _ndiRouter?.PushCaptionIdleFrame();
-                    StopProjectionNdiSenderIfUnused();
-                    ShowStatus("字幕NDI已关闭");
-                }
-
-                UpdateLiveCaptionNdiActionState();
-                LiveCaptionDebugLogger.Log($"NdiToggle: enabled={nextEnabled}");
+                SetLiveCaptionNdiEnabled(!IsLiveCaptionNdiEnabled());
             }
             catch (Exception ex)
             {
                 LiveCaptionDebugLogger.Log($"NdiToggle: failed, error={ex.Message}");
+                ShowStatus($"字幕NDI切换失败：{ex.Message}");
             }
         }
 
@@ -2464,287 +2431,6 @@ namespace ImageColorChanger.UI
         private void UpdateLiveCaptionNdiCaption(string captionText, int highlightStart)
         {
             PublishLiveCaptionToNdi(captionText, highlightStart);
-        }
-
-        private void PublishLiveCaptionToNdi(string captionText, int highlightStart)
-        {
-            if (_ndiRouter == null || _configManager?.LiveCaptionNdiEnabled != true)
-            {
-                return;
-            }
-
-            if (!IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.LiveCaption) ||
-                !IsPremiumFeatureAllowed(Services.Licensing.PremiumFeature.Ndi))
-            {
-                _ndiRouter.PushCaptionIdleFrame();
-                StopProjectionNdiSenderIfUnused();
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(captionText))
-            {
-                _ndiRouter.PushCaptionIdleFrame();
-                return;
-            }
-
-            try
-            {
-                int width = Math.Max(320, _configManager.ProjectionNdiWidth);
-                int height = Math.Max(180, _configManager.ProjectionNdiHeight);
-                using var frame = BuildLiveCaptionNdiFrame(width, height, captionText, highlightStart);
-                _ndiRouter.PublishCaptionFrame(frame);
-            }
-            catch (Exception ex)
-            {
-                LiveCaptionDebugLogger.Log($"CaptionNdi: publish failed, error={ex.Message}");
-            }
-        }
-
-        private void StopProjectionNdiSenderIfUnused()
-        {
-            if (_ndiRouter == null || _configManager == null)
-            {
-                return;
-            }
-
-            if (_configManager.LiveCaptionNdiEnabled || _configManager.ProjectionNdiEnabled)
-            {
-                return;
-            }
-
-            _ndiRouter.StopAll();
-        }
-
-        private SKBitmap BuildLiveCaptionNdiFrame(int width, int height, string captionText, int highlightStart)
-        {
-            var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            using var canvas = new SKCanvas(bitmap);
-            canvas.Clear(LiveCaptionNdiFrameDefaults.TransparentBackground);
-
-            string normalized = (captionText ?? string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
-            int ndiLineCharLimit = Math.Clamp(_configManager?.LiveCaptionNdiLineCharLimit ?? 30, 8, 80);
-            var lines = BuildNdiWrappedLines(normalized, ndiLineCharLimit, 2);
-
-            string fontFamily = string.IsNullOrWhiteSpace(_configManager?.LiveCaptionNdiFontFamily)
-                ? (string.IsNullOrWhiteSpace(_configManager?.LiveCaptionFontFamily)
-                    ? "Microsoft YaHei UI"
-                    : _configManager.LiveCaptionFontFamily.Trim())
-                : _configManager.LiveCaptionNdiFontFamily.Trim();
-            double resolvedNdiFontSize = _configManager?.LiveCaptionNdiFontSize > 0
-                ? _configManager.LiveCaptionNdiFontSize
-                : (_configManager?.LiveCaptionFontSize > 0 ? _configManager.LiveCaptionFontSize : 52);
-            double resolvedNdiPadding = _configManager?.LiveCaptionNdiPadding > 0
-                ? _configManager.LiveCaptionNdiPadding
-                : (_configManager?.LiveCaptionPadding > 0 ? _configManager.LiveCaptionPadding : 56);
-            double resolvedNdiLetterSpacing = _configManager?.LiveCaptionNdiLetterSpacing > 0
-                ? _configManager.LiveCaptionNdiLetterSpacing
-                : (_configManager?.LiveCaptionLetterSpacing ?? 0);
-            float fontSize = (float)Math.Clamp(resolvedNdiFontSize, 20, 140);
-            float padding = (float)Math.Clamp(resolvedNdiPadding, 12, 160);
-            float availableWidth = Math.Max(120, width - (padding * 2));
-            float letterSpacing = (float)Math.Clamp(resolvedNdiLetterSpacing, 0, 10);
-
-            SKColor baseColor = ParseHexColor(_configManager?.LiveCaptionNdiTextColor, ParseHexColor(_configManager?.LiveCaptionTextColor, SKColors.White));
-            SKColor latestColor = ParseHexColor(_configManager?.LiveCaptionNdiLatestTextColor, ParseHexColor(_configManager?.LiveCaptionLatestTextColor, new SKColor(255, 255, 0)));
-
-            using var typeface = SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.FromFamilyName("Microsoft YaHei UI");
-            using var baseFont = new SKFont(typeface, fontSize);
-            using var latestFont = new SKFont(typeface, fontSize);
-            using var basePaint = new SKPaint
-            {
-                IsAntialias = true,
-                Color = baseColor
-            };
-            using var latestPaint = new SKPaint
-            {
-                IsAntialias = true,
-                Color = latestColor
-            };
-
-            float maxLineWidth = 0;
-            foreach (string line in lines)
-            {
-                maxLineWidth = Math.Max(maxLineWidth, MeasureLineWidth(baseFont, line, letterSpacing));
-            }
-
-            if (maxLineWidth > availableWidth && maxLineWidth > 0.1f)
-            {
-                float scale = Math.Max(0.5f, availableWidth / maxLineWidth);
-                float scaled = Math.Max(18f, baseFont.Size * scale * 0.98f);
-                baseFont.Size = scaled;
-                latestFont.Size = scaled;
-
-                // 字体缩放后重新计算宽度，确保后续居中坐标准确。
-                maxLineWidth = 0f;
-                foreach (string line in lines)
-                {
-                    maxLineWidth = Math.Max(maxLineWidth, MeasureLineWidth(baseFont, line, letterSpacing));
-                }
-            }
-
-            double resolvedNdiLineGap = _configManager?.LiveCaptionNdiLineGap > 0
-                ? _configManager.LiveCaptionNdiLineGap
-                : (_configManager?.LiveCaptionLineGap ?? 30);
-            float gap = lines.Count > 1 ? (float)Math.Clamp(resolvedNdiLineGap, 10, 60) : 0f;
-            float lineHeight = baseFont.Size + gap;
-            float totalHeight = (lines.Count * lineHeight);
-            float blockTop = Math.Max(padding, height - padding - totalHeight);
-            float baselineOffset = baseFont.Size;
-            string ndiAlignment = NormalizeNdiAlignment(_configManager?.LiveCaptionNdiTextAlignment);
-            float contentLeft = padding;
-
-            int safeHighlight = Math.Clamp(highlightStart, 0, normalized.Length);
-            int globalIndex = 0;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                string line = lines[i];
-                float y = blockTop + baselineOffset + (i * lineHeight);
-                float lineWidth = MeasureLineWidth(baseFont, line, letterSpacing);
-                float lineStartX = ndiAlignment switch
-                {
-                    "left" => contentLeft,
-                    "right" => contentLeft + Math.Max(0f, availableWidth - lineWidth),
-                    _ => contentLeft + Math.Max(0f, (availableWidth - lineWidth) * 0.5f)
-                };
-                int lineStart = globalIndex;
-                int lineEnd = lineStart + line.Length;
-                int split = Math.Clamp(safeHighlight - lineStart, 0, line.Length);
-
-                if (split <= 0)
-                {
-                    DrawSpacedText(canvas, latestFont, latestPaint, line, lineStartX, y, letterSpacing);
-                }
-                else if (split >= line.Length)
-                {
-                    DrawSpacedText(canvas, baseFont, basePaint, line, lineStartX, y, letterSpacing);
-                }
-                else
-                {
-                    string prefix = line.Substring(0, split);
-                    string suffix = line.Substring(split);
-                    DrawSpacedText(canvas, baseFont, basePaint, prefix, lineStartX, y, letterSpacing);
-                    float x2 = lineStartX + MeasureLineWidth(baseFont, prefix, letterSpacing);
-                    DrawSpacedText(canvas, latestFont, latestPaint, suffix, x2, y, letterSpacing);
-                }
-
-                globalIndex = lineEnd;
-            }
-
-            return bitmap;
-        }
-
-        private static float MeasureLineWidth(SKFont font, string text, float letterSpacing)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return 0f;
-            }
-
-            if (letterSpacing <= 0.01f)
-            {
-                return font.MeasureText(text);
-            }
-
-            float width = 0f;
-            for (int i = 0; i < text.Length; i++)
-            {
-                width += font.MeasureText(text[i].ToString());
-                if (i < text.Length - 1)
-                {
-                    width += letterSpacing;
-                }
-            }
-            return width;
-        }
-
-        private static void DrawSpacedText(SKCanvas canvas, SKFont font, SKPaint paint, string text, float x, float y, float letterSpacing)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            if (letterSpacing <= 0.01f)
-            {
-                canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
-                return;
-            }
-
-            float cursor = x;
-            for (int i = 0; i < text.Length; i++)
-            {
-                string ch = text[i].ToString();
-                canvas.DrawText(ch, cursor, y, SKTextAlign.Left, font, paint);
-                cursor += font.MeasureText(ch);
-                if (i < text.Length - 1)
-                {
-                    cursor += letterSpacing;
-                }
-            }
-        }
-
-        private static List<string> BuildNdiWrappedLines(string source, int lineCharLimit, int maxLines)
-        {
-            var result = new List<string>(Math.Max(1, maxLines));
-            string text = (source ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                result.Add(string.Empty);
-                return result;
-            }
-
-            int limit = Math.Clamp(lineCharLimit, 8, 80);
-            for (int i = 0; i < text.Length; i += limit)
-            {
-                int len = Math.Min(limit, text.Length - i);
-                result.Add(text.Substring(i, len));
-            }
-
-            if (result.Count > maxLines)
-            {
-                result = result.GetRange(result.Count - maxLines, maxLines);
-            }
-
-            if (result.Count == 0)
-            {
-                result.Add(string.Empty);
-            }
-
-            return result;
-        }
-
-        private static SKColor ParseHexColor(string hex, SKColor fallback)
-        {
-            if (string.IsNullOrWhiteSpace(hex))
-            {
-                return fallback;
-            }
-
-            string value = hex.Trim().TrimStart('#');
-            try
-            {
-                if (value.Length == 6)
-                {
-                    byte r = Convert.ToByte(value.Substring(0, 2), 16);
-                    byte g = Convert.ToByte(value.Substring(2, 2), 16);
-                    byte b = Convert.ToByte(value.Substring(4, 2), 16);
-                    return new SKColor(r, g, b, 255);
-                }
-
-                if (value.Length == 8)
-                {
-                    byte a = Convert.ToByte(value.Substring(0, 2), 16);
-                    byte r = Convert.ToByte(value.Substring(2, 2), 16);
-                    byte g = Convert.ToByte(value.Substring(4, 2), 16);
-                    byte b = Convert.ToByte(value.Substring(6, 2), 16);
-                    return new SKColor(r, g, b, a);
-                }
-            }
-            catch
-            {
-            }
-
-            return fallback;
         }
 
         internal void SyncLiveCaptionProjectionCaptionForProjectionState(bool isProjectionActive)

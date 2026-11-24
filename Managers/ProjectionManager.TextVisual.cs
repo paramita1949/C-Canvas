@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -67,7 +68,8 @@ namespace ImageColorChanger.Managers
                         return;
                     }
 
-                    string next = (captionText ?? string.Empty).Trim();
+                    // 帧中的缩进/换行及高亮来源下标必须一起保留，不能在投影入口再裁剪。
+                    string next = captionText ?? string.Empty;
                     if (string.IsNullOrWhiteSpace(next))
                     {
                         HideProjectionCaptionOverlayOnUi();
@@ -86,9 +88,8 @@ namespace ImageColorChanger.Managers
                     }
                     else
                     {
-                        string formatted = FormatProjectionCaptionText(next);
-                        ApplyProjectionCaptionRuns(formatted, highlightStart);
-                        ProbeProjectionHorizontalShiftAnomaly(formatted, highlightStart);
+                        ApplyProjectionCaptionRuns(next, highlightStart);
+                        ProbeProjectionHorizontalShiftAnomaly(next, highlightStart);
                     }
                     _projectionCaptionOverlayContainer.Visibility = Visibility.Visible;
                 });
@@ -197,7 +198,7 @@ namespace ImageColorChanger.Managers
                         }
                         else
                         {
-                            ApplyProjectionCaptionRuns(FormatProjectionCaptionText(_projectionCaptionLastRawText), _projectionCaptionLastHighlightStart);
+                            ApplyProjectionCaptionRuns(_projectionCaptionLastRawText, _projectionCaptionLastHighlightStart);
                         }
                     }
                 });
@@ -217,6 +218,7 @@ namespace ImageColorChanger.Managers
             _projectionCaptionOverlayText.FontFamily = new System.Windows.Media.FontFamily(_projectionCaptionPreferredFontFamily);
             _projectionCaptionOverlayText.Foreground = _projectionCaptionBaseBrush;
             ApplyProjectionCaptionStableTypographyOnUi();
+            FitProjectionCaptionHorizontalTypographyOnUi();
         }
 
         private void ApplyProjectionCaptionStableTypographyOnUi()
@@ -233,6 +235,7 @@ namespace ImageColorChanger.Managers
             double gap = hasSecondLine ? Math.Clamp(_projectionCaptionPreferredLineGap, 0, 60) : 0;
             double padding = Math.Clamp(_projectionCaptionPreferredPadding, 8, 80);
             _projectionCaptionOverlayText.FontSize = size;
+            _projectionCaptionOverlayText.LayoutTransform = Transform.Identity;
             _projectionCaptionOverlayText.LineHeight = _projectionCaptionOrientation == ProjectionCaptionOrientation.Vertical
                 ? Math.Max(size * 1.08, size + 2) // 竖排独立紧凑行高，不使用横排“段间距”
                 : size + gap;
@@ -250,43 +253,58 @@ namespace ImageColorChanger.Managers
             }
         }
 
-        private string FormatProjectionCaptionText(string text)
+        private void FitProjectionCaptionHorizontalTypographyOnUi()
         {
-            if (_projectionCaptionOrientation != ProjectionCaptionOrientation.Vertical)
+            double width = _projectionWindow?.ActualWidth > 0 ? _projectionWindow.ActualWidth : DefaultProjectionWidth;
+            double height = _projectionWindow?.ActualHeight > 0 ? _projectionWindow.ActualHeight : DefaultProjectionHeight;
+            FitProjectionCaptionHorizontalTypographyToViewportOnUi(width, height);
+        }
+
+        private void FitProjectionCaptionHorizontalTypographyToViewportOnUi(double viewportWidth, double viewportHeight)
+        {
+            if (_projectionCaptionOrientation != ProjectionCaptionOrientation.Horizontal ||
+                _projectionCaptionOverlayText == null || _projectionCaptionOverlayBorder == null) return;
+
+            var text = _projectionCaptionOverlayText;
+            var border = _projectionCaptionOverlayBorder;
+            // 每次以未缩放内容为基准，不能把上次的结果当作新的绝对缩放比例。
+            text.LayoutTransform = Transform.Identity;
+            double borderWidth = Math.Max(1, Math.Min(border.MaxWidth,
+                viewportWidth - border.Margin.Left - border.Margin.Right));
+            double borderHeight = Math.Max(1, Math.Min(border.MaxHeight,
+                viewportHeight - border.Margin.Top - border.Margin.Bottom));
+            double AvailableWidth() => Math.Max(1, borderWidth - border.Padding.Left - border.Padding.Right
+                - text.Margin.Left - text.Margin.Right - 2);
+            double AvailableHeight() => Math.Max(1, borderHeight - border.Padding.Top - border.Padding.Bottom
+                - text.Margin.Top - text.Margin.Bottom - 2);
+            // FrameworkElement.DesiredSize 包含 Margin；正文测量不能重复扣减或缩放外边距。
+            double ContentWidth() => Math.Max(0, text.DesiredSize.Width - text.Margin.Left - text.Margin.Right);
+            double ContentHeight() => Math.Max(0, text.DesiredSize.Height - text.Margin.Top - text.Margin.Bottom);
+            void Measure() => text.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+
+            Measure();
+            if (ContentWidth() <= AvailableWidth() && ContentHeight() <= AvailableHeight()) return;
+            border.Padding = new Thickness(Math.Min(border.Padding.Left, borderWidth * 0.2),
+                Math.Min(border.Padding.Top, borderHeight * 0.2), Math.Min(border.Padding.Right, borderWidth * 0.2),
+                Math.Min(border.Padding.Bottom, borderHeight * 0.2));
+            // 本机行容量不能决定另一块屏幕的像素容量，按实际 WPF Run 字形及插距测量。
+            for (int i = 0; i < 8; i++)
             {
-                return text;
+                Measure();
+                double scale = Math.Min(AvailableWidth() / Math.Max(1, ContentWidth()),
+                    AvailableHeight() / Math.Max(1, ContentHeight()));
+                if (scale >= 1) return;
+                double nextSize = Math.Max(18, text.FontSize * scale * 0.98);
+                if (Math.Abs(nextSize - text.FontSize) < 0.01) break;
+                double gap = Math.Max(0, text.LineHeight - text.FontSize) * nextSize / text.FontSize;
+                text.FontSize = nextSize;
+                text.LineHeight = nextSize + gap;
+                text.Height = text.LineHeight * 2;
             }
-
-            var sb = new StringBuilder();
-            string normalized = (text ?? string.Empty).Replace("\r", string.Empty);
-            string[] rawLines = normalized.Split('\n');
-            string line1 = rawLines.Length > 0 ? rawLines[0] : string.Empty;
-            string line2 = rawLines.Length > 1 ? rawLines[1] : string.Empty;
-            if (string.IsNullOrEmpty(line1) && string.IsNullOrEmpty(line2))
-            {
-                return text;
-            }
-
-            int rows = Math.Max(line1.Length, line2.Length);
-            int maxVisibleRows = GetVerticalVisibleRowCapacity();
-            int startRow = Math.Max(0, rows - maxVisibleRows);
-
-            for (int i = startRow; i < rows; i++)
-            {
-                char c1 = i < line1.Length ? line1[i] : '　';
-                char c2 = i < line2.Length ? line2[i] : '　';
-                // 竖排按右到左阅读：第二行在左，第一行在右。
-                sb.Append(c2);
-                sb.Append('　');
-                sb.Append(c1);
-
-                if (i < rows - 1)
-                {
-                    sb.Append('\n');
-                }
-            }
-
-            return sb.ToString();
+            Measure();
+            double finalScale = Math.Min(1, Math.Min(AvailableWidth() / Math.Max(1, ContentWidth()),
+                AvailableHeight() / Math.Max(1, ContentHeight())));
+            if (finalScale < 1) text.LayoutTransform = new ScaleTransform(finalScale * 0.98, finalScale * 0.98);
         }
 
         private void ApplyProjectionCaptionOverlayLayoutOnUi()
@@ -574,7 +592,7 @@ namespace ImageColorChanger.Managers
                 return;
             }
 
-            int split = Math.Clamp(highlightStart ?? safe.Length, 0, safe.Length);
+            int split = CaptionTextElements.FloorBoundary(safe, highlightStart ?? safe.Length);
             string spaced = ApplyProjectionLetterSpacing(safe, out int[] indexMap);
             int splitSpaced = indexMap[Math.Clamp(split, 0, indexMap.Length - 1)];
             if (splitSpaced > 0)
@@ -592,6 +610,7 @@ namespace ImageColorChanger.Managers
                     Foreground = _projectionCaptionLatestBrush
                 });
             }
+            FitProjectionCaptionHorizontalTypographyOnUi();
         }
 
         private void ProbeProjectionHorizontalShiftAnomaly(string text, int? highlightStart)
@@ -657,61 +676,63 @@ namespace ImageColorChanger.Managers
             }
 
             _projectionCaptionOverlayText.Inlines.Clear();
-            string normalized = (text ?? string.Empty).Replace("\r", string.Empty);
-            if (string.IsNullOrWhiteSpace(normalized))
+            string source = text ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(source))
             {
                 _projectionCaptionOverlayText.Text = string.Empty;
                 return;
             }
 
-            string compact = normalized.Replace("\n", string.Empty);
-            if (compact.Length == 0)
+            var elements = new List<CaptionTextElement>();
+            var compactBuilder = new StringBuilder();
+            foreach (CaptionTextElement element in CaptionTextElements.Enumerate(source))
+            {
+                if (element.Text.IndexOf('\r') >= 0 || element.Text.IndexOf('\n') >= 0) continue;
+                elements.Add(element);
+                compactBuilder.Append(element.Text);
+            }
+            string compact = compactBuilder.ToString();
+            if (elements.Count == 0)
             {
                 _projectionCaptionOverlayText.Text = string.Empty;
                 return;
             }
 
-            int splitInNormalized = Math.Clamp(highlightStart ?? normalized.Length, 0, normalized.Length);
-            int splitCompact = 0;
-            for (int i = 0; i < splitInNormalized && i < normalized.Length; i++)
-            {
-                if (normalized[i] != '\n')
-                {
-                    splitCompact++;
-                }
-            }
+            int splitInSource = CaptionTextElements.FloorBoundary(source, highlightStart ?? source.Length);
+            int highlightElementCount = 0;
+            foreach (CaptionTextElement element in elements)
+                if (element.SourceStart < splitInSource) highlightElementCount++;
 
             int maxVisibleRows = GetVerticalVisibleRowCapacity();
-            int maxVisibleChars = Math.Max(1, maxVisibleRows * 2);
-            int overflowChars = Math.Max(0, compact.Length - maxVisibleChars);
+            int maxVisibleElements = Math.Max(1, maxVisibleRows * 2);
+            int overflowElements = Math.Max(0, elements.Count - maxVisibleElements);
             // 竖排按“整列”推进：右列满后，下一字立即切到左列顶部（向上取整）。
             int columnStep = Math.Max(1, maxVisibleRows);
-            int startChar = overflowChars > 0
-                ? ((overflowChars + columnStep - 1) / columnStep) * columnStep
+            int startElement = overflowElements > 0
+                ? ((overflowElements + columnStep - 1) / columnStep) * columnStep
                 : 0;
-            int visibleLength = Math.Min(maxVisibleChars, Math.Max(0, compact.Length - startChar));
-            string visibleCompact = visibleLength > 0 ? compact.Substring(startChar, visibleLength) : string.Empty;
-            if (visibleCompact.Length == 0)
+            int visibleElementCount = Math.Min(maxVisibleElements, Math.Max(0, elements.Count - startElement));
+            if (visibleElementCount == 0)
             {
                 _projectionCaptionOverlayText.Text = string.Empty;
                 return;
             }
             LiveCaptionDebugLogger.Log(
-                $"[VerticalPaging] compactLen={compact.Length}, rows={maxVisibleRows}, cap={maxVisibleChars}, " +
-                $"overflow={overflowChars}, step={columnStep}, startChar={startChar}, visibleLen={visibleLength}");
+                $"[VerticalPaging] elements={elements.Count}, rows={maxVisibleRows}, cap={maxVisibleElements}, " +
+                $"overflow={overflowElements}, step={columnStep}, startElement={startElement}, visibleElements={visibleElementCount}");
 
             // 竖排输入顺序：先左列（上到下），满后再换到右列（上到下）。
-            int leftColumnLength = Math.Min(maxVisibleRows, visibleCompact.Length);
-            int rightColumnLength = Math.Max(0, visibleCompact.Length - leftColumnLength);
-            int rows = Math.Max(rightColumnLength, leftColumnLength);
+            int leftColumnCount = Math.Min(maxVisibleRows, visibleElementCount);
+            int rightColumnCount = Math.Max(0, visibleElementCount - leftColumnCount);
+            int rows = Math.Max(rightColumnCount, leftColumnCount);
             ProbeProjectionVerticalAnomaly(
                 compact,
-                splitCompact,
+                highlightElementCount,
                 rows,
                 maxVisibleRows,
-                startChar,
-                rightColumnLength,
-                leftColumnLength);
+                startElement,
+                rightColumnCount,
+                leftColumnCount);
 
             var runBuffer = new StringBuilder();
             System.Windows.Media.Brush currentBrush = null;
@@ -730,9 +751,9 @@ namespace ImageColorChanger.Managers
                 runBuffer.Clear();
             }
 
-            void Append(char ch, int sourceIndex)
+            void Append(string value, int sourceIndex)
             {
-                System.Windows.Media.Brush brush = sourceIndex >= splitCompact && sourceIndex >= 0
+                System.Windows.Media.Brush brush = sourceIndex >= splitInSource && sourceIndex >= 0
                     ? _projectionCaptionLatestBrush
                     : _projectionCaptionBaseBrush;
                 if (!ReferenceEquals(currentBrush, brush))
@@ -741,21 +762,21 @@ namespace ImageColorChanger.Managers
                     currentBrush = brush;
                 }
 
-                runBuffer.Append(ch);
+                runBuffer.Append(value);
             }
 
             for (int i = 0; i < rows; i++)
             {
                 int leftIndex = i;
-                int rightIndex = leftColumnLength + i;
-                int sourceIndexLeft = leftIndex < leftColumnLength ? (startChar + leftIndex) : -1;
-                int sourceIndexRight = rightIndex < visibleCompact.Length ? (startChar + rightIndex) : -1;
-                char leftChar = leftIndex < leftColumnLength ? visibleCompact[leftIndex] : '　';
-                char rightChar = rightIndex < visibleCompact.Length ? visibleCompact[rightIndex] : '　';
+                int rightIndex = leftColumnCount + i;
+                int sourceIndexLeft = leftIndex < leftColumnCount ? elements[startElement + leftIndex].SourceStart : -1;
+                int sourceIndexRight = rightIndex < visibleElementCount ? elements[startElement + rightIndex].SourceStart : -1;
+                string leftChar = leftIndex < leftColumnCount ? elements[startElement + leftIndex].Text : "　";
+                string rightChar = rightIndex < visibleElementCount ? elements[startElement + rightIndex].Text : "　";
 
                 // 显示顺序：左列先显示，右列后显示；并加宽列间距。
                 Append(leftChar, sourceIndexLeft);
-                Append('　', -1);
+                Append("　", -1);
                 Append(rightChar, sourceIndexRight);
 
                 if (i < rows - 1)
@@ -771,12 +792,12 @@ namespace ImageColorChanger.Managers
 
         private void ProbeProjectionVerticalAnomaly(
             string compact,
-            int splitCompact,
+            int highlightElementCount,
             int rows,
             int maxVisibleRows,
-            int startChar,
-            int rightColumnLength,
-            int leftColumnLength)
+            int startElement,
+            int rightColumnCount,
+            int leftColumnCount)
         {
             if (_projectionCaptionOverlayText == null || _projectionCaptionOrientation != ProjectionCaptionOrientation.Vertical)
             {
@@ -790,12 +811,13 @@ namespace ImageColorChanger.Managers
             }
             _projectionVerticalProbeLastLogUtc = now;
 
-            bool truncated = compact.Length > (maxVisibleRows * 2);
-            bool secondLineSparse = leftColumnLength > 0 && leftColumnLength <= 2 && rightColumnLength >= 8;
+            int elementCount = System.Globalization.StringInfo.ParseCombiningCharacters(compact).Length;
+            bool truncated = elementCount > (maxVisibleRows * 2);
+            bool secondLineSparse = leftColumnCount > 0 && leftColumnCount <= 2 && rightColumnCount >= 8;
             string msg =
                 $"[CaptionShiftProbe:Vertical] truncated={truncated}, secondLineSparse={secondLineSparse}, " +
-                $"rows={rows}, visibleRows={maxVisibleRows}, startChar={startChar}, splitCompact={splitCompact}, " +
-                $"compactLen={compact.Length}, rightLen={rightColumnLength}, leftLen={leftColumnLength}, " +
+                $"rows={rows}, visibleRows={maxVisibleRows}, startElement={startElement}, highlightElements={highlightElementCount}, " +
+                $"elements={elementCount}, rightElements={rightColumnCount}, leftElements={leftColumnCount}, " +
                 $"font={_projectionCaptionOverlayText.FontSize:0.##}, lineHeight={_projectionCaptionOverlayText.LineHeight:0.##}, " +
                 $"padding={_projectionCaptionOverlayBorder?.Padding.Left:0.##}/{_projectionCaptionOverlayBorder?.Padding.Top:0.##}, " +
                 $"text='{TrimProjectionCaptionForLog(compact)}'";
@@ -805,45 +827,7 @@ namespace ImageColorChanger.Managers
 
         private string ApplyProjectionLetterSpacing(string text, out int[] indexMap)
         {
-            if (string.IsNullOrEmpty(text) || _projectionCaptionLetterSpacing <= 0.01)
-            {
-                indexMap = BuildIdentityIndexMap(text ?? string.Empty);
-                return text ?? string.Empty;
-            }
-
-            int repeat = Math.Clamp((int)Math.Round(_projectionCaptionLetterSpacing), 1, 10);
-            string spacer = new string('\u200A', repeat);
-            var sb = new StringBuilder(text.Length * (repeat + 1));
-            indexMap = new int[text.Length + 1];
-            for (int i = 0; i < text.Length; i++)
-            {
-                indexMap[i] = sb.Length;
-                char ch = text[i];
-                sb.Append(ch);
-                if (ch != '\n' && ch != '\r' && i < text.Length - 1)
-                {
-                    char next = text[i + 1];
-                    if (next != '\n' && next != '\r')
-                    {
-                        sb.Append(spacer);
-                    }
-                }
-            }
-            indexMap[text.Length] = sb.Length;
-
-            return sb.ToString();
-        }
-
-        private static int[] BuildIdentityIndexMap(string text)
-        {
-            int length = text?.Length ?? 0;
-            var map = new int[length + 1];
-            for (int i = 0; i <= length; i++)
-            {
-                map[i] = i;
-            }
-
-            return map;
+            return CaptionTextElements.ApplyLetterSpacing(text, _projectionCaptionLetterSpacing, out indexMap);
         }
 
         private static bool TryParseProjectionCaptionColor(string value, out System.Windows.Media.Color color)

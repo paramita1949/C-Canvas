@@ -10,6 +10,7 @@ namespace ImageColorChanger.Services.Ndi
         void PushLyricsTransparentIdleFrame();
         bool PublishCaptionFrame(SKBitmap frame);
         void PushCaptionIdleFrame();
+        void StopCaptionOutput();
         void StopAll();
         int GetConnectionCount();
     }

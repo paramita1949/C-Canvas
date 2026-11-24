@@ -126,12 +126,13 @@ namespace ImageColorChanger.Services.Ndi
 
         public void PushTransparentIdleFrame(NdiChannel channel, bool startSenderIfNeeded = true)
         {
-            if (!CanUseNdi())
+            if (startSenderIfNeeded && !CanUseNdi())
             {
                 return;
             }
 
-            var manager = GetOrCreateManager(channel);
+            // 清理已有输出不创建管理器/发送器，也不因新发送授权失效而跳过收尾。
+            var manager = startSenderIfNeeded ? GetOrCreateManager(channel) : GetExistingManager(channel);
             manager?.PushTransparentIdleFrame(startSenderIfNeeded);
             LogIdleFrameIfDue(channel);
         }

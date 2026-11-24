@@ -10,7 +10,7 @@ namespace ImageColorChanger.Services.LiveCaption
         public LiveCaptionRenderFrame(string display, int highlightStart, bool hasChanged)
         {
             Display = display ?? string.Empty;
-            HighlightStart = Math.Clamp(highlightStart, 0, Display.Length);
+            HighlightStart = CaptionTextElements.FloorBoundary(Display, highlightStart);
             HasChanged = hasChanged;
         }
 
@@ -65,8 +65,8 @@ namespace ImageColorChanger.Services.LiveCaption
 
         public LiveCaptionRenderFrame PushInputSnapshot(string text)
         {
-            // 输入法传入的是完整编辑内容，删除和替换必须立即生效，不能使用 ASR 的回缩保护或去重。
-            string nextDisplay = BuildDisplayText(text);
+            // 输入法传入已发布的完整编辑内容；短暂回缩在输入适配层处理，不套用 ASR 合并策略。
+            string nextDisplay = BuildDisplayText(text, preserveLineBreaks: true);
             if (string.Equals(nextDisplay, CurrentDisplay, StringComparison.Ordinal))
             {
                 return new LiveCaptionRenderFrame(CurrentDisplay, CurrentHighlightStart, hasChanged: false);
@@ -202,25 +202,26 @@ namespace ImageColorChanger.Services.LiveCaption
             return BuildDisplayText(source);
         }
 
-        private string BuildDisplayText(string source)
+        private string BuildDisplayText(string source, bool preserveLineBreaks = false)
         {
-            source = Normalize(source);
+            source = preserveLineBreaks ? source ?? string.Empty : Normalize(source);
             if (source.Length == 0)
             {
                 return string.Empty;
             }
 
-            if (source.Length > _maxSourceChars)
+            if (!preserveLineBreaks && source.Length > _maxSourceChars)
             {
                 // 仅按“整行”裁剪，避免每来一个字就把开头挤掉造成横移感。
-                int overflow = source.Length - _maxSourceChars;
+                int[] starts = System.Globalization.StringInfo.ParseCombiningCharacters(source);
+                int overflow = starts.Length - _maxSourceChars;
                 int trimStep = Math.Max(1, _lineCharLimit);
                 int trim = (overflow / trimStep) * trimStep;
                 if (trim > 0)
                 {
                     LiveCaptionDebugLogger.Log(
                         $"[ComposerTrim] overflow={overflow}, trim={trim}, step={trimStep}, sourceLen={source.Length}, max={_maxSourceChars}");
-                    source = source.Substring(trim);
+                    source = source.Substring(starts[trim]);
                 }
             }
 
@@ -234,31 +235,8 @@ namespace ImageColorChanger.Services.LiveCaption
                 return string.Empty;
             }
 
-            // 固定分段：避免“逐字滑窗”导致的横向漂移感。
-            string compact = source.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
-            if (compact.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var segments = new List<string>((compact.Length / _lineCharLimit) + 2);
-            for (int i = 0; i < compact.Length; i += _lineCharLimit)
-            {
-                int len = Math.Min(_lineCharLimit, compact.Length - i);
-                string piece = compact.Substring(i, len).Trim();
-                if (!string.IsNullOrWhiteSpace(piece))
-                {
-                    segments.Add(piece);
-                }
-            }
-
-            if (segments.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            int start = Math.Max(0, segments.Count - _displayLineLimit);
-            return string.Join(Environment.NewLine, segments.Skip(start));
+            // 只裁剪输出；文档不删除。固定文本元素分段，并保留编辑者的显式换行。
+            return CaptionTextElements.TakeLastWrappedLines(source, _lineCharLimit, _displayLineLimit);
         }
 
         private static int ComputeHighlightStart(string previous, string current)
@@ -276,13 +254,13 @@ namespace ImageColorChanger.Services.LiveCaption
 
             if (current.StartsWith(previous, StringComparison.Ordinal))
             {
-                return previous.Length;
+                return CaptionTextElements.FloorBoundary(current, previous.Length);
             }
 
             int overlap = FindOverlap(previous, current);
             if (overlap >= 4 && overlap < current.Length)
             {
-                return overlap;
+                return CaptionTextElements.FloorBoundary(current, overlap);
             }
 
             // 无法稳定识别新增片段时，不高亮，避免整段颜色跳变。
@@ -339,6 +317,8 @@ namespace ImageColorChanger.Services.LiveCaption
             {
                 if (string.Compare(left, left.Length - len, right, 0, len, StringComparison.Ordinal) == 0)
                 {
+                    if (CaptionTextElements.FloorBoundary(left, left.Length - len) != left.Length - len ||
+                        CaptionTextElements.FloorBoundary(right, len) != len) continue;
                     return len;
                 }
             }

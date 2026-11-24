@@ -135,13 +135,7 @@ namespace ImageColorChanger.UI
                 },
                 setCaption: enabled =>
                 {
-                    _ndiRouter?.SetChannelEnabled(Services.Ndi.NdiChannel.Caption, enabled);
-                    if (!enabled)
-                    {
-                        _ndiRouter?.PushCaptionIdleFrame();
-                    }
-
-                    ShowStatus(enabled ? "字幕NDI已开启" : "字幕NDI已关闭");
+                    SetLiveCaptionNdiEnabled(enabled);
                 },
                 setTransparent: enabled =>
                 {
@@ -375,6 +369,7 @@ namespace ImageColorChanger.UI
             _configManager.ProjectionNdiEnabled = enabled;
             if (!enabled)
             {
+                SetLiveCaptionNdiEnabled(false);
                 ApplyNdiAudioConfiguration();
                 _ndiTransportCoordinator?.StopAll();
                 StopVideoNdiTimer();
@@ -574,6 +569,7 @@ namespace ImageColorChanger.UI
                 if (discoveryExpired && connectionCount <= 0)
                 {
                     _configManager.ProjectionNdiEnabled = false;
+                    SetLiveCaptionNdiEnabled(false);
                     _ndiTransportCoordinator?.StopAll();
                     StopVideoNdiTimer();
                     StopNdiDiscoveryTimer();
@@ -619,7 +615,8 @@ namespace ImageColorChanger.UI
             foreach (NdiChannel channel in NdiIdleFrameChannelSelector.SelectChannels(
                          slideEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Slide),
                          transparentEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Transparent),
-                         captionEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Caption),
+                         // 字幕首帧、清屏和刷新由字幕输出队列负责，通用心跳不能覆盖正在显示的字幕。
+                         captionEnabled: false,
                          videoEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Video),
                          watermarkEnabled: _ndiRouter.IsChannelEnabled(NdiChannel.Watermark)))
             {

@@ -12,6 +12,8 @@ using System.Windows.Shapes;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using ImageColorChanger.Managers;
+using ImageColorChanger.Services.LiveCaption;
+using ImageColorChanger.UI.LiveCaption;
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfCursor = System.Windows.Input.Cursor;
@@ -100,12 +102,10 @@ namespace ImageColorChanger.UI
         private readonly TextBlock _recognitionDebugMarkerText;
         private readonly System.Windows.Controls.CheckBox _inputMethodToggle;
         private readonly System.Windows.Controls.TextBox _inputMethodEditor;
+        private readonly InputMethodCaptionTextBoxAdapter _inputMethodAdapter;
+        private readonly System.Collections.Generic.Dictionary<string, double> _inputMethodGlyphWidths = new(StringComparer.Ordinal);
         private bool _inputMethodEnabled;
-        private bool _inputMethodCompositionActive;
-        private int _inputMethodChangeSequence;
         private bool _inputMethodLayoutQueued;
-        private readonly DispatcherTimer _inputMethodSnapshotTimer;
-        private string _publishedInputMethodText = string.Empty;
         private string _realtimeRecognitionPlatformName = "百度";
         private string _shortPhraseRecognitionPlatformName = "百度";
         private bool _realtimeRecognitionEnabled;
@@ -205,11 +205,6 @@ namespace ImageColorChanger.UI
                 Interval = TimeSpan.FromMilliseconds(16)
             };
             _typingTimer.Tick += TypingTimer_Tick;
-            _inputMethodSnapshotTimer = new DispatcherTimer(DispatcherPriority.Background)
-            {
-                Interval = TimeSpan.FromMilliseconds(100)
-            };
-            _inputMethodSnapshotTimer.Tick += (_, _) => PublishInputMethodSnapshot();
             _floatingBoundsChangedTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(320)
@@ -219,6 +214,7 @@ namespace ImageColorChanger.UI
             var captionGrid = new Grid();
             captionGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             captionGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            captionGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             captionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -238,66 +234,45 @@ namespace ImageColorChanger.UI
             };
             TextOptions.SetTextFormattingMode(_captionText, TextFormattingMode.Display);
             TextOptions.SetTextHintingMode(_captionText, TextHintingMode.Fixed);
+            // 透明窗口使用灰度字形，避免自动 ClearType 路径在离屏/透明合成中丢失文字。
+            TextOptions.SetTextRenderingMode(_captionText, TextRenderingMode.Grayscale);
             Grid.SetColumn(_captionText, 0);
             Grid.SetColumnSpan(_captionText, 2);
             Grid.SetRow(_captionText, 1);
 
             _inputMethodEditor = new System.Windows.Controls.TextBox
             {
-                FontSize = 13,
+                FontSize = 16,
                 FontFamily = new System.Windows.Media.FontFamily("Microsoft YaHei UI"),
                 Foreground = WpfBrushes.White,
                 Background = WpfBrushes.Transparent,
-                BorderBrush = WpfBrushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Padding = new Thickness(0),
-                Margin = new Thickness(0),
-                Width = 1,
-                Height = 1,
-                MaxHeight = 1,
-                Opacity = 0,
-                IsHitTestVisible = false,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(6, 3, 6, 3),
+                Margin = new Thickness(0, 8, 0, 0),
+                Height = 64,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Top,
                 AcceptsReturn = true,
                 AcceptsTab = false,
                 TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalContentAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Top,
                 Visibility = Visibility.Collapsed,
                 IsEnabled = false,
-                FocusVisualStyle = null
+                CaretBrush = WpfBrushes.White,
+                ToolTip = "输入字幕，可选中修改、粘贴和撤销；上方预览与投影保留最近两行"
             };
-            _inputMethodEditor.Foreground = WpfBrushes.Transparent;
-            _inputMethodEditor.CaretBrush = WpfBrushes.Transparent;
+            _inputMethodEditor.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "BrushMenuBorder");
             InputMethod.SetIsInputMethodEnabled(_inputMethodEditor, true);
-            _inputMethodEditor.TextChanged += InputMethodEditor_TextChanged;
-            _inputMethodEditor.GotKeyboardFocus += (_, _) => LogInputMethodState("focus-gained");
+            _inputMethodAdapter = new InputMethodCaptionTextBoxAdapter(_inputMethodEditor);
+            _inputMethodAdapter.SnapshotPublished += text => InputMethodTextChanged?.Invoke(text);
             _inputMethodEditor.LostKeyboardFocus += (_, _) =>
             {
-                LogInputMethodState("focus-lost");
                 QueueInputMethodFocus();
             };
-            TextCompositionManager.AddPreviewTextInputStartHandler(_inputMethodEditor, (_, e) =>
-            {
-                _inputMethodCompositionActive = true;
-                LogInputMethodState($"composition-begin count={e.TextComposition.CompositionText?.Length ?? 0}");
-            });
-            TextCompositionManager.AddPreviewTextInputUpdateHandler(_inputMethodEditor, (_, e) =>
-            {
-                LogInputMethodState($"composition-update count={e.TextComposition.CompositionText?.Length ?? 0}");
-            });
-            TextCompositionManager.AddPreviewTextInputHandler(_inputMethodEditor, (_, e) =>
-            {
-                if (_inputMethodCompositionActive)
-                {
-                    _inputMethodCompositionActive = false;
-                    LogInputMethodState($"composition-end count={e.Text?.Length ?? 0}");
-                }
-            });
             Grid.SetColumnSpan(_inputMethodEditor, 2);
-            Grid.SetRow(_inputMethodEditor, 1);
+            Grid.SetRow(_inputMethodEditor, 2);
 
             _recognitionDebugMarkerText = new TextBlock
             {
@@ -557,7 +532,7 @@ namespace ImageColorChanger.UI
 
             Closed += (_, _) =>
             {
-                _inputMethodSnapshotTimer.Stop();
+                _inputMethodAdapter.Dispose();
                 _inputMethodEnabled = false;
                 RemoveAppBar(force: true);
             };
@@ -654,11 +629,14 @@ namespace ImageColorChanger.UI
             }
 
             string nextFamily = string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily.Trim();
-            double nextSize = Math.Clamp(fontSize, 16, 88);
+            double nextSize = Math.Clamp(fontSize, 20, 112);
             double nextMargin = Math.Clamp(margin, 6, 120);
             double nextLineHeight = Math.Max(nextSize, lineHeight);
 
+            if (_captionText.FontFamily.Source != nextFamily || Math.Abs(_captionText.FontSize - nextSize) > 0.001)
+                _inputMethodGlyphWidths.Clear();
             _captionText.FontFamily = new System.Windows.Media.FontFamily(nextFamily);
+            _inputMethodEditor.FontFamily = _captionText.FontFamily;
             _captionText.FontSize = nextSize;
             _captionParagraphGap = Math.Clamp(nextLineHeight - nextSize, 0, 60);
             _captionText.LineHeight = nextSize + _captionParagraphGap;
@@ -734,8 +712,8 @@ namespace ImageColorChanger.UI
                 Math.Max(GetActionHeight(_projectionAction), GetActionHeight(_styleAction)),
                 Math.Max(GetActionHeight(_settingsAction), GetActionHeight(_closeAction)));
 
-            // 输入法编辑器是不可见的键盘/TSF接收器，不应为字幕窗口增加白框或占位高度。
-            double bodyNeed = actionNeed + textAreaNeed;
+            double editorNeed = _inputMethodEnabled ? _inputMethodEditor.Height + _inputMethodEditor.Margin.Top : 0;
+            double bodyNeed = actionNeed + textAreaNeed + editorNeed;
 
             double shellNeed = 2 + bodyNeed;
             double surfaceNeed =
@@ -1129,10 +1107,9 @@ namespace ImageColorChanger.UI
         }
 
         // 样式/布局刷新也必须使用同一可发布快照，不能绕过合成提交保护。
-        public string InputMethodText => _inputMethodSnapshotTimer.IsEnabled
-            ? _publishedInputMethodText : _inputMethodEditor.Text;
+        public string InputMethodText => _inputMethodAdapter.PublishedText;
         internal string InputMethodCurrentText => _inputMethodEditor.Text;
-        internal bool HasPendingInputMethodSnapshot => _inputMethodSnapshotTimer.IsEnabled;
+        internal bool HasPendingInputMethodSnapshot => _inputMethodAdapter.HasPendingSnapshot;
 
         private double GetInputMethodCaptionWidth()
         {
@@ -1168,15 +1145,21 @@ namespace ImageColorChanger.UI
             // 用当前输入中最宽的字形测量；包含W和汉字，覆盖中英混输及字体差异。
             double maxGlyph = 0;
             var glyphs = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-            var elements = System.Globalization.StringInfo.GetTextElementEnumerator("国W" + _inputMethodEditor.Text);
+            if (_inputMethodGlyphWidths.Count > 1024) _inputMethodGlyphWidths.Clear();
+            var elements = System.Globalization.StringInfo.GetTextElementEnumerator("国W" + InputMethodText);
             while (elements.MoveNext())
             {
                 string glyph = elements.GetTextElement();
                 if (!glyphs.Add(glyph)) continue;
                 if (string.IsNullOrWhiteSpace(glyph)) continue;
-                probe.Text = glyph;
-                probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-                maxGlyph = Math.Max(maxGlyph, probe.DesiredSize.Width);
+                if (!_inputMethodGlyphWidths.TryGetValue(glyph, out double glyphWidth))
+                {
+                    probe.Text = glyph;
+                    probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                    glyphWidth = probe.DesiredSize.Width;
+                    _inputMethodGlyphWidths[glyph] = glyphWidth;
+                }
+                maxGlyph = Math.Max(maxGlyph, glyphWidth);
             }
             probe.Text = new string('\u200A', Math.Clamp((int)Math.Round(_captionLetterSpacing), 1, 10));
             probe.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -1192,12 +1175,7 @@ namespace ImageColorChanger.UI
             try
             {
                 _inputMethodEnabled = enabled;
-                if (changed)
-                {
-                    _inputMethodSnapshotTimer.Stop();
-                    _inputMethodCompositionActive = false;
-                    _publishedInputMethodText = _inputMethodEditor.Text;
-                }
+                _inputMethodAdapter.SetEnabled(enabled);
                 _inputMethodToggle.IsChecked = enabled;
                 _inputMethodEditor.IsEnabled = enabled;
                 _inputMethodEditor.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
@@ -1215,7 +1193,6 @@ namespace ImageColorChanger.UI
 
             if (changed)
             {
-                LogInputMethodState("mode-changed");
                 EnsureAutoCaptionHeight();
                 if (enabled)
                 {
@@ -1226,11 +1203,7 @@ namespace ImageColorChanger.UI
 
         public void ClearInputMethodText()
         {
-            _inputMethodSnapshotTimer.Stop();
-            _inputMethodCompositionActive = false;
-            bool alreadyEmpty = _inputMethodEditor.Text.Length == 0;
-            _inputMethodEditor.Clear();
-            if (alreadyEmpty) PublishInputMethodSnapshot();
+            _inputMethodAdapter.Clear();
         }
 
         public void FocusInputMethodEditor()
@@ -1250,7 +1223,7 @@ namespace ImageColorChanger.UI
             if (!_inputMethodEnabled || !IsVisible) return;
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
             {
-                if (!_inputMethodEnabled || !IsVisible || !IsActive || _inputMethodCompositionActive) return;
+                if (!_inputMethodEnabled || !IsVisible || !IsActive || _inputMethodAdapter.IsComposing) return;
                 if (Mouse.Captured != null) return;
                 if (Keyboard.FocusedElement is DependencyObject focused && Window.GetWindow(focused) != this) return;
                 RestoreInputMethodFocus();
@@ -1259,42 +1232,8 @@ namespace ImageColorChanger.UI
 
         private void RestoreInputMethodFocus()
         {
-            if (_inputMethodCompositionActive) return;
-            _inputMethodEditor.Select(_inputMethodEditor.Text.Length, 0);
+            if (_inputMethodAdapter.IsComposing) return;
             _inputMethodEditor.Focus();
-        }
-
-        private void InputMethodEditor_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            _inputMethodChangeSequence++;
-            LogInputMethodState("text-changed");
-            if (_inputMethodEnabled)
-            {
-                // TSF 提交会先撤掉预编辑内容，再写回正式文本。保留上一帧，避免投影和NDI闪空。
-                // 仅合并合成过程中的回缩；正常追加、普通编辑和主动清空仍立即生效。
-                if ((_inputMethodCompositionActive || _inputMethodSnapshotTimer.IsEnabled) &&
-                    _inputMethodEditor.Text.Length < _publishedInputMethodText.Length)
-                {
-                    _inputMethodSnapshotTimer.Stop();
-                    _inputMethodSnapshotTimer.Start();
-                    return;
-                }
-                PublishInputMethodSnapshot();
-            }
-        }
-
-        private void PublishInputMethodSnapshot()
-        {
-            _inputMethodSnapshotTimer.Stop();
-            if (!_inputMethodEnabled) return;
-            _publishedInputMethodText = _inputMethodEditor.Text;
-            InputMethodTextChanged?.Invoke(_publishedInputMethodText);
-        }
-
-        private void LogInputMethodState(string action)
-        {
-            ImageColorChanger.Services.LiveCaption.InputMethodCaptionDiagnostics.Log(
-                $"editor {action} mode={_inputMethodEnabled} focused={_inputMethodEditor.IsKeyboardFocusWithin} composing={_inputMethodCompositionActive} sequence={_inputMethodChangeSequence} chars={_inputMethodEditor.Text.Length}");
         }
 
         public void SetRecognitionToggleStates(bool realtimeEnabled, bool shortPhraseEnabled)
@@ -2053,7 +1992,7 @@ namespace ImageColorChanger.UI
 
             int remain = _typingTarget.Length - _typingIndex;
             int step = remain > 30 ? 8 : remain > 15 ? 6 : 4;
-            _typingIndex = Math.Min(_typingTarget.Length, _typingIndex + step);
+            _typingIndex = CaptionTextElements.CeilingBoundary(_typingTarget, _typingIndex + step);
             RenderCaption(_typingTarget.Substring(0, _typingIndex), _highlightStartIndex);
         }
 
@@ -2070,7 +2009,7 @@ namespace ImageColorChanger.UI
             double effectiveGap = hasSecondLine ? _captionParagraphGap : 0;
             _captionText.LineHeight = size + effectiveGap;
 
-            int split = Math.Clamp(highlightFrom, 0, text.Length);
+            int split = CaptionTextElements.FloorBoundary(text, highlightFrom);
             string spaced = ApplyLetterSpacing(text, out int[] indexMap);
             int splitSpaced = indexMap[Math.Clamp(split, 0, indexMap.Length - 1)];
             if (!_latestTextHighlightEnabled)
@@ -2101,45 +2040,7 @@ namespace ImageColorChanger.UI
 
         private string ApplyLetterSpacing(string text, out int[] indexMap)
         {
-            if (string.IsNullOrEmpty(text) || _captionLetterSpacing <= 0.01)
-            {
-                indexMap = BuildIdentityIndexMap(text ?? string.Empty);
-                return text ?? string.Empty;
-            }
-
-            int repeat = Math.Clamp((int)Math.Round(_captionLetterSpacing), 1, 10);
-            string spacer = new string('\u200A', repeat);
-            var sb = new System.Text.StringBuilder(text.Length * (repeat + 1));
-            indexMap = new int[text.Length + 1];
-            for (int i = 0; i < text.Length; i++)
-            {
-                indexMap[i] = sb.Length;
-                char ch = text[i];
-                sb.Append(ch);
-                if (ch != '\n' && ch != '\r' && i < text.Length - 1)
-                {
-                    char next = text[i + 1];
-                    if (next != '\n' && next != '\r')
-                    {
-                        sb.Append(spacer);
-                    }
-                }
-            }
-            indexMap[text.Length] = sb.Length;
-
-            return sb.ToString();
-        }
-
-        private static int[] BuildIdentityIndexMap(string text)
-        {
-            int length = text?.Length ?? 0;
-            var map = new int[length + 1];
-            for (int i = 0; i <= length; i++)
-            {
-                map[i] = i;
-            }
-
-            return map;
+            return CaptionTextElements.ApplyLetterSpacing(text, _captionLetterSpacing, out indexMap);
         }
 
         private static bool TryParseColor(string value, out WpfColor color)

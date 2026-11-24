@@ -25,6 +25,9 @@ namespace ImageColorChanger.Services.Ndi
 
         public bool IsChannelEnabled(NdiChannel channel)
         {
+            // 字幕开关可由配置重载更新，不能再维护与配置竞争的缓存真值。
+            if (channel == NdiChannel.Caption && _configManager != null)
+                return _configManager.LiveCaptionNdiEnabled;
             return _channelStates.TryGetValue(channel, out bool enabled)
                 ? enabled
                 : NdiFeatureFlags.IsChannelEnabled(channel);
@@ -34,12 +37,7 @@ namespace ImageColorChanger.Services.Ndi
         {
             _channelStates[channel] = enabled;
 
-            if (_configManager == null)
-            {
-                return;
-            }
-
-            switch (channel)
+            if (_configManager != null) switch (channel)
             {
                 case NdiChannel.Slide:
                     _configManager.ProjectionNdiSlideEnabled = enabled;
@@ -48,6 +46,7 @@ namespace ImageColorChanger.Services.Ndi
                     _configManager.LiveCaptionNdiEnabled = enabled;
                     break;
             }
+            if (channel == NdiChannel.Caption && !enabled) StopCaptionOutput();
         }
 
         public bool PublishLyricsFrame(SKBitmap frame, SKBitmap transparentFrame, bool transparentEnabled, bool transparentLyricsMode, SKColor backgroundColor)
@@ -108,12 +107,7 @@ namespace ImageColorChanger.Services.Ndi
 
         public bool PublishCaptionFrame(SKBitmap frame)
         {
-            if (!IsChannelEnabled(NdiChannel.Caption) || _ndiTransportCoordinator == null || frame == null)
-            {
-                return false;
-            }
-
-            if (!(_configManager?.LiveCaptionNdiEnabled ?? false))
+            if (_configManager == null || !IsChannelEnabled(NdiChannel.Caption) || _ndiTransportCoordinator == null || frame == null)
             {
                 return false;
             }
@@ -123,12 +117,19 @@ namespace ImageColorChanger.Services.Ndi
 
         public void PushCaptionIdleFrame()
         {
-            if (!IsChannelEnabled(NdiChannel.Caption) || _ndiTransportCoordinator == null)
+            if (_ndiTransportCoordinator == null)
             {
                 return;
             }
 
             _ndiTransportCoordinator.PushTransparentIdleFrame(NdiChannel.Caption, startSenderIfNeeded: false);
+        }
+
+        public void StopCaptionOutput()
+        {
+            // 收尾不依赖当前开关；发送失败也必须释放已有字幕发送器。
+            try { PushCaptionIdleFrame(); }
+            finally { _ndiTransportCoordinator?.StopChannel(NdiChannel.Caption); }
         }
 
         public void StopAll()

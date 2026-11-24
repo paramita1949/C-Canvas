@@ -1173,10 +1173,10 @@ namespace ImageColorChanger.Core
 
         public double LiveCaptionLocalLetterSpacing
         {
-            get => _config.LiveCaptionLocalLetterSpacing <= 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionLocalLetterSpacing;
+            get => _config.LiveCaptionLocalLetterSpacing < 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionLocalLetterSpacing;
             set
             {
-                double next = Math.Clamp(value, 0, 10);
+                double next = value < 0 ? -1 : Math.Clamp(value, 0, 10);
                 if (Math.Abs(_config.LiveCaptionLocalLetterSpacing - next) > 0.001)
                 {
                     _config.LiveCaptionLocalLetterSpacing = next;
@@ -1291,10 +1291,10 @@ namespace ImageColorChanger.Core
 
         public double LiveCaptionNdiLetterSpacing
         {
-            get => _config.LiveCaptionNdiLetterSpacing <= 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionNdiLetterSpacing;
+            get => _config.LiveCaptionNdiLetterSpacing < 0 ? LiveCaptionLetterSpacing : _config.LiveCaptionNdiLetterSpacing;
             set
             {
-                double next = Math.Clamp(value, 0, 10);
+                double next = value < 0 ? -1 : Math.Clamp(value, 0, 10);
                 if (Math.Abs(_config.LiveCaptionNdiLetterSpacing - next) > 0.001)
                 {
                     _config.LiveCaptionNdiLetterSpacing = next;
@@ -1344,6 +1344,22 @@ namespace ImageColorChanger.Core
                 "right" => "right",
                 _ => "center"
             };
+        }
+
+        private bool MigrateLegacyLiveCaptionSpacing(string json)
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+            if (root.TryGetProperty(nameof(AppConfig.LiveCaptionLetterSpacingSchemaVersion), out var version) &&
+                version.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                version.TryGetInt32(out int current) && current >= 1) return false;
+
+            // 旧文件的 0 原本表示继承。新文件显式设置 0 后不能在下一次加载时再迁移。
+            if (_config.LiveCaptionLocalLetterSpacing <= 0) _config.LiveCaptionLocalLetterSpacing = -1;
+            if (_config.LiveCaptionNdiLetterSpacing <= 0) _config.LiveCaptionNdiLetterSpacing = -1;
+            _config.LiveCaptionLetterSpacingSchemaVersion = 1;
+            return true;
         }
     }
 
@@ -1420,7 +1436,9 @@ namespace ImageColorChanger.Core
         public string LiveCaptionLocalFontFamily { get; set; } = "";
         public double LiveCaptionLocalFontSize { get; set; } = 0;
         public double LiveCaptionLocalPadding { get; set; } = 0;
-        public double LiveCaptionLocalLetterSpacing { get; set; } = 0;
+        // 旧文件的 0 在加载时一次性迁移；新文件 -1 继承，0 明确关闭独立字距。
+        public int LiveCaptionLetterSpacingSchemaVersion { get; set; } = 1;
+        public double LiveCaptionLocalLetterSpacing { get; set; } = -1;
         public double LiveCaptionLocalLineGap { get; set; } = 0;
         public int LiveCaptionNdiLineCharLimit { get; set; } = 30;
         public string LiveCaptionNdiTextColor { get; set; } = "";
@@ -1428,7 +1446,7 @@ namespace ImageColorChanger.Core
         public string LiveCaptionNdiFontFamily { get; set; } = "";
         public double LiveCaptionNdiFontSize { get; set; } = 0;
         public double LiveCaptionNdiPadding { get; set; } = 0;
-        public double LiveCaptionNdiLetterSpacing { get; set; } = 0;
+        public double LiveCaptionNdiLetterSpacing { get; set; } = -1;
         public double LiveCaptionNdiLineGap { get; set; } = 0;
         public string LiveCaptionNdiTextAlignment { get; set; } = "center";
     }
