@@ -14,6 +14,7 @@ namespace ImageColorChanger.UI
             public double FileFontSize { get; set; }
             public double FolderTagFontSize { get; set; }
             public double TopMenuFontSize { get; set; }
+            public double EditorToolbarFontSize { get; set; }
         }
 
         private readonly Func<State> _loadState;
@@ -21,6 +22,7 @@ namespace ImageColorChanger.UI
         private readonly Action<double> _setFileFontSize;
         private readonly Action<double> _setFolderTagFontSize;
         private readonly Action<double> _setTopMenuFontSize;
+        private readonly Action<double> _setEditorToolbarFontSize;
         private bool _syncingUi;
 
         public FontSizeControlCenterWindow(
@@ -28,13 +30,15 @@ namespace ImageColorChanger.UI
             Action<double> setFolderFontSize,
             Action<double> setFileFontSize,
             Action<double> setFolderTagFontSize,
-            Action<double> setTopMenuFontSize)
+            Action<double> setTopMenuFontSize,
+            Action<double> setEditorToolbarFontSize)
         {
             _loadState = loadState ?? throw new ArgumentNullException(nameof(loadState));
             _setFolderFontSize = setFolderFontSize ?? throw new ArgumentNullException(nameof(setFolderFontSize));
             _setFileFontSize = setFileFontSize ?? throw new ArgumentNullException(nameof(setFileFontSize));
             _setFolderTagFontSize = setFolderTagFontSize ?? throw new ArgumentNullException(nameof(setFolderTagFontSize));
             _setTopMenuFontSize = setTopMenuFontSize ?? throw new ArgumentNullException(nameof(setTopMenuFontSize));
+            _setEditorToolbarFontSize = setEditorToolbarFontSize ?? throw new ArgumentNullException(nameof(setEditorToolbarFontSize));
 
             InitializeComponent();
             Loaded += (_, _) => RefreshUi();
@@ -48,6 +52,7 @@ namespace ImageColorChanger.UI
             SetControlValue(FileFontSizeSlider, FileFontSizeTextBox, state.FileFontSize);
             SetControlValue(FolderTagFontSizeSlider, FolderTagFontSizeTextBox, state.FolderTagFontSize);
             SetControlValue(TopMenuFontSizeSlider, TopMenuFontSizeTextBox, state.TopMenuFontSize);
+            SetControlValue(EditorToolbarFontSizeSlider, EditorToolbarFontSizeTextBox, state.EditorToolbarFontSize);
             _syncingUi = false;
         }
 
@@ -128,6 +133,14 @@ namespace ImageColorChanger.UI
             {
                 ApplyValue(TopMenuFontSizeSlider, TopMenuFontSizeSlider.Value + FontSizeControlValue.Step);
             }
+            else if (button == EditorToolbarFontSizeMinusButton)
+            {
+                ApplyValue(EditorToolbarFontSizeSlider, EditorToolbarFontSizeSlider.Value - FontSizeControlValue.Step);
+            }
+            else if (button == EditorToolbarFontSizePlusButton)
+            {
+                ApplyValue(EditorToolbarFontSizeSlider, EditorToolbarFontSizeSlider.Value + FontSizeControlValue.Step);
+            }
         }
 
         private void ResetButton_Click(object sender, RoutedEventArgs e)
@@ -138,6 +151,7 @@ namespace ImageColorChanger.UI
             ApplyValue(FileFontSizeSlider, 26);
             ApplyValue(FolderTagFontSizeSlider, 18);
             ApplyValue(TopMenuFontSizeSlider, 22);
+            ApplyValue(EditorToolbarFontSizeSlider, 22);
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -149,7 +163,7 @@ namespace ImageColorChanger.UI
 
         private void ApplyTextBoxValue(System.Windows.Controls.TextBox textBox)
         {
-            if (!double.TryParse(textBox.Text.Trim(), out double value))
+            if (!double.TryParse(textBox.Text.Trim(), out double value) || !double.IsFinite(value))
             {
                 RefreshUi();
                 return;
@@ -170,6 +184,10 @@ namespace ImageColorChanger.UI
             else if (textBox == TopMenuFontSizeTextBox)
             {
                 ApplyValue(TopMenuFontSizeSlider, value);
+            }
+            else if (textBox == EditorToolbarFontSizeTextBox)
+            {
+                ApplyValue(EditorToolbarFontSizeSlider, value);
             }
         }
 
@@ -210,6 +228,11 @@ namespace ImageColorChanger.UI
                 return FolderTagFontSizeTextBox;
             }
 
+            if (slider == EditorToolbarFontSizeSlider)
+            {
+                return EditorToolbarFontSizeTextBox;
+            }
+
             return TopMenuFontSizeTextBox;
         }
 
@@ -228,6 +251,11 @@ namespace ImageColorChanger.UI
             if (slider == FolderTagFontSizeSlider)
             {
                 return _setFolderTagFontSize;
+            }
+
+            if (slider == EditorToolbarFontSizeSlider)
+            {
+                return _setEditorToolbarFontSize;
             }
 
             return _setTopMenuFontSize;

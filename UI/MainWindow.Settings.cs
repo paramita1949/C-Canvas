@@ -201,7 +201,7 @@ namespace ImageColorChanger.UI
         }
 
         /// <summary>
-        /// 应用编辑器工具栏字号（只影响文本编辑器工具栏）
+        /// 应用幻灯片菜单按钮大小（只影响文本编辑器工具栏）
         /// </summary>
         private void ApplyEditorToolbarFontSize(double fontSize)
         {
@@ -246,6 +246,7 @@ namespace ImageColorChanger.UI
                 btn.VerticalAlignment = VerticalAlignment.Center;
             }
 
+            NormalizeSlideOutputModeTextStyle();
             _configManager.EditorToolbarFontSize = fontSize;
         }
 
@@ -283,12 +284,16 @@ namespace ImageColorChanger.UI
 
         private System.Collections.Generic.IEnumerable<System.Windows.Controls.Button> GetTextEditorToolbarButtons()
         {
+            yield return BtnToolbarMenu;
             yield return BtnAddText;
             yield return BtnBackgroundImage;
             yield return BtnBackgroundColor;
             yield return BtnSplitView;
             yield return BtnSplitStretchMode;
             yield return BtnSlideOutputMode;
+            yield return BtnComponent;
+            yield return TextEditorSectionView?.FindName("BtnBibleStyleTopEntry") as System.Windows.Controls.Button;
+            yield return TextEditorSectionView?.FindName("BtnAnimationTopEntry") as System.Windows.Controls.Button;
             yield return BtnDecreaseFontSize;
             yield return BtnIncreaseFontSize;
             yield return BtnBold;
@@ -397,6 +402,12 @@ namespace ImageColorChanger.UI
         {
             ApplyMenuFontSize(size);
             ShowStatus($"菜单字号已设置为: {size}");
+        }
+
+        private void SetEditorToolbarFontSize(double size)
+        {
+            ApplyEditorToolbarFontSize(size);
+            ShowStatus($"幻灯片菜单按钮大小已设置为: {size}");
         }
         
         /// <summary>

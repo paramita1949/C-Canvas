@@ -461,23 +461,25 @@ namespace ImageColorChanger.Core
         }
 
         /// <summary>
-        /// 文本编辑器工具栏字号（12-40，默认跟随顶部菜单字号）
+        /// 幻灯片菜单按钮大小（12-40，独立设置，默认22）
         /// </summary>
         public double EditorToolbarFontSize
         {
             get
             {
-                if (_config.EditorToolbarFontSize > 0.001)
+                if (double.IsFinite(_config.EditorToolbarFontSize) && _config.EditorToolbarFontSize > 0.001)
                 {
-                    return _config.EditorToolbarFontSize;
+                    return Math.Clamp(_config.EditorToolbarFontSize, 12, 40);
                 }
 
-                return TopMenuFontSize;
+                return 22.0;
             }
             set
             {
-                double next = Math.Max(12, Math.Min(40, value));
-                if (Math.Abs((_config.EditorToolbarFontSize <= 0.001 ? EditorToolbarFontSize : _config.EditorToolbarFontSize) - next) > 0.001)
+                double next = double.IsFinite(value) ? Math.Clamp(value, 12, 40) : 22.0;
+                if (!double.IsFinite(_config.EditorToolbarFontSize) ||
+                    _config.EditorToolbarFontSize <= 0.001 ||
+                    Math.Abs(_config.EditorToolbarFontSize - next) > 0.001)
                 {
                     _config.EditorToolbarFontSize = next;
                     SaveConfig();
@@ -1562,9 +1564,9 @@ namespace ImageColorChanger.Core
         public double TopMenuFontSize { get; set; } = 0.0;
 
         /// <summary>
-        /// 文本编辑器工具栏字号（默认：0，表示跟随 TopMenuFontSize）
+        /// 幻灯片菜单按钮大小（默认22，兼容旧配置中的0，不再跟随顶部菜单）
         /// </summary>
-        public double EditorToolbarFontSize { get; set; } = 0.0;
+        public double EditorToolbarFontSize { get; set; } = 22.0;
 
         /// <summary>
         /// 投影动画是否启用（默认：true）

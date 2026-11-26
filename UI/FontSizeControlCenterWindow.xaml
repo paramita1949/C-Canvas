@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="字体与字号"
         Width="680"
-        Height="500"
+        Height="580"
         MinWidth="660"
         MinHeight="460"
         WindowStartupLocation="CenterOwner"
@@ -241,6 +241,23 @@
                         <StackPanel>
                             <TextBlock Text="菜单区" Style="{StaticResource SectionTitleStyle}"/>
 
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="86"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="34"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="34"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="主界面" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="TopMenuFontSizeSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="12" Maximum="40" TickFrequency="0.5" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="FontSizeSlider_ValueChanged"/>
+                                <Button x:Name="TopMenuFontSizeMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
+                                <TextBox x:Name="TopMenuFontSizeTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" TextChanged="FontSizeTextBox_TextChanged" LostFocus="FontSizeTextBox_LostFocus" KeyDown="FontSizeTextBox_KeyDown"/>
+                                <Button x:Name="TopMenuFontSizePlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
+                            </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="86"/>
@@ -252,12 +269,15 @@
                                     <ColumnDefinition Width="6"/>
                                     <ColumnDefinition Width="34"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="菜单字号" Style="{StaticResource FieldLabelStyle}"/>
-                                <Slider x:Name="TopMenuFontSizeSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="12" Maximum="40" TickFrequency="0.5" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="FontSizeSlider_ValueChanged"/>
-                                <Button x:Name="TopMenuFontSizeMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
-                                <TextBox x:Name="TopMenuFontSizeTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" TextChanged="FontSizeTextBox_TextChanged" LostFocus="FontSizeTextBox_LostFocus" KeyDown="FontSizeTextBox_KeyDown"/>
-                                <Button x:Name="TopMenuFontSizePlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
+                                <TextBlock Text="幻灯片" Style="{StaticResource FieldLabelStyle}"/>
+                                <Slider x:Name="EditorToolbarFontSizeSlider" Grid.Column="1" Style="{StaticResource ModernSliderStyle}" Minimum="12" Maximum="40" TickFrequency="0.5" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="FontSizeSlider_ValueChanged"/>
+                                <Button x:Name="EditorToolbarFontSizeMinusButton" Grid.Column="3" Content="−" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
+                                <TextBox x:Name="EditorToolbarFontSizeTextBox" Grid.Column="5" Style="{StaticResource ModernInputStyle}" TextChanged="FontSizeTextBox_TextChanged" LostFocus="FontSizeTextBox_LostFocus" KeyDown="FontSizeTextBox_KeyDown"/>
+                                <Button x:Name="EditorToolbarFontSizePlusButton" Grid.Column="7" Content="+" Style="{StaticResource StepButtonStyle}" Click="FontSizeStepButton_Click"/>
                             </Grid>
+                            <TextBlock Text="主界面菜单与幻灯片按钮大小独立设置，不影响幻灯片内容。"
+                                       Foreground="{DynamicResource BrushControlPanelTextStrong}"
+                                       FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

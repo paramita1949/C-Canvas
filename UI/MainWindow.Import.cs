@@ -978,12 +978,14 @@ namespace ImageColorChanger.UI
                         FolderFontSize = _configManager.FolderFontSize,
                         FileFontSize = _configManager.FileFontSize,
                         FolderTagFontSize = _configManager.FolderTagFontSize,
-                        TopMenuFontSize = _configManager.TopMenuFontSize
+                        TopMenuFontSize = _configManager.TopMenuFontSize,
+                        EditorToolbarFontSize = _configManager.EditorToolbarFontSize
                     },
                     SetFolderFontSize,
                     SetFileFontSize,
                     SetFolderTagFontSize,
-                    SetMenuFontSize)
+                    SetMenuFontSize,
+                    SetEditorToolbarFontSize)
                 {
                     Owner = this
                 };
