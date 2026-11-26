@@ -206,10 +206,17 @@ namespace ImageColorChanger.UI
 
                 HideBibleSearchResults();
             }
+            UpdateOnlineScoreEntryVisual();
         }
 
         private void SearchBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
+            if (IsOnlineScoreMode && e.Key == System.Windows.Input.Key.Enter)
+            {
+                e.Handled = true;
+                _ = SearchOnlineScoresAsync(SearchBox.Text?.Trim() ?? "", immediate: true);
+                return;
+            }
             if (!_isBibleMode || _bibleSearchResultPresenter == null)
             {
                 return;

@@ -732,7 +732,16 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void BtnShowFiles_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentViewMode == NavigationViewMode.Files && !_isBibleMode) return;
+            if (_currentViewMode == NavigationViewMode.Files && !_isBibleMode)
+            {
+                if (IsOnlineScoreMode)
+                {
+                    LeaveOnlineScoreMode();
+                    UpdateSearchEntryModeVisual();
+                    SearchBox_TextChanged(SearchBox, null);
+                }
+                return;
+            }
 
             bool wasInBibleMode = _isBibleMode;
 

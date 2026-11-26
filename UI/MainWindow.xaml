@@ -425,30 +425,38 @@
                             </StackPanel>
 
                             <StackPanel x:Name="IncludeMediaSearchModePanel"
-                                        Grid.Column="2"
-                                        Orientation="Horizontal"
-                                        Margin="10,0,0,0"
-                                        VerticalAlignment="Center">
-                                <TextBlock x:Name="ImageSearchFilterText"
-                                           Text="图片"
-                                           FontSize="14"
-                                           Cursor="Hand"
-                                           Foreground="#757575"
-                                           FontWeight="Normal"
-                                           Margin="0,0,8,0"
-                                           VerticalAlignment="Center"
-                                           ToolTip="只搜索图片"
-                                           MouseLeftButtonDown="ImageSearchFilterText_MouseLeftButtonDown"/>
-                                <TextBlock x:Name="MediaSearchFilterText"
-                                           Text="媒体"
-                                           FontSize="14"
-                                           Cursor="Hand"
-                                           Foreground="#757575"
-                                           FontWeight="Normal"
-                                           Margin="0"
-                                           VerticalAlignment="Center"
-                                           ToolTip="只搜索视频/音频"
-                                           MouseLeftButtonDown="MediaSearchFilterText_MouseLeftButtonDown"/>
+                                        Grid.Column="2" Orientation="Vertical"
+                                        Width="108" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ImageSearchFilterText" Grid.Column="1" Text="图片" FontSize="14"
+                                               Cursor="Hand" Foreground="#757575" Padding="4,1" TextAlignment="Center" Margin="0,0,4,0"
+                                               ToolTip="搜索本地图片；与媒体可同时选择" MouseLeftButtonDown="ImageSearchFilterText_MouseLeftButtonDown"/>
+                                    <TextBlock x:Name="MediaSearchFilterText" Grid.Column="2" Text="媒体" FontSize="14"
+                                               Cursor="Hand" Foreground="#757575" Padding="4,1" TextAlignment="Center"
+                                               ToolTip="搜索本地视频/音频；与图片可同时选择" MouseLeftButtonDown="MediaSearchFilterText_MouseLeftButtonDown"/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="16"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path x:Name="OnlineScoreNetworkIcon" Width="12" Height="12" Stretch="Uniform"
+                                          Stroke="#8A989F" StrokeThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                          Data="M6,0.75 A5.25,5.25 0 1 1 6,11.25 A5.25,5.25 0 1 1 6,0.75 M0.75,6 L11.25,6 M6,0.75 C2.5,3 2.5,9 6,11.25 M6,0.75 C9.5,3 9.5,9 6,11.25"
+                                          ToolTip="联网搜索诗歌本：按歌名或歌词查找歌谱"/>
+                                    <TextBlock x:Name="ScoreNameSearchText" Grid.Column="1" Text="歌谱" FontSize="14" Cursor="Hand" Foreground="#757575"
+                                               Padding="4,1" TextAlignment="Center" Margin="0,0,4,0"
+                                               ToolTip="联网：按歌名搜索歌谱" MouseLeftButtonDown="ScoreNameSearchText_MouseLeftButtonDown"/>
+                                    <TextBlock x:Name="ScoreLyricsSearchText" Grid.Column="2" Text="歌词" FontSize="14" Cursor="Hand" Foreground="#757575"
+                                               Padding="4,1" TextAlignment="Center"
+                                               ToolTip="联网：按歌词搜索歌谱" MouseLeftButtonDown="ScoreLyricsSearchText_MouseLeftButtonDown"/>
+                                </Grid>
                             </StackPanel>
                         </Grid>
 
@@ -957,6 +965,101 @@
                         </Grid>
                     </Grid>
                     
+                    <!-- 在线结果独立于本地树模型，沿用搜索框和导航区。 -->
+                    <Grid x:Name="OnlineScorePanel" Grid.Row="1" Visibility="Collapsed" Margin="8,0,8,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="OnlineScoreStatus" Text="使用上方搜索框输入歌名或歌词。"
+                                   Foreground="#666666" FontSize="12" TextWrapping="Wrap" Margin="4,6,4,10"/>
+                        <ListBox x:Name="OnlineScoreList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                 SelectionMode="Single"
+                                 PreviewMouseLeftButtonDown="OnlineScoreList_PreviewMouseLeftButtonDown"
+                                 PreviewMouseLeftButtonUp="OnlineScoreList_PreviewMouseLeftButtonUp"
+                                 SelectionChanged="OnlineScoreList_SelectionChanged">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="8,10"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                                        Padding="{TemplateBinding Padding}" BorderThickness="0"
+                                                        SnapsToDevicePixels="True">
+                                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
+                                                        <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Bd" Property="Background" Value="#FFD54F"/>
+                                                        <Setter Property="Foreground" Value="#212121"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsSelected" Value="True"/>
+                                                            <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="Bd" Property="Background" Value="#FFF59D"/>
+                                                        <Setter Property="Foreground" Value="#424242"/>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Loaded="OnlineScoreResult_Loaded" DataContextChanged="OnlineScoreResult_DataContextChanged">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="ScoreNumberText" Text="{Binding NumberLabel}" FontSize="24" FontWeight="SemiBold"
+                                                   Foreground="#37474F" MinWidth="44" MaxWidth="72" Margin="0,0,12,0"
+                                                   VerticalAlignment="Center" TextAlignment="Right"
+                                                   ToolTip="歌本中的曲目编号，不是搜索排序序号"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="ScoreResultTitleText" Text="{Binding Name}" FontSize="18" FontWeight="Bold"
+                                                       Foreground="#222222" TextWrapping="Wrap"/>
+                                            <TextBlock x:Name="ScoreResultBookText" Text="{Binding BookDisplayName}" FontSize="13"
+                                                       Foreground="#757575" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                            <Ellipse x:Name="LyricsAvailableDot" Grid.Column="2" Width="8" Height="8"
+                                                     Margin="10,0,2,0" VerticalAlignment="Center" Fill="#219653"
+                                                     ToolTip="有歌词，打开图片后可使用图片－歌词功能"
+                                                     AutomationProperties.Name="有歌词">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasLyrics}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock x:Name="OnlineScoreLyricsPreview" Grid.Row="2" TextWrapping="Wrap" FontSize="12" Margin="4,8,4,4"/>
+                    </Grid>
+
                     <!-- 项目树（文件模式下显示） -->
                     <TreeView Grid.Row="1" x:Name="ProjectTree" 
                                   Style="{StaticResource ProjectTreeStyle}"
@@ -1195,6 +1298,10 @@
                                                         <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FileFontSize}"/>
                                                         <Setter Property="Visibility" Value="Visible"/>
                                                         <Style.Triggers>
+                                                            <!-- 本地搜索结果保留用户字号，仅加粗强调，不改普通文件树/编辑框。 -->
+                                                            <DataTrigger Binding="{Binding ShowFolderTag}" Value="True">
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
                                                             <!-- 如果是文件夹，使用文件夹字号 -->
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
                                                                 <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>

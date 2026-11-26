@@ -115,6 +115,10 @@ namespace ImageColorChanger.UI
 #endif
             }
 
+            // 程序自带 YM：空目录也登记，保留已有歌谱，随后复用普通文件树。
+            try { GetOnlineScoreLibrary().EnsureFolder(importExisting: true); }
+            catch (Exception ex) { ShowStatus($"YM 文件夹初始化失败：{ex.Message}"); }
+
             // 同步后刷新项目树和搜索范围
             var refreshTreeSw = System.Diagnostics.Stopwatch.StartNew();
             LoadProjects(enableDetailedIcons: false);

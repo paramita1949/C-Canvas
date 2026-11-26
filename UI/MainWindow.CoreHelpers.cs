@@ -38,6 +38,7 @@ namespace ImageColorChanger.UI
             {
                 // ignored
             }
+            DisposeOnlineScores();
             _preloadCacheManager?.Dispose();
             _slideDecodedImageCache.Dispose();
             _imageProcessor?.Dispose();

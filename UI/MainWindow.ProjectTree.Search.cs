@@ -36,6 +36,11 @@ namespace ImageColorChanger.UI
                 }
 
                 HideBibleSearchResults();
+                if (IsOnlineScoreMode)
+                {
+                    await SearchOnlineScoresAsync(searchTerm);
+                    return;
+                }
 
                 var searchManager = SearchManagerService;
                 if (searchManager == null) return;
@@ -155,6 +160,14 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (IsOnlineScoreMode)
+            {
+                LeaveOnlineScoreMode();
+                ApplyMediaSearchFilterSelection(true, _mediaSearchFilterSelected, persist: true);
+                UpdateSearchEntryModeVisual();
+                SearchBox_TextChanged(SearchBox, null);
+                return;
+            }
             ApplyMediaSearchFilterSelection(!_imageSearchFilterSelected, _mediaSearchFilterSelected, persist: true);
         }
 
@@ -165,6 +178,14 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (IsOnlineScoreMode)
+            {
+                LeaveOnlineScoreMode();
+                ApplyMediaSearchFilterSelection(_imageSearchFilterSelected, true, persist: true);
+                UpdateSearchEntryModeVisual();
+                SearchBox_TextChanged(SearchBox, null);
+                return;
+            }
             ApplyMediaSearchFilterSelection(_imageSearchFilterSelected, !_mediaSearchFilterSelected, persist: true);
         }
 
@@ -176,6 +197,7 @@ namespace ImageColorChanger.UI
             }
 
             EnsureMediaSearchFilterSelectionLoaded();
+            // 本地筛选与联网搜索方式是两层状态；联网时仍显示已保存的本地组合。
             ApplyMediaSearchFilterTextStyle(ImageSearchFilterText, _imageSearchFilterSelected);
             ApplyMediaSearchFilterTextStyle(MediaSearchFilterText, _mediaSearchFilterSelected);
         }
@@ -191,6 +213,7 @@ namespace ImageColorChanger.UI
                 ? new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1976D2"))
                 : new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#757575"));
             textBlock.FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal;
+            textBlock.Background = System.Windows.Media.Brushes.Transparent;
             textBlock.TextDecorations = null;
         }
 
