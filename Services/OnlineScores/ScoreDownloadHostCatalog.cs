@@ -5,13 +5,22 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ImageColorChanger.Services.OnlineScores
 {
     // 当前官方公告/原客户端记录的候选，非永久可用保证。只保存实际下载成功地址。
     public sealed class ScoreDownloadHostCatalog
     {
-        private sealed record VerifiedHost(string Url, DateTimeOffset At);
+        // 持久化契约不依赖私有成员或构造参数名称，发布保护后仍能读取同一份缓存。
+        private sealed class VerifiedHost
+        {
+            public VerifiedHost() { }
+            [JsonPropertyName("Url")]
+            public string Url { get; set; }
+            [JsonPropertyName("At")]
+            public DateTimeOffset At { get; set; }
+        }
         private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("CanvasCast.ScoreDownloadHosts.v1");
         private readonly IReadOnlyList<Uri> _builtIns;
         private readonly string _path;
@@ -50,7 +59,8 @@ namespace ImageColorChanger.Services.OnlineScores
                     {
                         if (item == null || item.At < DateTimeOffset.UtcNow.AddDays(-7) || item.At > DateTimeOffset.UtcNow.AddMinutes(5) ||
                             !Uri.TryCreate(item.Url, UriKind.Absolute, out var uri) || Normalize(uri) is not Uri host) continue;
-                        _verified[host.AbsoluteUri] = item with { Url = host.AbsoluteUri };
+                        item.Url = host.AbsoluteUri;
+                        _verified[host.AbsoluteUri] = item;
                         if (_verified.Count >= 32) break;
                     }
                 }
@@ -80,7 +90,7 @@ namespace ImageColorChanger.Services.OnlineScores
             if (host == null) return;
             lock (_sync)
             {
-                _verified[host.AbsoluteUri] = new VerifiedHost(host.AbsoluteUri, DateTimeOffset.UtcNow);
+                _verified[host.AbsoluteUri] = new VerifiedHost { Url = host.AbsoluteUri, At = DateTimeOffset.UtcNow };
                 if (_verified.Count > 32) _verified.Remove(_verified.OrderBy(x => x.Value.At).First().Key);
                 if (_path == null) return;
                 string temp = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";

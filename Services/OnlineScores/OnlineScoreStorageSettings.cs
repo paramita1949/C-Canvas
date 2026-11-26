@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ImageColorChanger.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,18 @@ namespace ImageColorChanger.Services.OnlineScores
         private State _state;
         private sealed class State
         {
+            [JsonPropertyName("Directory")]
             public string Directory { get; set; }
+            [JsonPropertyName("PreviousDirectories")]
             public List<string> PreviousDirectories { get; set; } = new();
+            [JsonPropertyName("Books")]
             public List<BookFolder> Books { get; set; } = new();
         }
         private sealed class BookFolder
         {
+            [JsonPropertyName("Name")]
             public string Name { get; set; }
+            [JsonPropertyName("Path")]
             public string Path { get; set; }
         }
 
