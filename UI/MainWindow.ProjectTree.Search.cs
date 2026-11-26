@@ -76,6 +76,8 @@ namespace ImageColorChanger.UI
                     _projectTreeItems.Add(item);
                     _filteredProjectTreeItems.Add(item); // 关键：搜索结果直接显示，不需要过滤
                 }
+                // 搜索结果统一留在本地列表；清除上次浏览遗留的在线歌本分区。
+                RefreshOnlineLibraryRoots();
 
                 // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
             }

@@ -86,6 +86,18 @@ namespace ImageColorChanger.UI
         public string Path { get; set; }
         public FileType FileType { get; set; }
         public bool IsVirtualFolder { get; set; }
+        public bool IsOnlineScoreLibraryRoot { get; set; }
+        private bool _showOnlineScoreSeparator;
+        public bool ShowOnlineScoreSeparator
+        {
+            get => _showOnlineScoreSeparator;
+            set
+            {
+                if (_showOnlineScoreSeparator == value) return;
+                _showOnlineScoreSeparator = value;
+                OnPropertyChanged(nameof(ShowOnlineScoreSeparator));
+            }
+        }
         public int? RootFolderId { get; set; }
         public string RelativeFolderPath { get; set; }
         public bool HasNestedFolders { get; set; }

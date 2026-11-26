@@ -446,10 +446,37 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Path x:Name="OnlineScoreNetworkIcon" Width="12" Height="12" Stretch="Uniform"
-                                          Stroke="#8A989F" StrokeThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                          Data="M6,0.75 A5.25,5.25 0 1 1 6,11.25 A5.25,5.25 0 1 1 6,0.75 M0.75,6 L11.25,6 M6,0.75 C2.5,3 2.5,9 6,11.25 M6,0.75 C9.5,3 9.5,9 6,11.25"
-                                          ToolTip="联网搜索诗歌本：按歌名或歌词查找歌谱"/>
+                                    <Grid x:Name="OnlineScoreNetworkIcon" Width="16" Height="16"
+                                          HorizontalAlignment="Left" VerticalAlignment="Center"
+                                          ToolTip="联网搜索：按歌名或歌词查找歌谱"
+                                          AutomationProperties.Name="联网搜索"
+                                          Loaded="OnlineScoreNetworkIcon_Loaded"
+                                          Unloaded="OnlineScoreNetworkIcon_Unloaded"
+                                          IsVisibleChanged="OnlineScoreNetworkIcon_IsVisibleChanged">
+                                        <Ellipse Width="10" Height="10">
+                                            <Ellipse.Fill>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#42C8D7" Offset="0"/>
+                                                    <GradientStop Color="#1976D2" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Ellipse.Fill>
+                                        </Ellipse>
+                                        <Path Data="M8,3 C5.3,5 5.3,11 8,13 M8,3 C10.7,5 10.7,11 8,13 M3,8 L13,8"
+                                              Stroke="#E7FBFF" StrokeThickness="0.65" Opacity="0.9"/>
+                                        <!-- 彩色轨道只在真实搜索期间转动，不代表网络一定可用。 -->
+                                        <Path Data="M2.2,4.3 A6.9,6.9 0 0 1 13.8,4.3 M13.8,11.7 A6.9,6.9 0 0 1 2.2,11.7"
+                                              StrokeThickness="1.35" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                            <Path.Stroke>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#1976D2" Offset="0"/>
+                                                    <GradientStop Color="#20BFA9" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Path.Stroke>
+                                            <Path.RenderTransform>
+                                                <RotateTransform x:Name="OnlineScoreNetworkRotation" CenterX="8" CenterY="8"/>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Grid>
                                     <TextBlock x:Name="ScoreNameSearchText" Grid.Column="1" Text="歌谱" FontSize="14" Cursor="Hand" Foreground="#757575"
                                                Padding="4,1" TextAlignment="Center" Margin="0,0,4,0"
                                                ToolTip="联网：按歌名搜索歌谱" MouseLeftButtonDown="ScoreNameSearchText_MouseLeftButtonDown"/>
@@ -972,8 +999,21 @@
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock x:Name="OnlineScoreStatus" Text="使用上方搜索框输入歌名或歌词。"
-                                   Foreground="#666666" FontSize="12" TextWrapping="Wrap" Margin="4,6,4,10"/>
+                        <StackPanel Margin="4,6,4,8">
+                            <TextBlock x:Name="OnlineScoreStatus" Text="使用上方搜索框输入歌名或歌词。"
+                                       Foreground="#666666" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                            <StackPanel Orientation="Horizontal"
+                                        ToolTip="按已确认的歌谱元数据筛选；类型尚未识别时保留在全部中。同一首可同时有结构化谱和原始图片。">
+                                <TextBlock x:Name="ScoreKindAllText" Text="全部" FontSize="13" Cursor="Hand" Foreground="#1976D2" FontWeight="SemiBold"
+                                           MouseLeftButtonDown="ScoreKindAllText_MouseLeftButtonDown"/>
+                                <TextBlock x:Name="ScoreKindStructuredText" Text="结构化" FontSize="13" Cursor="Hand" Foreground="#757575" Margin="18,0,0,0"
+                                           ToolTip="有普通或大字结构化谱文；不代表所有语法都能正确渲染"
+                                           MouseLeftButtonDown="ScoreKindStructuredText_MouseLeftButtonDown"/>
+                                <TextBlock x:Name="ScoreKindImageText" Text="普通图片" FontSize="13" Cursor="Hand" Foreground="#757575" Margin="18,0,0,0"
+                                           ToolTip="目录确认有官方原始位图；不是结构化谱生成的PNG，也不保证节点当前可下载"
+                                           MouseLeftButtonDown="ScoreKindImageText_MouseLeftButtonDown"/>
+                            </StackPanel>
+                        </StackPanel>
                         <ListBox x:Name="OnlineScoreList" Grid.Row="1" Background="Transparent" BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
@@ -981,6 +1021,9 @@
                                  PreviewMouseLeftButtonDown="OnlineScoreList_PreviewMouseLeftButtonDown"
                                  PreviewMouseLeftButtonUp="OnlineScoreList_PreviewMouseLeftButtonUp"
                                  SelectionChanged="OnlineScoreList_SelectionChanged">
+                            <ListBox.Resources>
+                                <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource ProjectTreeScrollBarStyle}"/>
+                            </ListBox.Resources>
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -1038,12 +1081,49 @@
                                             <TextBlock x:Name="ScoreResultBookText" Text="{Binding BookDisplayName}" FontSize="13"
                                                        Foreground="#757575" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
-                                            <Ellipse x:Name="LyricsAvailableDot" Grid.Column="2" Width="8" Height="8"
-                                                     Margin="10,0,2,0" VerticalAlignment="Center" Fill="#219653"
-                                                     ToolTip="有歌词，打开图片后可使用图片－歌词功能"
-                                                     AutomationProperties.Name="有歌词">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
+                                        <StackPanel Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <Grid x:Name="ScoreDownloadSpinner" Width="16" Height="16" Margin="0,0,0,4"
+                                                  HorizontalAlignment="Right" ToolTip="正在准备歌谱，请稍候"
+                                                  Loaded="ScoreDownloadSpinner_Loaded" Unloaded="ScoreDownloadSpinner_Unloaded"
+                                                  IsVisibleChanged="ScoreDownloadSpinner_IsVisibleChanged"
+                                                  AutomationProperties.Name="正在准备所选歌谱">
+                                                <Path Stroke="#2196B5" StrokeThickness="2" Data="M 8,1 A 7,7 0 1 1 1,8"
+                                                      RenderTransformOrigin="0.5,0.5">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform x:Name="ScoreDownloadRotation"/>
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                                <Grid.Style>
+                                                    <Style TargetType="Grid">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsPreparingDownload}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Grid.Style>
+                                            </Grid>
+                                            <StackPanel x:Name="StructuredAvailableBadge" Orientation="Horizontal" Margin="0,0,0,3"
+                                                        ToolTip="有结构化谱文，可重新排版；复杂语法支持与下载是否成功需另行验证"
+                                                        AutomationProperties.Name="有结构化歌谱">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasStructured}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <Ellipse Width="6" Height="6" Fill="#1976D2" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="结构化" FontSize="11" Foreground="#1976D2"/>
+                                            </StackPanel>
+                                            <StackPanel x:Name="LyricsAvailableBadge" Orientation="Horizontal"
+                                                        ToolTip="有完整歌词，打开图片后可使用图片－歌词功能" AutomationProperties.Name="有歌词">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding HasLyrics}" Value="True">
@@ -1051,8 +1131,11 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
+                                                </StackPanel.Style>
+                                                <Ellipse x:Name="LyricsAvailableDot" Width="6" Height="6" Fill="#219653" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="歌词" FontSize="11" Foreground="#219653"/>
+                                            </StackPanel>
+                                        </StackPanel>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -1061,7 +1144,15 @@
                     </Grid>
 
                     <!-- 项目树（文件模式下显示） -->
-                    <TreeView Grid.Row="1" x:Name="ProjectTree" 
+                    <Grid Grid.Row="1" x:Name="LocalLibraryLayout"
+                          Visibility="{Binding ElementName=ProjectTree, Path=Visibility}"
+                          SizeChanged="LocalLibraryLayout_SizeChanged">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition x:Name="OnlineLibrarySplitterRow" Height="0"/>
+                            <RowDefinition x:Name="OnlineLibraryPaneRow" Height="0"/>
+                        </Grid.RowDefinitions>
+                    <TreeView Grid.Row="0" x:Name="ProjectTree"
                                   Style="{StaticResource ProjectTreeStyle}"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
@@ -1069,6 +1160,7 @@
                                   ScrollViewer.CanContentScroll="True"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   PreviewKeyDown="Window_PreviewKeyDown"
+                                  PreviewMouseLeftButtonDown="ProjectTree_PreviewFolderDoubleClick"
                                   PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
                                   MouseDoubleClick="ProjectTree_MouseDoubleClick"
                                   PreviewMouseRightButtonDown="ProjectTree_RightClick"
@@ -1098,12 +1190,22 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition/>
                                                 </Grid.RowDefinitions>
+
+                                                <!-- 独立分隔栏不占文件/歌词节点，不参与选中高亮。 -->
+                                                <Border x:Name="OnlineLibrarySeparator" Grid.ColumnSpan="2"
+                                                        BorderBrush="#D7E5E2" BorderThickness="0,1,0,0"
+                                                        Margin="0,12,0,6" Padding="4,7,0,0"
+                                                        IsHitTestVisible="False" Visibility="Collapsed">
+                                                    <TextBlock Text="在线歌谱" Foreground="#64867F" FontSize="12"/>
+                                                </Border>
                                                 
                                                 <!-- 展开/折叠按钮（仅虚拟子目录显示，主题联动） -->
                                                 <ToggleButton x:Name="Expander" 
                                                               Grid.Column="0"
+                                                              Grid.Row="1"
                                                               Width="16"
                                                               Height="16"
                                                               Margin="0,0,4,0"
@@ -1132,7 +1234,7 @@
                                                 </ToggleButton>
                                                 
                                                 <!-- 内容区域 -->
-                                                <Border x:Name="Bd" Grid.Column="1"
+                                                <Border x:Name="Bd" Grid.Column="1" Grid.Row="1"
                                                         Background="{TemplateBinding Background}"
                                                         BorderBrush="{TemplateBinding BorderBrush}"
                                                         BorderThickness="{TemplateBinding BorderThickness}"
@@ -1143,10 +1245,13 @@
                                                 </Border>
                                                 
                                                 <!-- 子项容器 -->
-                                                <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1"/>
+                                                <ItemsPresenter x:Name="ItemsHost" Grid.Row="2" Grid.Column="1"/>
                                             </Grid>
                                             
                                             <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding ShowOnlineScoreSeparator}" Value="True">
+                                                    <Setter TargetName="OnlineLibrarySeparator" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
                                                 <!-- 未展开时隐藏子项 -->
                                                 <Trigger Property="IsExpanded" Value="False">
                                                     <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
@@ -1306,6 +1411,10 @@
                                                             <DataTrigger Binding="{Binding Type}" Value="Folder">
                                                                 <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsOnlineScoreLibraryRoot}" Value="True">
+                                                                <Setter Property="Foreground" Value="#2A9D8F"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding Type}" Value="LyricsRoot">
                                                                 <Setter Property="FontSize" Value="{Binding ElementName=MainWindowRoot, Path=FolderFontSize}"/>
                                                             </DataTrigger>
@@ -1384,9 +1493,51 @@
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
+
+                    <GridSplitter x:Name="OnlineLibrarySplitter" Grid.Row="1" Height="5"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                                  Background="#D7E5E2" Visibility="Collapsed" ShowsPreview="True"
+                                  ToolTip="上下拖动，调整在线歌谱区域高度"
+                                  DragCompleted="OnlineLibrarySplitter_DragCompleted"/>
+                    <Grid x:Name="OnlineLibraryPane" Grid.Row="2" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="34"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Button x:Name="OnlineLibraryHeader" Height="34" Padding="10,0"
+                                HorizontalContentAlignment="Stretch" BorderThickness="0"
+                                Background="Transparent" Foreground="#2A9D8F"
+                                Click="OnlineLibraryHeader_Click">
+                            <Grid>
+                                <TextBlock Text="在线歌谱" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="OnlineLibraryCollapseGlyph" Text="⌄" FontSize="18"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Button>
+                        <TreeView x:Name="OnlineLibraryTree" Grid.Row="1"
+                                  Style="{StaticResource ProjectTreeStyle}"
+                                  ItemContainerStyle="{Binding ElementName=ProjectTree, Path=ItemContainerStyle}"
+                                  ItemTemplate="{Binding ElementName=ProjectTree, Path=ItemTemplate}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  VirtualizingStackPanel.ScrollUnit="Pixel"
+                                  ScrollViewer.CanContentScroll="True"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  PreviewKeyDown="Window_PreviewKeyDown"
+                                  PreviewMouseLeftButtonDown="ProjectTree_PreviewFolderDoubleClick"
+                                  PreviewMouseLeftButtonUp="ProjectTree_MouseClick"
+                                  MouseDoubleClick="ProjectTree_MouseDoubleClick"
+                                  PreviewMouseRightButtonDown="ProjectTree_RightClick"
+                                  MouseMove="ProjectTree_MouseMove">
+                            <TreeView.Resources>
+                                <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource ProjectTreeScrollBarStyle}"/>
+                            </TreeView.Resources>
+                        </TreeView>
+                    </Grid>
                     
                     <!-- 拖拽插入位置指示器 -->
-                    <Canvas Grid.Row="1" 
+                    <Canvas Grid.Row="0"
                             x:Name="DragIndicatorCanvas" 
                             IsHitTestVisible="False"
                             Background="Transparent">
@@ -1428,6 +1579,7 @@
                                        TextWrapping="Wrap"/>
                         </Border>
                     </Popup>
+                    </Grid>
                     
                     <!-- 屏幕选择器（底部） -->
                     <Border x:Name="ScreenSelectorPanel" Grid.Row="2" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="8">

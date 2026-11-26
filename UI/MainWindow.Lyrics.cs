@@ -3146,10 +3146,13 @@ namespace ImageColorChanger.UI
 //#endif
                 }
 
-                if (_lyricsSliceModeEnabled && _lyricsSplitMode == (int)ViewSplitMode.Single)
+                // 纯文本/旧格式在加载期间会重置切片开关；单画面本身默认启用切片。
+                // 必须在正文与保存的规则恢复后生成，不能只在下面刷新按钮而留下空列表。
+                if (_lyricsSplitMode == (int)ViewSplitMode.Single)
                 {
                     try
                     {
+                        _lyricsSliceModeEnabled = true;
                         GenerateLyricsSlicesFromSingleText(preserveIndex: true);
                     }
                     catch (Exception sliceEx)

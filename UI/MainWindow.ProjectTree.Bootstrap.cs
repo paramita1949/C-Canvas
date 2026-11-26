@@ -7,7 +7,7 @@ namespace ImageColorChanger.UI
     {
         private void InitializeProjectTreeBootstrap()
         {
-            ProjectTree.ItemsSource = _filteredProjectTreeItems;
+            InitializeOnlineLibraryPane();
             ProjectTree.PreviewMouseLeftButtonDown += ProjectTree_PreviewMouseLeftButtonDown;
             ProjectTree.PreviewMouseLeftButtonUp += ProjectTree_PreviewMouseLeftButtonUp;
             ProjectTree.PreviewMouseMove += ProjectTree_PreviewMouseMove;

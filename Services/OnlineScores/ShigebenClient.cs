@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 namespace ImageColorChanger.Services.OnlineScores
 {
     public enum OnlineScoreSearchMode { Local, Name, Lyrics }
+    public enum OnlineScoreKindFilter { All, Structured, OriginalImage }
+    public sealed record ScoreCapabilities(bool? HasStructuredNotation, bool? HasOriginalImage);
 
     // 外部 id 不进入本地 MediaFile 的主键域；bId 始终为伴奏标识。
     public sealed class OnlineScoreResult : INotifyPropertyChanged
@@ -32,8 +34,34 @@ namespace ImageColorChanger.Services.OnlineScores
         public string NumberLabel => No > 0 ? No.ToString(CultureInfo.InvariantCulture) : "";
         public string BookDisplayName => string.IsNullOrWhiteSpace(BookName) ? "歌本未解析" : BookName;
         public string Description => $"{BookName ?? "歌本未解析"} · {No} 号";
+        public bool IsPreparingDownload { get; private set; }
+        internal void SetPreparingDownload(bool value)
+        {
+            if (IsPreparingDownload == value) return;
+            IsPreparingDownload = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPreparingDownload)));
+        }
         private bool? _lyricsAvailable;
         public bool HasLyrics => _lyricsAvailable == true;
+        private ScoreCapabilities _capabilities = new(null, null);
+        public bool? HasStructuredNotation => _capabilities.HasStructuredNotation;
+        public bool? HasOriginalImage => _capabilities.HasOriginalImage;
+        public bool HasStructured => HasStructuredNotation == true;
+        public bool MatchesKind(OnlineScoreKindFilter kind) => kind switch
+        {
+            OnlineScoreKindFilter.All => true,
+            OnlineScoreKindFilter.Structured => HasStructured,
+            OnlineScoreKindFilter.OriginalImage => HasOriginalImage == true,
+            _ => false
+        };
+        internal void SetCapabilities(ScoreCapabilities capabilities)
+        {
+            if (capabilities == null || _capabilities == capabilities) return;
+            _capabilities = capabilities;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasStructuredNotation)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasOriginalImage)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasStructured)));
+        }
         internal void SetLyricsAvailability(bool available)
         {
             if (_lyricsAvailable == available) return;
@@ -52,6 +80,12 @@ namespace ImageColorChanger.Services.OnlineScores
     internal sealed class ScoreNodeTransportException : HttpRequestException
     {
         public ScoreNodeTransportException(int status) : base("下载节点 HTTP " + status, null, (System.Net.HttpStatusCode)status) { }
+    }
+
+    // 位图内容损坏是本节点下载失败，可以换源；业务拒绝仍是终止性错误。
+    internal sealed class ScoreNodeImageException : HttpRequestException
+    {
+        public ScoreNodeImageException() : base("图片内容无效或不完整") { }
     }
 
     public interface IScoreRequestAuthorizer
@@ -114,9 +148,16 @@ namespace ImageColorChanger.Services.OnlineScores
         private IReadOnlyList<Uri> _downloadHosts;
         private DateTimeOffset _downloadHostsLoaded;
         private readonly ScoreDownloadNodePolicy _nodePolicy;
+        private readonly ScoreDownloadHostCatalog _hostCatalog;
+        private TimeSpan _downloadHostsLifetime = TimeSpan.FromHours(1);
         private readonly SemaphoreSlim _downloadGate = new(1, 1);
         private readonly SemaphoreSlim _lyricsHintGate = new(2, 2);
         private readonly Dictionary<int, (bool Available, DateTimeOffset Expires)> _lyricsHints = new();
+        // 只读类型元数据，单路串行；不取谱文、原图或票据，不调用绘谱引擎。
+        private readonly SemaphoreSlim _capabilityGate = new(1, 1);
+        private Dictionary<string, int> _bookIdsByName;
+        private DateTimeOffset _bookIdsLoaded;
+        private readonly Dictionary<int, (Dictionary<int, ScoreCapabilities> Items, DateTimeOffset Expires)> _bookCapabilities = new();
         public const int MaxImageBytes = 20 * 1024 * 1024;
 
         public ShigebenClient(HttpClient http, IScoreRequestAuthorizer authorizer, Uri api, Uri downloadHost, bool allowSessionDownload)
@@ -125,9 +166,16 @@ namespace ImageColorChanger.Services.OnlineScores
                     ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CanvasCast", "OnlineScores", "download-node-health.json") : null)) { }
 
         public ShigebenClient(HttpClient http, IScoreRequestAuthorizer authorizer, Uri api, Uri downloadHost, bool allowSessionDownload, ScoreDownloadNodePolicy nodePolicy)
+            : this(http, authorizer, api, downloadHost, allowSessionDownload, nodePolicy,
+                api.Host == "api.shigeben.xyz" ? new ScoreDownloadHostCatalog(ScoreDownloadHostCatalog.BuiltInHosts(),
+                    authorizer is PublicWebScoreAuthorizer || authorizer is BrokerScoreAuthorizer
+                        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CanvasCast", "OnlineScores", "download-hosts.dpapi") : null) : null) { }
+
+        public ShigebenClient(HttpClient http, IScoreRequestAuthorizer authorizer, Uri api, Uri downloadHost, bool allowSessionDownload,
+            ScoreDownloadNodePolicy nodePolicy, ScoreDownloadHostCatalog hostCatalog)
         {
             _http = http; _authorizer = authorizer; _api = api; _downloadHost = downloadHost;
-            _allowSessionDownload = allowSessionDownload; _nodePolicy = nodePolicy ?? new ScoreDownloadNodePolicy(null);
+            _allowSessionDownload = allowSessionDownload; _nodePolicy = nodePolicy ?? new ScoreDownloadNodePolicy(null); _hostCatalog = hostCatalog;
         }
 
         public static ShigebenClient FromApprovedConfiguration()
@@ -202,6 +250,76 @@ namespace ImageColorChanger.Services.OnlineScores
             return CreatePreview(GetString(result, "text") ?? "", result.TryGetProperty("highlights", out var highlights) ? highlights : default);
         }
 
+        public async Task<ScoreCapabilities> GetCapabilitiesAsync(OnlineScoreResult score, CancellationToken ct)
+        {
+            if (score == null || score.Id <= 0) throw new ArgumentOutOfRangeException(nameof(score));
+            ct.ThrowIfCancellationRequested();
+            await _capabilityGate.WaitAsync(ct);
+            try
+            {
+                int bookId = score.BookId ?? 0;
+                if (bookId <= 0)
+                {
+                    if (_bookIdsByName == null || DateTimeOffset.UtcNow - _bookIdsLoaded > TimeSpan.FromHours(1))
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_api, "catalogue/book?ts=0&full=true"));
+                        using var json = await SendJsonAsync(request, ct);
+                        var books = RequireResult(json.RootElement, JsonValueKind.Array);
+                        var names = new Dictionary<string, int>(StringComparer.Ordinal);
+                        foreach (var book in books.EnumerateArray())
+                        {
+                            int id = GetInt(book, "id"); string name = GetString(book, "name");
+                            if (id <= 0 || string.IsNullOrWhiteSpace(name)) continue;
+                            // 同名不同id不猜选；未知留在“全部”，不误贴普通图片标签。
+                            if (names.TryGetValue(name, out int previous) && previous != id) names[name] = 0;
+                            else if (!names.ContainsKey(name)) names[name] = id;
+                        }
+                        _bookIdsByName = names; _bookIdsLoaded = DateTimeOffset.UtcNow;
+                    }
+                    if (string.IsNullOrWhiteSpace(score.BookName) || !_bookIdsByName.TryGetValue(score.BookName, out bookId) || bookId <= 0)
+                        return new ScoreCapabilities(null, null);
+                }
+                if (!_bookCapabilities.TryGetValue(bookId, out var cached) || cached.Expires <= DateTimeOffset.UtcNow)
+                {
+                    var images = new Dictionary<int, bool?>();
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_api,
+                        "catalogue/image?ts=0&bookId=" + bookId.ToString(CultureInfo.InvariantCulture))))
+                    using (var json = await SendJsonAsync(request, ct))
+                    {
+                        foreach (var image in RequireResult(json.RootElement, JsonValueKind.Array).EnumerateArray())
+                        {
+                            int id = GetInt(image, "id");
+                            if (id <= 0 || (image.TryGetProperty("isDeleted", out var deleted) && deleted.ValueKind == JsonValueKind.True)) continue;
+                            // 仅正的原图文件元数据证明有原图；0/缺失不能当有图。
+                            images[id] = image.TryGetProperty("fileSize", out var size) && size.ValueKind == JsonValueKind.Number && size.TryGetInt64(out long bytes) && bytes > 0 ? true : null;
+                        }
+                    }
+                    var structuredIds = new HashSet<int>();
+                    // Done为已审核、ToCheck为待审核；普通及大字谱任一种存在即结构化。
+                    foreach (string path in new[] { "Pu/Done", "Pu/ToCheck", "Pu/big/Done", "Pu/big/ToCheck" })
+                    {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_api,
+                            path + "?bookId=" + bookId.ToString(CultureInfo.InvariantCulture)));
+                        using var json = await SendJsonAsync(request, ct);
+                        foreach (var item in RequireResult(json.RootElement, JsonValueKind.Array).EnumerateArray())
+                        {
+                            if (item.ValueKind != JsonValueKind.Number || !item.TryGetInt32(out int id) || id <= 0)
+                                throw new ScoreIntegrationException("诗歌本类型索引结构发生变化。");
+                            structuredIds.Add(id);
+                        }
+                    }
+                    var items = images.ToDictionary(x => x.Key, x => new ScoreCapabilities(structuredIds.Contains(x.Key), x.Value));
+                    if (_bookCapabilities.Count >= 32)
+                        _bookCapabilities.Remove(_bookCapabilities.OrderBy(x => x.Value.Expires).First().Key);
+                    cached = (items, DateTimeOffset.UtcNow.AddMinutes(10));
+                    _bookCapabilities[bookId] = cached;
+                }
+                ct.ThrowIfCancellationRequested();
+                return cached.Items.TryGetValue(score.Id, out var capabilities) ? capabilities : new ScoreCapabilities(null, null);
+            }
+            finally { _capabilityGate.Release(); }
+        }
+
         // 查询歌词正文是否存在，只读文字到内存；不取谱文、票据、图片，不写 YM/数据库。
         // 未知/请求失败与“无歌词”不同，失败不缓存，也不亮绿点。
         public async Task<bool> GetLyricsAvailabilityAsync(int id, CancellationToken ct)
@@ -236,6 +354,16 @@ namespace ImageColorChanger.Services.OnlineScores
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 new Uri(_api, "download/text?id=" + id.ToString(CultureInfo.InvariantCulture)));
             using var json = await SendJsonAsync(request, ct);
+            // “未编辑”是这首歌没有歌词的正常状态，不是网络/权限失败。
+            // 只匹配该明确业务响应，其余错误仍交由 RequireResult 严格校验。
+            if (json.RootElement.ValueKind == JsonValueKind.Object &&
+                json.RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number &&
+                code.TryGetInt32(out int status) && status == 0 &&
+                GetString(json.RootElement, "msg") == "歌词未编辑")
+            {
+                CacheLyricsAvailability(id, false);
+                return "";
+            }
             string lyrics = RequireResult(json.RootElement, JsonValueKind.String).GetString() ?? "";
             CacheLyricsAvailability(id, !string.IsNullOrWhiteSpace(lyrics));
             return lyrics;
@@ -311,9 +439,15 @@ namespace ImageColorChanger.Services.OnlineScores
             }
         }
 
-        public async Task<string> DownloadScoreAsync(int id, string directory, CancellationToken ct)
+        public Task<string> DownloadScoreAsync(int id, string directory, CancellationToken ct) =>
+            DownloadScoreWithProgressAsync(id, directory, ct, null);
+
+        public async Task<string> DownloadScoreWithProgressAsync(int id, string directory, CancellationToken ct,
+            IProgress<ScoreDownloadProgress> progress)
         {
             if (!_allowSessionDownload) throw new ScoreIntegrationException("当前配置未允许歌谱下载。已保留原画面。");
+            ct.ThrowIfCancellationRequested();
+            progress?.Report(new(ScoreDownloadStage.Preparing, "正在准备歌谱…"));
             string reason = null;
             for (int type = 0; type <= 1; type++)
             {
@@ -327,12 +461,17 @@ namespace ImageColorChanger.Services.OnlineScores
                 Directory.CreateDirectory(directory);
                 string path = Path.Combine(directory, id + "-" + Guid.NewGuid().ToString("N") + ".png");
                 // CPU 排版不阻塞 WPF 输入。取消或排版失败清理只属于本次请求的新文件。
-                try { await Task.Run(() => ScoreNotationRenderer.RenderToPng(source, path, ct), ct); return path; }
+                try
+                {
+                    await Task.Run(() => ScoreNotationRenderer.RenderToPng(source, path, ct), ct);
+                    progress?.Report(new(ScoreDownloadStage.Completed, ""));
+                    return path;
+                }
                 catch (ScoreIntegrationException ex)
                 { if (File.Exists(path)) File.Delete(path); reason = ex.Message; }
                 catch { if (File.Exists(path)) File.Delete(path); throw; }
             }
-            try { return await DownloadImageAsync(id, directory, ct); }
+            try { return await DownloadImageWithProgressAsync(id, directory, ct, progress); }
             catch (ScoreIntegrationException ex)
             {
                 throw new ScoreIntegrationException((reason ?? "此版本没有可用的结构化简谱。") + " " + ex.Message);
@@ -340,7 +479,11 @@ namespace ImageColorChanger.Services.OnlineScores
         }
 
         // 只取得新票据，不持久化临时 URL。文件生命周期由本地歌谱库管理。
-        public async Task<string> DownloadImageAsync(int id, string directory, CancellationToken ct)
+        public Task<string> DownloadImageAsync(int id, string directory, CancellationToken ct) =>
+            DownloadImageWithProgressAsync(id, directory, ct, null);
+
+        public async Task<string> DownloadImageWithProgressAsync(int id, string directory, CancellationToken ct,
+            IProgress<ScoreDownloadProgress> progress)
         {
             if (!_allowSessionDownload) throw new ScoreIntegrationException("未确认歌谱图片下载/会话缓存许可，当前不能下载。请先取得站方许可。");
             if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
@@ -352,18 +495,31 @@ namespace ImageColorChanger.Services.OnlineScores
                 var candidates = _nodePolicy.Rank(hosts);
                 if (candidates.Count == 0) throw new ScoreIntegrationException(_nodePolicy.Unavailable(hosts));
                 // 只有实际文件成功才保持线路；ping只测可达性/耗时，不假装下载已成功。
-                if (!_nodePolicy.HasVerifiedNode(hosts)) await ProbeDownloadNodesAsync(candidates, ct);
+                if (!_nodePolicy.HasVerifiedNode(hosts))
+                {
+                    progress?.Report(new(ScoreDownloadStage.ProbingNodes, "正在选择可用下载线路…"));
+                    await ProbeDownloadNodesAsync(candidates, ct);
+                }
+                bool previousFailed = false;
                 foreach (var host in _nodePolicy.Rank(hosts))
                 {
+                    ct.ThrowIfCancellationRequested();
+                    progress?.Report(previousFailed
+                        ? new(ScoreDownloadStage.SwitchingNode, "当前线路下载失败，正在切换备用线路…")
+                        : new(ScoreDownloadStage.Downloading, "正在下载歌谱…"));
                     var clock = Stopwatch.StartNew();
                     try
                     {
                         string path = await DownloadImageFromHostAsync(id, directory, host, ct);
                         _nodePolicy.Success(host, clock.Elapsed.TotalMilliseconds);
+                        _hostCatalog?.RecordSuccess(host);
+                        progress?.Report(new(ScoreDownloadStage.Completed, ""));
                         return path;
                     }
+                    catch (ScoreNodeImageException) { ct.ThrowIfCancellationRequested(); _nodePolicy.Failure(host, "图片内容无效或不完整"); }
                     catch (HttpRequestException ex) { ct.ThrowIfCancellationRequested(); _nodePolicy.Failure(host, ConnectionFailureKind(ex)); }
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested) { _nodePolicy.Failure(host, "请求超时"); }
+                    previousFailed = true;
                 }
                 throw new ScoreIntegrationException(_nodePolicy.Unavailable(hosts));
             }
@@ -408,32 +564,46 @@ namespace ImageColorChanger.Services.OnlineScores
 
         public async Task<IReadOnlyList<Uri>> GetDownloadHostsAsync(CancellationToken ct)
         {
-            // 显式配置保持原有“指定地址”语义；未指定时使用官方自动线路池。
-            if (_downloadHost != null) return new[] { _downloadHost };
-            if (_downloadHosts != null && DateTimeOffset.UtcNow - _downloadHostsLoaded < TimeSpan.FromHours(1)) return _downloadHosts;
-            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_api, "hosts"));
-            request.Headers.Add("ver", "3");
-            using var json = await SendJsonAsync(request, ct);
-            var result = RequireResult(json.RootElement, JsonValueKind.Object);
-            if (!result.TryGetProperty("downloadHosts", out var list) || list.ValueKind != JsonValueKind.Array)
-                throw new ScoreIntegrationException("下载节点响应结构发生变化。");
+            ct.ThrowIfCancellationRequested();
+            // 生产环境指定地址改为优先候选，不屏蔽网页/桌面备用。无目录的隔离调用保持旧语义。
+            if (_hostCatalog == null && _downloadHost != null) return new[] { _downloadHost };
+            if (_downloadHosts != null && DateTimeOffset.UtcNow - _downloadHostsLoaded < _downloadHostsLifetime) return _downloadHosts;
             var hosts = new List<Uri>();
-            foreach (var item in list.EnumerateArray())
+            void Add(Uri candidate)
             {
-                int type = GetInt(item, "type");
-                if ((type == 1 || type == 3) && Uri.TryCreate(GetString(item, "url"), UriKind.Absolute, out var host) &&
-                    host.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(host.UserInfo) && string.IsNullOrEmpty(host.Query) && string.IsNullOrEmpty(host.Fragment))
-                {
-                    host = new Uri(host.AbsoluteUri.TrimEnd('/') + "/");
-                    if (hosts.Contains(host)) continue;
-                    hosts.Add(host);
-                    (_authorizer as PublicWebScoreAuthorizer)?.AllowAdvertisedDownloadHost(host);
-                    if (hosts.Count >= 12) break;
-                }
+                var host = ScoreDownloadHostCatalog.Normalize(candidate);
+                if (host == null || hosts.Contains(host) || hosts.Count >= 64) return;
+                hosts.Add(host);
+                (_authorizer as PublicWebScoreAuthorizer)?.AllowAdvertisedDownloadHost(host);
             }
+            Add(_downloadHost);
+            bool discovered = false;
+            try
+            {
+                using var discoveryTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                discoveryTimeout.CancelAfter(TimeSpan.FromSeconds(5)); // 公告卡住不能长期阻塞已知备用。
+                using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_api, "hosts"));
+                request.Headers.Add("ver", "3");
+                using var json = await SendJsonAsync(request, discoveryTimeout.Token);
+                var result = RequireResult(json.RootElement, JsonValueKind.Object);
+                if (!result.TryGetProperty("downloadHosts", out var list) || list.ValueKind != JsonValueKind.Array)
+                    throw new ScoreIntegrationException("下载节点响应结构发生变化。");
+                foreach (var item in list.EnumerateArray())
+                {
+                    int type = GetInt(item, "type");
+                    if ((type == 1 || type == 3) && Uri.TryCreate(GetString(item, "url"), UriKind.Absolute, out var host)) Add(host);
+                }
+                discovered = true;
+            }
+            // 只有传输故障/超时才用离线候选；权限拒绝/限流/非JSON不伪装域名失效。
+            catch (HttpRequestException) when (_hostCatalog != null) { ct.ThrowIfCancellationRequested(); }
+            catch (OperationCanceledException) when (_hostCatalog != null && !ct.IsCancellationRequested) { }
+            if (_hostCatalog != null) foreach (var host in _hostCatalog.GetHosts()) Add(host);
+            ct.ThrowIfCancellationRequested();
             if (hosts.Count == 0) throw new ScoreIntegrationException("站点当前没有可用的 HTTPS 图片下载节点。");
             _downloadHosts = hosts;
             _downloadHostsLoaded = DateTimeOffset.UtcNow;
+            _downloadHostsLifetime = discovered ? TimeSpan.FromHours(1) : TimeSpan.FromMinutes(1);
             return hosts;
         }
 
@@ -452,26 +622,29 @@ namespace ImageColorChanger.Services.OnlineScores
             await _authorizer.AuthorizeAsync(request, ct);
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             CheckHttp(response);
-            string mime = response.Content.Headers.ContentType?.MediaType;
-            if (mime != "image/png" && mime != "image/jpeg" && mime != "image/webp" && mime != "image/bmp")
+            string mime = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
+            if (mime != null && mime != "application/octet-stream" && mime != "image/png" &&
+                mime != "image/jpeg" && mime != "image/webp" && mime != "image/bmp")
                 throw new ScoreIntegrationException("此歌谱未提供受支持的原始位图（PNG/JPEG/WebP/BMP）。");
             byte[] bytes = await ReadBoundedAsync(response.Content, MaxImageBytes, ct);
             bool png = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
             bool jpg = bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255;
             bool webp = bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP";
             bool bmp = bytes.Length >= 2 && bytes[0] == 66 && bytes[1] == 77;
-            string extension = mime switch { "image/png" when png => ".png", "image/jpeg" when jpg => ".jpg", "image/webp" when webp => ".webp", "image/bmp" when bmp => ".bmp", _ => null };
-            if (extension == null) throw new ScoreIntegrationException("下载内容与图片格式不符，已拒绝加载。");
+            // 官方部分 PNG 原图错误标注 image/jpeg；扩展名取真实格式，不能依赖 MIME。
+            // 仍须通过完整位图解码，HTML/JSON/损坏内容不能冒充图片进入本地库。
+            string extension = png ? ".png" : jpg ? ".jpg" : webp ? ".webp" : bmp ? ".bmp" : null;
+            if (extension == null) throw new ScoreNodeImageException();
             // 节点只有在实际位图完整可解码后才能记为成功，不把PNG文件头当成有效歌谱。
             using (var stream = new SkiaSharp.SKMemoryStream(bytes))
             using (var codec = SkiaSharp.SKCodec.Create(stream))
             {
                 if (codec == null || codec.Info.Width <= 0 || codec.Info.Height <= 0 ||
                     (long)codec.Info.Width * codec.Info.Height > 40_000_000)
-                    throw new ScoreIntegrationException("下载歌谱无法解码或尺寸过大，未保存到 YM。");
+                    throw new ScoreNodeImageException();
                 using var decoded = new SkiaSharp.SKBitmap(codec.Info);
                 if (codec.GetPixels(decoded.Info, decoded.GetPixels()) != SkiaSharp.SKCodecResult.Success)
-                    throw new ScoreIntegrationException("下载歌谱图片不完整，未保存到 YM。");
+                    throw new ScoreNodeImageException();
             }
             ct.ThrowIfCancellationRequested();
             Directory.CreateDirectory(directory);

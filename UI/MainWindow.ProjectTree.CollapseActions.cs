@@ -23,7 +23,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+                var treeItems = GetVisibleLibraryRoots();
                 foreach (var item in treeItems)
                 {
                     if (item.Type == TreeItemType.Folder)
@@ -46,7 +46,7 @@ namespace ImageColorChanger.UI
             try
             {
                 LogCollapseDebug("CollapseOtherFolders.Begin", exceptFolder);
-                var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+                var treeItems = GetVisibleLibraryRoots();
                 foreach (var item in treeItems)
                 {
                     if (item.Type == TreeItemType.Folder && item.Id != exceptFolder.Id)

@@ -16,20 +16,26 @@ namespace ImageColorChanger.Services.OnlineScores
     public sealed class OnlineScoreLibrary
     {
         private readonly DatabaseManager _db;
+        private readonly string[] _cacheDirectories;
         private static readonly SemaphoreSlim DownloadLock = new(1, 1);
         public string DirectoryPath { get; }
+        public string DisplayName => new DirectoryInfo(DirectoryPath).Name;
 
-        public OnlineScoreLibrary(DatabaseManager db, string directory = null)
+        public OnlineScoreLibrary(DatabaseManager db, string directory = null) : this(db, directory, null) { }
+
+        public OnlineScoreLibrary(DatabaseManager db, string directory, System.Collections.Generic.IReadOnlyList<string> cacheDirectories)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
-            DirectoryPath = Path.GetFullPath(directory ?? Path.Combine(AppContext.BaseDirectory, "YM"));
+            DirectoryPath = OnlineScoreStorageSettings.Normalize(directory ?? new OnlineScoreStorageSettings(db).DirectoryPath);
+            _cacheDirectories = new[] { DirectoryPath }.Concat(cacheDirectories ?? Array.Empty<string>())
+                .Select(OnlineScoreStorageSettings.Normalize).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         // 仓库入口允许空目录。仅启动时扫描一次，下载时只登记当前新增图片。
         public Folder EnsureFolder(bool importExisting = false)
         {
             Directory.CreateDirectory(DirectoryPath);
-            var folder = _db.ImportFolder(DirectoryPath, "YM");
+            var folder = _db.ImportFolder(DirectoryPath, DisplayName);
             if (importExisting)
                 foreach (string path in Directory.EnumerateFiles(DirectoryPath))
                     if (ImageFileSupport.ImageExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
@@ -40,9 +46,10 @@ namespace ImageColorChanger.Services.OnlineScores
         public MediaFile RegisterImage(string path)
         {
             path = Path.GetFullPath(path);
-            if (!string.Equals(Path.GetDirectoryName(path), DirectoryPath, StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
-                throw new ScoreIntegrationException("歌谱文件不在 YM 中或已不存在，未登记。");
-            var folder = EnsureFolder();
+            if (!_cacheDirectories.Contains(Path.GetDirectoryName(path), StringComparer.OrdinalIgnoreCase) || !File.Exists(path))
+                throw new ScoreIntegrationException("歌谱文件不在所选存储文件夹中或已不存在，未登记。");
+            // 旧缓存不搬动，保持原图片 ID 与用户歌词；只登记它实际所属的目录。
+            var folder = _db.ImportFolder(Path.GetDirectoryName(path), new DirectoryInfo(Path.GetDirectoryName(path)).Name);
             var context = _db.GetDbContext();
             using var transaction = context.Database.BeginTransaction();
             var image = _db.AddMediaFile(path, folder.Id);
@@ -78,15 +85,20 @@ namespace ImageColorChanger.Services.OnlineScores
                 ct.ThrowIfCancellationRequested();
                 Directory.CreateDirectory(DirectoryPath);
                 string prefix = result.Id + " - ";
-                foreach (string existing in Directory.EnumerateFiles(DirectoryPath, prefix + "*"))
-                    if (await Task.Run(() => IsValidImage(existing), ct)) return existing;
+                foreach (string cache in _cacheDirectories)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!Directory.Exists(cache)) continue;
+                    foreach (string existing in Directory.EnumerateFiles(cache, prefix + "*"))
+                        if (await Task.Run(() => IsValidImage(existing), ct)) return existing;
+                }
 
                 // 临时文件与 YM 隔离，失败/取消不产生半成品或可被导入的错误图片。
                 stage = Path.Combine(Path.GetTempPath(), "CanvasCast-score-download", Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(stage);
                 downloaded = await download(stage, ct);
                 if (!await Task.Run(() => IsValidImage(downloaded), ct))
-                    throw new ScoreIntegrationException("下载的歌谱图片无效，未保存到 YM。");
+                    throw new ScoreIntegrationException("下载的歌谱图片无效，未保存到歌谱文件夹。");
                 ct.ThrowIfCancellationRequested();
                 string name = new string((result.Name ?? "歌谱").Select(c => Path.GetInvalidFileNameChars().Contains(c) || char.IsControl(c) ? '_' : c).ToArray());
                 name = name.Trim().TrimEnd('.');

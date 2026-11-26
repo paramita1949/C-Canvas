@@ -93,6 +93,8 @@ namespace ImageColorChanger.UI
             saveImageItem.Click += (s, args) => SaveCurrentImage();
             contextMenu.Items.Add(saveImageItem);
 
+            contextMenu.Items.Add(BuildOnlineScoreStorageMenuItem());
+
             contextMenu.Items.Add(new Separator());
 
             // 数据库

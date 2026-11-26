@@ -17,7 +17,7 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                var treeItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+                var treeItems = GetVisibleLibraryRoots();
                 SelectTreeItemRecursive(treeItems, itemId);
             }
             catch (Exception)
@@ -57,7 +57,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void ExpandParentNodes(ProjectTreeItem item)
         {
-            var allItems = ProjectTree.Items.Cast<ProjectTreeItem>();
+            var allItems = GetVisibleLibraryRoots();
             ExpandParentNodesRecursive(allItems, item);
         }
 

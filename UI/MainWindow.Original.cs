@@ -285,11 +285,10 @@ namespace ImageColorChanger.UI
                     var treeItem = FindTreeItemById(e.ImageId);
                     if (treeItem != null)
                     {
-                        // 使用SetCurrentValue避免只读问题
-                        ProjectTree.SetCurrentValue(System.Windows.Controls.TreeView.SelectedItemProperty, treeItem);
-                        // 滚动到可见区域
-                        var treeViewItem = ProjectTree.ItemContainerGenerator
-                            .ContainerFromItem(treeItem) as System.Windows.Controls.TreeViewItem;
+                        // 两个本地分区仍按同一图片 ID 更新选中，不写只读 SelectedItem。
+                        SelectTreeItemById(e.ImageId);
+                        var treeViewItem = FindLibraryItemContainer(ProjectTree, treeItem)
+                            ?? FindLibraryItemContainer(OnlineLibraryTree, treeItem);
                         treeViewItem?.BringIntoView();
                     }
 

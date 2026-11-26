@@ -74,7 +74,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null)
+            if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null && !_draggedItem.IsOnlineScoreLibraryRoot)
             {
                 System.Windows.Point currentPosition = e.GetPosition(null);
                 System.Windows.Vector diff = _dragStartPoint - currentPosition;

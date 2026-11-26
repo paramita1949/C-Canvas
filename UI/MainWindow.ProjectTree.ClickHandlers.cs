@@ -13,10 +13,26 @@ namespace ImageColorChanger.UI
     /// </summary>
     public partial class MainWindow
     {
+        private void ProjectTree_PreviewFolderDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount > 1 && TryGetTreeItemFromEvent(e, out var item) && item.Type == TreeItemType.Folder)
+            {
+                // 文件夹第一次松开已切换展开态；阻止 WPF 在双击第二次按下时再切换。
+                // 图片/媒体双击仍交给原有显示和播放入口。
+                e.Handled = true;
+            }
+        }
+
         private async void ProjectTree_MouseClick(object sender, MouseButtonEventArgs e)
         {
             if (!TryGetTreeItemFromEvent(e, out var selectedItem))
             {
+                return;
+            }
+
+            if (selectedItem.Type == TreeItemType.Folder && e.ClickCount > 1)
+            {
+                e.Handled = true;
                 return;
             }
 

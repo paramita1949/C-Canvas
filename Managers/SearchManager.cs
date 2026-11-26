@@ -8,6 +8,7 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.UI;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.OnlineScores;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
@@ -60,12 +61,16 @@ namespace ImageColorChanger.Managers
             {
                 if (mediaFilterMode != MediaSearchFilterMode.MediaOnly)
                 {
+                    var onlineStorage = ReadOnlineScoreStorageSettings();
                     var imageFiles = searchFolderId == null
                         ? _dbManager.SearchFiles(searchTerm, FileType.Image)
                         : _dbManager.SearchFilesInFolder(searchTerm, searchFolderId.Value, FileType.Image);
 
                     foreach (var file in imageFiles)
                     {
+                        // 缓存已是普通本地图片：只识别来源标签，不请求网络或重新登记。
+                        string onlineTag = ResolveOnlineScoreSearchTag(onlineStorage, file);
+                        if (onlineTag != null && !File.Exists(file.Path)) continue;
                         var folderId = ResolveSearchFolderId(file, searchFolderId);
                         var folderName = ResolveTopLevelFolderName(file, searchFolderId);
 
@@ -87,8 +92,8 @@ namespace ImageColorChanger.Managers
                             Id = file.Id,
                             Path = file.Path,
                             FileType = file.FileType,
-                            FolderName = BuildFileSearchFolderTag(folderName, file.FileType),
-                            FolderColor = folderColor,
+                            FolderName = onlineTag ?? BuildFileSearchFolderTag(folderName, file.FileType),
+                            FolderColor = onlineTag != null ? OnlineScoreStorageSettings.FolderColor : folderColor,
                             ShowFolderTag = true
                         });
                     }
@@ -118,6 +123,39 @@ namespace ImageColorChanger.Managers
             }
 
             return results;
+        }
+
+        private OnlineScoreStorageSettings ReadOnlineScoreStorageSettings()
+        {
+            try { return new OnlineScoreStorageSettings(_dbManager); }
+            // 损坏的在线设置不能阻止用户搜索自己的本地文件；不重置或覆盖设置。
+            catch (System.Text.Json.JsonException) { return null; }
+            catch (InvalidDataException) { return null; }
+            catch (ArgumentException) { return null; }
+            catch (NotSupportedException) { return null; }
+        }
+
+        private static string ResolveOnlineScoreSearchTag(OnlineScoreStorageSettings settings, MediaFile file)
+        {
+            if (settings == null || string.IsNullOrWhiteSpace(file?.Path)) return null;
+            try
+            {
+                if (!Path.IsPathFullyQualified(file.Path)) return null;
+                string imageDirectory = Path.GetDirectoryName(Path.GetFullPath(file.Path));
+                // 从图片目录向上找登记的歌本，分页子目录也标注同一歌本。
+                for (string directory = imageDirectory;
+                    !string.IsNullOrEmpty(directory); directory = Path.GetDirectoryName(directory))
+                    if (settings.IsLibraryDirectory(directory))
+                    {
+                        // 存储父层仅认领直接存放的旧缓存，不认领未登记的自定义子目录。
+                        if (settings.IsStorageRoot(directory) &&
+                            !string.Equals(directory, imageDirectory, StringComparison.OrdinalIgnoreCase)) return null;
+                        return settings.GetLibraryDisplayName(directory) + " · 在线歌谱";
+                    }
+            }
+            catch (ArgumentException) { }
+            catch (NotSupportedException) { }
+            return null;
         }
 
         private void AppendMediaSearchResults(ObservableCollection<ProjectTreeItem> results, string searchTerm, int? searchFolderId)

@@ -112,6 +112,14 @@ namespace ImageColorChanger.UI
                         folderEntries = new List<FolderTreeEntry>();
                     }
 
+                    var onlineStorage = GetOnlineScoreStorageSettings();
+                    if (onlineStorage.IsStorageRoot(folder.Path))
+                    {
+                        // 不显示 YM/自定义存储点这层；旧版平铺图片单独保留，不能重导入歌本子目录。
+                        folderEntries = folderEntries.Where(e => !HasNestedFolderPath(e.RelativePath)).ToList();
+                        if (folderEntries.Count == 0) continue;
+                    }
+
                     bool hasNestedFolders = folderEntries.Any(e => HasNestedFolderPath(e.RelativePath));
                     bool hierarchyEnabled = hasNestedFolders && IsFolderHierarchyEnabled(folder.Id);
                     var files = folderEntries.Select(e => e.MediaFile).ToList();
@@ -144,15 +152,22 @@ namespace ImageColorChanger.UI
                     }
                     iconColor = ResolveFolderHighlightIconColor(folder.Id, folder.HighlightColor, iconColor);
                     bool hasCustomHighlightColor = !string.IsNullOrWhiteSpace(folder.HighlightColor);
+                    bool isOnlineLibrary = onlineStorage.IsLibraryDirectory(folder.Path);
+                    if (isOnlineLibrary)
+                    {
+                        iconColor = Services.OnlineScores.OnlineScoreStorageSettings.FolderColor;
+                        hasCustomHighlightColor = true;
+                    }
 
                     var folderItem = new ProjectTreeItem
                     {
                         Id = folder.Id,
-                        Name = folder.Name,
+                        Name = isOnlineLibrary ? onlineStorage.GetLibraryDisplayName(folder.Path) : folder.Name,
                         Icon = iconKind,
                         IconKind = iconKind,
                         IconColor = iconColor,
                         UseCustomIconColor = hasCustomHighlightColor,
+                        IsOnlineScoreLibraryRoot = isOnlineLibrary,
                         Type = TreeItemType.Folder,
                         Path = folder.Path,
                         HasNestedFolders = hasNestedFolders,
@@ -703,7 +718,7 @@ namespace ImageColorChanger.UI
 
             if (_currentViewMode == NavigationViewMode.Files)
             {
-                foreach (var item in _projectTreeItems)
+                foreach (var item in _projectTreeItems.Where(i => !i.IsOnlineScoreLibraryRoot))
                 {
                     if (item.Type == TreeItemType.Folder || item.Type == TreeItemType.File)
                     {
@@ -713,6 +728,11 @@ namespace ImageColorChanger.UI
                     {
                         _filteredProjectTreeItems.Add(item);
                     }
+                }
+                foreach (var item in _projectTreeItems.Where(i => i.IsOnlineScoreLibraryRoot))
+                {
+                    item.ShowOnlineScoreSeparator = false;
+                    _filteredProjectTreeItems.Add(item);
                 }
             }
             else
@@ -725,6 +745,7 @@ namespace ImageColorChanger.UI
                     }
                 }
             }
+            RefreshOnlineLibraryRoots();
         }
 
         /// <summary>
