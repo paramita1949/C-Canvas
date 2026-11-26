@@ -372,6 +372,13 @@ namespace ImageColorChanger.UI
 
             contextMenu.Items.Add(new Separator());
 
+            if (item.FileType == FileType.Image)
+            {
+                contextMenu.Items.Add(CreateIconMenuItem("移动到…", "IconLucideFolderOpen", async () => await MoveImageToFolder(item)));
+                contextMenu.Items.Add(CreateIconMenuItem("重命名…", "IconLucidePencil", async () => await RenameImageFile(item)));
+                contextMenu.Items.Add(new Separator());
+            }
+
             var deleteItem = CreateIconMenuItem("删除文件", "IconLucideX", () => DeleteFile(item));
             contextMenu.Items.Add(deleteItem);
         }

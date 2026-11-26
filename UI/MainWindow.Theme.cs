@@ -107,6 +107,7 @@ namespace ImageColorChanger.UI
                 appResources["ColorGlobalIcon"] = color;
                 appResources["BrushGlobalIcon"] = new SolidColorBrush(color);
                 appResources["BrushIconDefault"] = new SolidColorBrush(color);
+                MediaFileDialogTheme.Apply(appResources, color);
                 appResources["BrushMenuHover"] = new SolidColorBrush(color) { Opacity = 0.16 };
                 appResources["BrushBiblePinyinPreviewHover"] = new SolidColorBrush(WpfColor.FromArgb(0x99, color.R, color.G, color.B));
                 appResources["BrushBiblePinyinPreviewHoverBorder"] = new SolidColorBrush(WpfColor.FromArgb(0xFF, color.R, color.G, color.B));
