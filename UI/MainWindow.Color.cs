@@ -22,6 +22,12 @@ namespace ImageColorChanger.UI
                 return;
             }
 
+            if (_structuredScore != null && !_structuredShowingImage)
+            {
+                OpenColorPicker();
+                return;
+            }
+
             // 切换变色效果状态
             _imageProcessor.IsInverted = !_imageProcessor.IsInverted;
             _isColorEffectEnabled = _imageProcessor.IsInverted;
@@ -51,10 +57,8 @@ namespace ImageColorChanger.UI
             using (var colorDialog = new System.Windows.Forms.ColorDialog())
             {
                 // 设置当前颜色
-                colorDialog.Color = System.Drawing.Color.FromArgb(
-                    _currentTargetColor.Red, 
-                    _currentTargetColor.Green, 
-                    _currentTargetColor.Blue);
+                var initial = _structuredScore == null || _structuredShowingImage ? _currentTargetColor : ResolveStructuredTextColor(_structuredScore);
+                colorDialog.Color = System.Drawing.Color.FromArgb(initial.Red, initial.Green, initial.Blue);
                 
                 colorDialog.AllowFullOpen = true;
                 colorDialog.FullOpen = true;
@@ -62,6 +66,11 @@ namespace ImageColorChanger.UI
                 if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     var selectedColor = colorDialog.Color;
+                    if (_structuredScore != null && !_structuredShowingImage)
+                    {
+                        _ = SetStructuredScoreTextColorAsync($"#{selectedColor.R:X2}{selectedColor.G:X2}{selectedColor.B:X2}");
+                        return;
+                    }
                     _currentTargetColor = new SKColor(selectedColor.R, selectedColor.G, selectedColor.B);
                     
                     // 使用 ConfigManager 查找预设名称
@@ -71,8 +80,7 @@ namespace ImageColorChanger.UI
                     // 如果颜色效果已启用，清除缓存并更新显示
                     if (_isColorEffectEnabled)
                     {
-                        _imageProcessor.ClearCache();
-                        _imageProcessor.UpdateImage();
+                        _imageProcessor.ClearCache(); _imageProcessor.UpdateImage();
                     }
                     
                     // 保存颜色设置

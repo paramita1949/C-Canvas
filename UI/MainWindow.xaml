@@ -605,6 +605,57 @@
                                     BorderThickness="0,1,1,1"
                                     Click="BtnShowProjects_Click"/>
                         </StackPanel>
+                        <!-- 仅纯数字搜索出现：本地文件夹二次筛选，不混入在线歌本。 -->
+                        <Grid x:Name="ProjectSearchFolderTagsPanel" Visibility="Collapsed" Margin="0,0,0,4">
+                            <Grid.Resources>
+                                <Style x:Key="ProjectSearchFolderChip" TargetType="ToggleButton">
+                                    <Setter Property="Background" Value="{DynamicResource BrushMenuSurface}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushMenuText}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource BrushMenuBorder}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="Padding" Value="10,4"/>
+                                    <Setter Property="Margin" Value="0,0,5,5"/>
+                                    <Setter Property="MinHeight" Value="28"/>
+                                    <Setter Property="MaxWidth" Value="180"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border x:Name="ChipBorder" CornerRadius="8" Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ChipBorder" Property="Background" Value="{DynamicResource BrushMenuHover}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter TargetName="ChipBorder" Property="BorderBrush" Value="{DynamicResource BrushMenuText}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="ChipBorder" Property="Background" Value="{DynamicResource BrushMenuSubSurface}"/>
+                                                        <Setter TargetName="ChipBorder" Property="BorderBrush" Value="{DynamicResource BrushMenuText}"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Grid.Resources>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollViewer x:Name="ProjectSearchFolderTagsScroll" MaxHeight="64" ClipToBounds="True"
+                                          HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
+                                <WrapPanel x:Name="ProjectSearchFolderTagsWrap"/>
+                            </ScrollViewer>
+                            <ToggleButton x:Name="ProjectSearchFolderTagsMore" Grid.Column="1" Content="更多" Visibility="Collapsed"
+                                          VerticalAlignment="Top" Style="{StaticResource ProjectSearchFolderChip}" ToolTip="展开文件夹标签"/>
+                        </Grid>
                     </StackPanel>
 
                     <!--  圣经导航面板（圣经模式下显示） -->
@@ -1605,7 +1656,110 @@
                           DragCompleted="NavigationSplitter_DragCompleted"/>
 
             <!-- 右侧：图片显示区 -->
-            <Grid Grid.Column="2" Background="{Binding ImageBackgroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}">
+            <Grid x:Name="ImageViewingSurface" Grid.Column="2" Background="{Binding ImageBackgroundBrush, RelativeSource={RelativeSource AncestorType={x:Type Window}}}">
+                <!-- 结构谱悬浮工具栏：不占谱面高度，不进入投影；移入图片区显示，移出隐藏。 -->
+                <Border x:Name="StructuredScoreBar" Tag="False" Panel.ZIndex="300"
+                        HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12,14,12,0"
+                        Background="{DynamicResource BrushMediaDialogSurface}" BorderBrush="{DynamicResource BrushMediaDialogBorder}" BorderThickness="1" CornerRadius="10" Padding="6"
+                        TextElement.Foreground="{DynamicResource BrushMediaDialogText}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                        <Condition Binding="{Binding ElementName=ImageViewingSurface, Path=IsMouseOver}" Value="True"/>
+                                        <Condition Binding="{Binding ElementName=ImageScrollViewer, Path=IsVisible}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                        <Condition Binding="{Binding ElementName=StructuredScorePinButton, Path=IsChecked}" Value="True"/>
+                                        <Condition Binding="{Binding ElementName=ImageScrollViewer, Path=IsVisible}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{DynamicResource BrushMediaDialogText}"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="Padding" Value="10,6"/>
+                            <Setter Property="MinHeight" Value="32"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.8"/></Trigger>
+                                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource BrushMediaDialogSelected}"/></Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogOutline}"/></Trigger>
+                                <Trigger Property="Selector.IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource BrushMediaDialogAccent}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushMediaDialogOnAccent}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogOutline}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/></Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Resources>
+                    <WrapPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Button x:Name="StructuredScorePaginatedButton" Content="分页" Tag="0" Padding="10,4" Click="StructuredScoreLayout_Click"/>
+                        <Button x:Name="StructuredScoreLongButton" Content="长页" Tag="2" Padding="10,4" Margin="4,0" Click="StructuredScoreLayout_Click"/>
+                        <Button x:Name="StructuredScoreCombinedButton" Content="合页" Tag="1" IsEnabled="False" Padding="10,4" Click="StructuredScoreLayout_Click"/>
+                        <Button x:Name="StructuredScoreLyricsButton" Content="歌词" ToolTip="进入当前歌谱的歌词" Margin="4,0,0,0" Padding="10,4" Click="StructuredScoreLyrics_Click"/>
+                        <Button x:Name="StructuredScorePreviousButton" ToolTip="上一页" AutomationProperties.Name="上一页" Margin="6,0,0,0" Padding="8,4" MinWidth="32" Click="StructuredScorePrevious_Click">
+                                    <Path Data="{StaticResource IconLucideChevronLeft}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                        </Button>
+                        <TextBlock x:Name="StructuredScorePageText" VerticalAlignment="Center" Margin="8,0" Foreground="#15803D" FontWeight="Bold" FontSize="16"/>
+                        <Button x:Name="StructuredScoreNextButton" ToolTip="下一页" AutomationProperties.Name="下一页" Padding="8,4" MinWidth="32" Click="StructuredScoreNext_Click">
+                                    <Path Data="{StaticResource IconLucideChevronRight}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                        </Button>
+                        <Button Content="编辑谱文" Margin="8,0,0,0" Padding="6,2" Click="StructuredScoreEdit_Click"/>
+                        <Button x:Name="StructuredScoreImageButton" Content="显示图片" Visibility="Collapsed" ToolTip="下载诗歌本提供的图片兜底，谱码保留；再次点击返回谱码" Margin="4,0,0,0" Padding="8,4" Click="StructuredScoreImage_Click"/>
+                        <ToggleButton x:Name="StructuredScorePinButton" ToolTip="固定工具栏：点亮常显，关闭后移出隐藏" AutomationProperties.Name="固定歌谱工具栏"
+                                      Click="StructuredScorePin_Click" Margin="6,0,0,0" Padding="8,4" MinWidth="32" MinHeight="32" Cursor="Hand">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushMediaDialogMuted}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource BrushMediaDialogSelected}"/></Trigger>
+                                            <Trigger Property="IsChecked" Value="True"><Setter Property="Background" Value="{DynamicResource BrushMediaDialogAccent}"/><Setter Property="Foreground" Value="{DynamicResource BrushMediaDialogOnAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogOutline}"/></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.8"/></Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogOutline}"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate></Setter.Value></Setter>
+                                </Style>
+                            </ToggleButton.Style>
+                                    <Path Data="{StaticResource IconLucidePin}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"/>
+                        </ToggleButton>
+                    </WrapPanel>
+                </Border>
                 <!-- 图片显示区域（支持滚动和缩放） -->
                 <ScrollViewer x:Name="ImageScrollViewer"
                      HorizontalScrollBarVisibility="Disabled"
@@ -1670,7 +1824,7 @@
                 <!-- 图片缩放按钮：固定在图片显示区域底部居中，不随图片内容滚动 -->
                 <Border x:Name="ImageZoomControlsPanel"
                         Visibility="Collapsed"
-                        Panel.ZIndex="20"
+                        Panel.ZIndex="300"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Bottom"
                         Margin="0,0,0,18"

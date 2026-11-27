@@ -109,7 +109,7 @@ namespace ImageColorChanger.UI
                 _currentImageId,
                 !string.IsNullOrEmpty(_imagePath),
                 _originalMode,
-                _isColorEffectEnabled,
+                SelectionColorEffectEnabled,
                 _currentFolderId);
 
             if (folderDecision != null)
@@ -145,7 +145,7 @@ namespace ImageColorChanger.UI
                     mediaFile.FolderId.Value,
                     _currentImageId,
                     _originalMode,
-                    _isColorEffectEnabled,
+                    SelectionColorEffectEnabled,
                     _currentFolderId);
 
                 if (fileDecision != null)

@@ -93,8 +93,6 @@ namespace ImageColorChanger.UI
             saveImageItem.Click += (s, args) => SaveCurrentImage();
             contextMenu.Items.Add(saveImageItem);
 
-            contextMenu.Items.Add(BuildOnlineScoreStorageMenuItem());
-
             contextMenu.Items.Add(new Separator());
 
             // 数据库
@@ -127,6 +125,7 @@ namespace ImageColorChanger.UI
             }
 
             contextMenu.Items.Add(migrationItem);
+            contextMenu.Items.Add(BuildOnlineScoreStorageMenuItem());
 
             contextMenu.Items.Add(new Separator());
 
@@ -437,7 +436,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 导入单个文件
         /// </summary>
-        private void ImportSingleFile()
+        private async void ImportSingleFile()
         {
             var openFileDialog = new Microsoft.Win32.OpenFileDialog
             {
@@ -447,6 +446,15 @@ namespace ImageColorChanger.UI
 
             if (openFileDialog.ShowDialog() == true)
             {
+                if (System.IO.Path.GetExtension(openFileDialog.FileName).Equals(".cscore", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        ShowStatus("正在检查结构谱文件…");
+                        await System.Threading.Tasks.Task.Run(() => Services.OnlineScores.StructuredScoreDocument.Read(openFileDialog.FileName));
+                    }
+                    catch (Exception ex) { ShowStatus("原始谱文保留，未导入：" + ex.Message); return; }
+                }
                 var mediaFile = ImportManagerService.ImportSingleFile(openFileDialog.FileName);
                 if (mediaFile != null)
                 {
@@ -464,7 +472,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 导入文件夹
         /// </summary>
-        private void ImportFolder()
+        private async void ImportFolder()
         {
             // 使用 WPF 文件夹选择器
             string selectedPath = WpfFolderBrowserHelper.SelectFolder(
@@ -474,6 +482,18 @@ namespace ImageColorChanger.UI
 
             if (!string.IsNullOrEmpty(selectedPath))
             {
+                ShowStatus("正在后台检查文件夹中的结构谱…");
+                try
+                {
+                    await System.Threading.Tasks.Task.Run(() =>
+                    {
+                        var options = new System.IO.EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = System.IO.FileAttributes.ReparsePoint };
+                        foreach (string source in System.IO.Directory.EnumerateFiles(selectedPath, "*.cscore", options))
+                            try { Services.OnlineScores.StructuredScoreDocument.Read(source); }
+                            catch (Services.OnlineScores.ScoreIntegrationException) { /* 导入管理器随后汇总失败；原件保留。 */ }
+                    });
+                }
+                catch (Exception ex) { ShowStatus("文件夹结构谱检查失败：" + ex.Message); return; }
                 var (folder, newFiles, existingFiles) = ImportManagerService.ImportFolder(selectedPath);
                 
                 if (folder != null)
@@ -492,7 +512,8 @@ namespace ImageColorChanger.UI
                     
                     //System.Diagnostics.Debug.WriteLine(" 文件夹导入完成，已清除所有缓存");
                     
-                    ShowStatus($"已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)");
+                    ShowStatus($"已导入文件夹: {folder.Name} (新增 {newFiles.Count} 个文件)" +
+                        (string.IsNullOrWhiteSpace(ImportManagerService.LastError) ? "" : "；" + ImportManagerService.LastError));
                 }
                 else if (!string.IsNullOrWhiteSpace(ImportManagerService.LastError))
                 {

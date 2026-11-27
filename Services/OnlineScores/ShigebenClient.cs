@@ -151,8 +151,15 @@ namespace ImageColorChanger.Services.OnlineScores
         private readonly ScoreDownloadHostCatalog _hostCatalog;
         private TimeSpan _downloadHostsLifetime = TimeSpan.FromHours(1);
         private readonly SemaphoreSlim _downloadGate = new(1, 1);
-        private readonly SemaphoreSlim _lyricsHintGate = new(2, 2);
-        private readonly Dictionary<int, (bool Available, DateTimeOffset Expires)> _lyricsHints = new();
+        private readonly SemaphoreSlim _lyricsFetchGate = new(2, 2);
+        private readonly Dictionary<int, (string Text, DateTimeOffset Expires)> _lyricsTexts = new();
+        private readonly Dictionary<int, LyricsRequest> _lyricsRequests = new();
+        private sealed class LyricsRequest
+        {
+            public CancellationTokenSource Cancellation { get; } = new();
+            public Task<string> Task { get; set; }
+            public int Waiters { get; set; }
+        }
         // 只读类型元数据，单路串行；不取谱文、原图或票据，不调用绘谱引擎。
         private readonly SemaphoreSlim _capabilityGate = new(1, 1);
         private Dictionary<string, int> _bookIdsByName;
@@ -324,26 +331,17 @@ namespace ImageColorChanger.Services.OnlineScores
         // 未知/请求失败与“无歌词”不同，失败不缓存，也不亮绿点。
         public async Task<bool> GetLyricsAvailabilityAsync(int id, CancellationToken ct)
         {
-            if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
-            ct.ThrowIfCancellationRequested();
-            await _lyricsHintGate.WaitAsync(ct);
-            try
-            {
-                lock (_lyricsHints)
-                    if (_lyricsHints.TryGetValue(id, out var hint) && hint.Expires > DateTimeOffset.UtcNow)
-                        return hint.Available;
-                // /image/lyrics 要求非空搜索词，不适合判断整首歌有没有歌词。
-                return !string.IsNullOrWhiteSpace(await GetFullLyricsAsync(id, ct));
-            }
-            finally { _lyricsHintGate.Release(); }
+            // 行提示和实际打开共用完整正文及在途请求，不再取过全文却只缓存一个bool。
+            return !string.IsNullOrWhiteSpace(await GetFullLyricsAsync(id, ct).ConfigureAwait(false));
         }
 
-        private void CacheLyricsAvailability(int id, bool available)
+        private void CacheLyricsText(int id, string text)
         {
-            lock (_lyricsHints)
+            lock (_lyricsTexts)
             {
-                if (_lyricsHints.Count >= 512) _lyricsHints.Clear();
-                _lyricsHints[id] = (available, DateTimeOffset.UtcNow.AddMinutes(available ? 10 : 2));
+                if (_lyricsTexts.Count >= 512 && !_lyricsTexts.ContainsKey(id))
+                    _lyricsTexts.Remove(_lyricsTexts.OrderBy(item => item.Value.Expires).First().Key);
+                _lyricsTexts[id] = (text, DateTimeOffset.UtcNow.AddMinutes(string.IsNullOrWhiteSpace(text) ? 2 : 10));
             }
         }
 
@@ -351,22 +349,70 @@ namespace ImageColorChanger.Services.OnlineScores
         public async Task<string> GetFullLyricsAsync(int id, CancellationToken ct)
         {
             if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                new Uri(_api, "download/text?id=" + id.ToString(CultureInfo.InvariantCulture)));
-            using var json = await SendJsonAsync(request, ct);
-            // “未编辑”是这首歌没有歌词的正常状态，不是网络/权限失败。
-            // 只匹配该明确业务响应，其余错误仍交由 RequireResult 严格校验。
-            if (json.RootElement.ValueKind == JsonValueKind.Object &&
-                json.RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number &&
-                code.TryGetInt32(out int status) && status == 0 &&
-                GetString(json.RootElement, "msg") == "歌词未编辑")
+            ct.ThrowIfCancellationRequested();
+            LyricsRequest request;
+            lock (_lyricsTexts)
             {
-                CacheLyricsAvailability(id, false);
-                return "";
+                if (_lyricsTexts.TryGetValue(id, out var cached) && cached.Expires > DateTimeOffset.UtcNow)
+                    return cached.Text;
+                if (!_lyricsRequests.TryGetValue(id, out request))
+                {
+                    request = new LyricsRequest();
+                    var token = request.Cancellation.Token;
+                    // 不持有UI同步上下文；同首共享请求，各调用者仍能独立取消等待。
+                    request.Task = Task.Run(() => FetchFullLyricsAsync(id, token));
+                    _lyricsRequests.Add(id, request);
+                }
+                request.Waiters++;
             }
-            string lyrics = RequireResult(json.RootElement, JsonValueKind.String).GetString() ?? "";
-            CacheLyricsAvailability(id, !string.IsNullOrWhiteSpace(lyrics));
-            return lyrics;
+            try { return await request.Task.WaitAsync(ct).ConfigureAwait(false); }
+            finally
+            {
+                bool release;
+                lock (_lyricsTexts)
+                {
+                    release = --request.Waiters == 0;
+                    if (release && _lyricsRequests.TryGetValue(id, out var current) && ReferenceEquals(current, request))
+                        _lyricsRequests.Remove(id);
+                }
+                if (release)
+                {
+                    // 只有最后一个等待者离开才取消共享请求；完成后才释放CTS并观察异常。
+                    if (!request.Task.IsCompleted) request.Cancellation.Cancel();
+                    _ = request.Task.ContinueWith(completed =>
+                    {
+                        _ = completed.Exception;
+                        request.Cancellation.Dispose();
+                    }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                }
+            }
+        }
+
+        private async Task<string> FetchFullLyricsAsync(int id, CancellationToken ct)
+        {
+            await _lyricsFetchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                using var request = new HttpRequestMessage(HttpMethod.Get,
+                    new Uri(_api, "download/text?id=" + id.ToString(CultureInfo.InvariantCulture)));
+                using var json = await SendJsonAsync(request, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                // “未编辑”是这首歌没有歌词的正常状态，不是网络/权限失败。
+                // 只匹配该明确业务响应，其余错误仍交由 RequireResult 严格校验。
+                if (json.RootElement.ValueKind == JsonValueKind.Object &&
+                    json.RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number &&
+                    code.TryGetInt32(out int status) && status == 0 &&
+                    GetString(json.RootElement, "msg") == "歌词未编辑")
+                {
+                    CacheLyricsText(id, "");
+                    return "";
+                }
+                string lyrics = RequireResult(json.RootElement, JsonValueKind.String).GetString() ?? "";
+                CacheLyricsText(id, lyrics);
+                return lyrics;
+            }
+            finally { _lyricsFetchGate.Release(); }
         }
 
         public static IReadOnlyList<ScoreTextPart> CreatePreview(string text, JsonElement highlights)
@@ -453,23 +499,18 @@ namespace ImageColorChanger.Services.OnlineScores
             {
                 string source;
                 try { source = await GetNotationAsync(id, type, ct); }
-                catch (HttpRequestException) { ct.ThrowIfCancellationRequested(); reason = "结构化歌谱接口连接失败。"; break; }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { reason = "结构化歌谱接口超时。"; break; }
+                catch (HttpRequestException) { ct.ThrowIfCancellationRequested(); throw new ScoreIntegrationException("结构化谱文接口连接失败；未改用原图，原画面保留，请重试。"); }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ScoreIntegrationException("结构化谱文接口超时；未改用原图，原画面保留，请重试。"); }
                 if (source == null) continue;
-                if (!ScoreNotationRenderer.CanRender(source, out reason)) continue;
                 ct.ThrowIfCancellationRequested();
                 Directory.CreateDirectory(directory);
-                string path = Path.Combine(directory, id + "-" + Guid.NewGuid().ToString("N") + ".png");
-                // CPU 排版不阻塞 WPF 输入。取消或排版失败清理只属于本次请求的新文件。
-                try
-                {
-                    await Task.Run(() => ScoreNotationRenderer.RenderToPng(source, path, ct), ct);
-                    progress?.Report(new(ScoreDownloadStage.Completed, ""));
-                    return path;
-                }
-                catch (ScoreIntegrationException ex)
-                { if (File.Exists(path)) File.Delete(path); reason = ex.Message; }
-                catch { if (File.Exists(path)) File.Delete(path); throw; }
+                string path = Path.Combine(directory, id + "-" + Guid.NewGuid().ToString("N") + StructuredScoreDocument.Extension);
+                // 原始谱文先落地。渲染能力不足不能伪装成“无结构谱”并下载原图。
+                var document = new StructuredScoreDocument { ShigebenId = id, NotationType = type,
+                    Id = "shigeben:" + id, Title = "诗歌本歌谱 " + id, Notation = source };
+                document.Save(path);
+                progress?.Report(new(ScoreDownloadStage.Completed, "结构化谱文已取得"));
+                return path;
             }
             try { return await DownloadImageWithProgressAsync(id, directory, ct, progress); }
             catch (ScoreIntegrationException ex)
@@ -701,6 +742,14 @@ namespace ImageColorChanger.Services.OnlineScores
             if (content.Headers.ContentLength.HasValue && content.Headers.ContentLength.Value != output.Length) throw new ScoreIntegrationException("图片或响应下载不完整。");
             return output.ToArray();
         }
-        public void Dispose() { _http.Dispose(); (_authorizer as IDisposable)?.Dispose(); }
+        public void Dispose()
+        {
+            lock (_lyricsTexts)
+            {
+                foreach (var request in _lyricsRequests.Values) request.Cancellation.Cancel();
+                _lyricsTexts.Clear();
+            }
+            _http.Dispose(); (_authorizer as IDisposable)?.Dispose();
+        }
     }
 }

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using SkiaSharp;
+using ImageColorChanger.Services.OnlineScores;
 
 namespace ImageColorChanger.Core
 {
@@ -26,7 +27,7 @@ namespace ImageColorChanger.Core
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
             if (maxDecodedBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxDecodedBytes));
             _maxDecodedBytes = maxDecodedBytes;
-            _decode = decoder ?? (path => SKBitmap.Decode(path));
+            _decode = decoder ?? (path => SKBitmap.Decode(StructuredScoreDocument.ResolveImagePath(path)));
             _estimateBytes = estimateBytes ?? EstimateDecodedBytes;
         }
 
@@ -112,7 +113,7 @@ namespace ImageColorChanger.Core
 
         private static long EstimateDecodedBytes(string path)
         {
-            using var stream = SKFileStream.OpenStream(path);
+            using var stream = SKFileStream.OpenStream(StructuredScoreDocument.ResolveImagePath(path));
             if (stream == null) return 0;
             using var codec = SKCodec.Create(stream);
             if (codec == null) return 0;

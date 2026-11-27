@@ -31,7 +31,8 @@ namespace ImageColorChanger.UI
                 ReloadProjectsPreservingTreeState();
                 LoadSearchScopes();
 
-                ShowStatus($"同步完成: 新增 {added}, 删除 {removed}");
+                ShowStatus($"同步完成: 新增 {added}, 删除 {removed}" +
+                    (updated > 0 ? $"，清理歌本目录 {updated}" : string.Empty));
             }
             catch (Exception ex)
             {

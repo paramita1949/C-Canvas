@@ -52,7 +52,8 @@ namespace ImageColorChanger.Managers
             }
 
             _currentImage = image;
-            _isColorEffectEnabled = applyColorEffect;
+            bool nativeScoreFrame = _imageProcessor?.CurrentStructuredScore != null && ReferenceEquals(image, _imageProcessor.CurrentImage);
+            _isColorEffectEnabled = applyColorEffect && !nativeScoreFrame;
             _isOriginalMode = isOriginalMode;
             _originalDisplayMode = originalDisplayMode;
             _originalTopScalePercent = Math.Max(60, Math.Min(100, originalTopScalePercent));

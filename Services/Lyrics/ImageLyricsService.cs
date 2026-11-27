@@ -4,6 +4,8 @@ using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.IO;
+using ImageColorChanger.Services.OnlineScores;
 
 namespace ImageColorChanger.Services.Lyrics
 {
@@ -19,11 +21,13 @@ namespace ImageColorChanger.Services.Lyrics
 
         public LyricsDocument Load(int imageId)
         {
-            if (imageId <= 0 || !_db.MediaFiles.Any(m => m.Id == imageId && m.FileTypeString == "image")) return null;
+            var image = imageId <= 0 ? null : _db.MediaFiles.AsNoTracking().SingleOrDefault(m => m.Id == imageId && m.FileTypeString == "image");
+            if (image == null) return null;
             var stored = _db.ImageLyrics.AsNoTracking().SingleOrDefault(p => p.ImageId == imageId);
             if (stored == null) ThrowIfLegacyConflict(imageId);
-            if (stored == null) return new LyricsDocument();
-            return new LyricsDocument
+            var score = File.Exists(image.Path) ? StructuredScoreDocument.ReadFromFile(image.Path) : null;
+            if (stored == null) return score?.GetLyrics() ?? new LyricsDocument();
+            var document = new LyricsDocument
             {
                 Content = stored.Content,
                 FontSize = stored.FontSize,
@@ -31,15 +35,39 @@ namespace ImageColorChanger.Services.Lyrics
                 ViewMode = stored.ViewMode,
                 ProjectionWatermarkPath = stored.ProjectionWatermarkPath
             };
+            // Existing local edits (including deliberate blank content) keep their ownership.
+            // Old database-only lyrics become portable on access; a read-only source can still display them.
+            if (score != null && (score.Lyrics == null || score.LyricsFromNotation))
+            {
+                try { score.SaveLyrics(image.Path, document); }
+                catch (IOException ex) { System.Diagnostics.Debug.WriteLine("歌词已读取，但原谱文件暂不可写：" + ex.Message); }
+                catch (UnauthorizedAccessException ex) { System.Diagnostics.Debug.WriteLine("歌词已读取，但原谱文件暂不可写：" + ex.Message); }
+            }
+            return document;
         }
 
         public void Save(int imageId, LyricsDocument document)
         {
-            if (document == null) throw new ArgumentNullException(nameof(document));
-            if (imageId <= 0 || !_db.MediaFiles.Any(m => m.Id == imageId && m.FileTypeString == "image"))
-                throw new InvalidOperationException("对应图片已不存在，未保存歌词。");
+            SaveCore(imageId, document, null);
+        }
 
+        private void SaveCore(int imageId, LyricsDocument document, int? expectedRecordId)
+        {
+            if (document == null) throw new ArgumentNullException(nameof(document));
+            var image = imageId <= 0 ? null : _db.MediaFiles.AsNoTracking().SingleOrDefault(m => m.Id == imageId && m.FileTypeString == "image");
+            if (image == null)
+                throw new InvalidOperationException("对应图片已不存在，未保存歌词。");
+            if (StructuredScoreDocument.IsScoreFile(image.Path) && !File.Exists(image.Path))
+                throw new InvalidOperationException("对应谱码文件已不存在，未保存歌词。");
+            var score = File.Exists(image.Path) ? StructuredScoreDocument.ReadFromFile(image.Path) : null;
+            byte[] pristine = score == null ? null : File.ReadAllBytes(image.Path);
+            if (score != null) { score.Lyrics = document; score.Validate(); }
+            using var transaction = _db.Database.CurrentTransaction == null ? _db.Database.BeginTransaction() : null;
+            if (expectedRecordId.HasValue && GetRecordId(imageId) != expectedRecordId.Value)
+                throw new InvalidOperationException("图片歌词已删除或被其他入口建立，请重新进入后再保存。编辑器正文仍保留。");
             var stored = _db.ImageLyrics.SingleOrDefault(p => p.ImageId == imageId);
+            bool created = stored == null;
+            var previous = stored == null ? null : _db.Entry(stored).CurrentValues.Clone();
             if (stored == null)
             {
                 ThrowIfLegacyConflict(imageId);
@@ -53,7 +81,26 @@ namespace ImageColorChanger.Services.Lyrics
             stored.ProjectionWatermarkPath = document.ProjectionWatermarkPath;
             stored.ModifiedTime = DateTime.Now;
             // 数据库唯一/FK约束是最后一道防线；失败向调用方报告，不吞掉丢失的保存。
-            _db.SaveChanges();
+            bool fileWritten = false;
+            try
+            {
+                _db.SaveChanges();
+                if (score != null) { score.SaveLyrics(image.Path, document); fileWritten = true; }
+                transaction?.Commit();
+            }
+            catch
+            {
+                transaction?.Rollback();
+                if (created) _db.Entry(stored).State = EntityState.Detached;
+                else { _db.Entry(stored).CurrentValues.SetValues(previous); _db.Entry(stored).State = EntityState.Unchanged; }
+                if (fileWritten)
+                {
+                    string pending = image.Path + "." + Guid.NewGuid().ToString("N") + ".part";
+                    try { File.WriteAllBytes(pending, pristine); File.Move(pending, image.Path, true); }
+                    finally { if (File.Exists(pending)) File.Delete(pending); }
+                }
+                throw; // File failures never masquerade as successful database-only saves.
+            }
         }
 
         private void ThrowIfLegacyConflict(int imageId)
@@ -66,12 +113,7 @@ namespace ImageColorChanger.Services.Lyrics
 
         public void SaveLoaded(int imageId, LyricsDocument document, int expectedRecordId)
         {
-            using var transaction = _db.Database.CurrentTransaction == null ? _db.Database.BeginTransaction() : null;
-            int currentId = GetRecordId(imageId);
-            if (currentId != expectedRecordId)
-                throw new InvalidOperationException("图片歌词已删除或被其他入口建立，请重新进入后再保存。编辑器正文仍保留。");
-            Save(imageId, document);
-            transaction?.Commit();
+            SaveCore(imageId, document, expectedRecordId);
         }
 
         public void Restore(string archiveExternalId, int imageId)

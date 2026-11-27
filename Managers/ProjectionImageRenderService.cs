@@ -47,6 +47,8 @@ namespace ImageColorChanger.Managers
             {
                 return null;
             }
+            if (_imageProcessor.CurrentStructuredScore != null && ReferenceEquals(sourceImage, _imageProcessor.CurrentImage))
+                cacheKey += "|native:" + _imageProcessor.CurrentImageContentKey;
 
             if (_cache.TryGetValue(cacheKey, out BitmapSource cachedBitmap))
             {
@@ -93,7 +95,8 @@ namespace ImageColorChanger.Managers
                 return null;
             }
 
-            if (isColorEffectEnabled)
+            bool nativeScoreFrame = _imageProcessor.CurrentStructuredScore != null && ReferenceEquals(sourceImage, _imageProcessor.CurrentImage);
+            if (isColorEffectEnabled && !nativeScoreFrame)
             {
                 _imageProcessor.ApplyYellowTextEffect(processedImage);
             }

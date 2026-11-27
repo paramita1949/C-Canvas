@@ -13,6 +13,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using ImageColorChanger.Services.OnlineScores;
+using Microsoft.EntityFrameworkCore;
 using Brushes = System.Windows.Media.Brushes;
 
 namespace ImageColorChanger.UI
@@ -24,6 +25,7 @@ namespace ImageColorChanger.UI
         private ShigebenClient _onlineScoreClient;
         private CancellationTokenSource _onlineScoreSearchCts;
         private CancellationTokenSource _onlineScoreSelectionCts;
+        private CancellationTokenSource _onlineScoreLyricsCts;
         private long _onlineScoreSearchVersion, _onlineScoreSelectionVersion;
         private bool _onlineScoreClosed;
         private OnlineScoreResult _pressedOnlineScore;
@@ -35,6 +37,7 @@ namespace ImageColorChanger.UI
         private OnlineScoreKindFilter _onlineScoreKind = OnlineScoreKindFilter.All;
         private ICollectionView _onlineScoreResultView;
         private IReadOnlyList<OnlineScoreResult> _onlineScoreResults = Array.Empty<OnlineScoreResult>();
+        private Dictionary<int, string> _onlineScoreLocalPaths = new();
         private OnlineScoreStorageSettings _onlineScoreStorageSettings;
         private OnlineScoreStorageSettings GetOnlineScoreStorageSettings() =>
             _onlineScoreStorageSettings ??= new OnlineScoreStorageSettings(DatabaseManagerService);
@@ -82,6 +85,7 @@ namespace ImageColorChanger.UI
         }
         private void CancelOnlineScoreRequests()
         {
+            CancelOnlineScoreLyrics();
             StopOnlineScoreDownloadFeedback();
             SetOnlineScoreSearchBusy(false);
             _pressedOnlineScore = null;
@@ -89,6 +93,7 @@ namespace ImageColorChanger.UI
             _onlineScoreKindProbes.Clear();
             _onlineScoreKindFailures.Clear();
             _onlineScoreResults = Array.Empty<OnlineScoreResult>();
+            _onlineScoreLocalPaths = new();
             _onlineScoreResultView = null;
             ++_onlineScoreSearchVersion; ++_onlineScoreSelectionVersion;
             _onlineScoreSearchCts?.Cancel(); _onlineScoreSearchCts?.Dispose(); _onlineScoreSearchCts = null;
@@ -131,10 +136,12 @@ namespace ImageColorChanger.UI
                 SetOnlineScoreSearchBusy(true);
                 var results = await GetOnlineScoreClient().SearchAsync(text, _onlineScoreMode, ct);
                 if (!IsCurrentOnlineScoreSearch(version)) return;
-                _onlineScoreResults = results;
-                _onlineScoreResultView = new ListCollectionView(results.ToList());
-                _onlineScoreResultView.Filter = item => item is OnlineScoreResult score && score.MatchesKind(_onlineScoreKind);
-                OnlineScoreList.ItemsSource = _onlineScoreResultView;
+                var settings = GetOnlineScoreStorageSettings();
+                var local = await new OnlineScoreLibrary(DatabaseManagerService, settings.DirectoryPath, settings.CacheDirectories)
+                    .GetLocalScorePathsAsync(results.Select(score => score.Id), ct);
+                if (!IsCurrentOnlineScoreSearch(version)) return;
+                _onlineScoreLocalPaths = local;
+                PublishOnlineScoreResults(results);
                 UpdateOnlineScoreResultCount();
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -146,6 +153,19 @@ namespace ImageColorChanger.UI
             }
         }
         private bool IsCurrentOnlineScoreSearch(long version) => !_onlineScoreClosed && IsOnlineScoreMode && version == _onlineScoreSearchVersion;
+
+        private static IReadOnlyList<OnlineScoreResult> OrderOnlineScoreResults(IEnumerable<OnlineScoreResult> results, IReadOnlyDictionary<int, string> localPaths) =>
+            results.OrderByDescending(score => localPaths.ContainsKey(score.Id)).ToArray(); // Stable sort retains upstream relevance within each group.
+
+        private void PublishOnlineScoreResults(IEnumerable<OnlineScoreResult> results)
+        {
+            var selected = OnlineScoreList.SelectedItem;
+            _onlineScoreResults = OrderOnlineScoreResults(results, _onlineScoreLocalPaths);
+            _onlineScoreResultView = new ListCollectionView(_onlineScoreResults.ToList());
+            _onlineScoreResultView.Filter = item => item is OnlineScoreResult score && score.MatchesKind(_onlineScoreKind);
+            OnlineScoreList.ItemsSource = _onlineScoreResultView;
+            if (selected != null && _onlineScoreResultView.Contains(selected)) OnlineScoreList.SelectedItem = selected;
+        }
 
         private void ScoreKindAllText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => ApplyOnlineScoreKind(OnlineScoreKindFilter.All);
         private void ScoreKindStructuredText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => ApplyOnlineScoreKind(OnlineScoreKindFilter.Structured);
@@ -289,6 +309,7 @@ namespace ImageColorChanger.UI
 
         private async Task OpenClickedOnlineScoreAsync(OnlineScoreResult result)
         {
+            CancelOnlineScoreLyrics();
             _onlineScoreSelectionCts?.Cancel(); _onlineScoreSelectionCts?.Dispose();
             var cts = new CancellationTokenSource(); _onlineScoreSelectionCts = cts; CancellationToken ct = cts.Token;
             long version = ++_onlineScoreSelectionVersion;
@@ -299,27 +320,19 @@ namespace ImageColorChanger.UI
             OnlineScoreStatus.Text = $"找到 {_onlineScoreResults.Count(score => score.MatchesKind(_onlineScoreKind))} 首";
             try
             {
+                // 点击优先复用本地文件或直接取谱码；可选类型索引不再挡住打开，也不排在后台类型队列后面。
                 var library = GetOnlineScoreLibrary(result);
-                string path = await library.GetOrDownloadAsync(result,
-                    (directory, token) => GetOnlineScoreClient().DownloadScoreWithProgressAsync(result.Id, directory, token, progress), ct);
+                string path;
+                if (_onlineScoreLocalPaths.TryGetValue(result.Id, out string localPath) && File.Exists(localPath) &&
+                    (result.HasStructuredNotation != true || StructuredScoreDocument.ReadFromFile(localPath) != null)) path = localPath;
+                else path = await library.GetOrDownloadAsync(result,
+                        (directory, token) => GetOnlineScoreClient().DownloadScoreWithProgressAsync(result.Id, directory, token, progress), ct);
                 if (!IsCurrent()) return;
-                var image = library.RegisterImage(path);
-                string lyricsStatus = "";
-                SetOnlineScoreDownloadPhase("歌谱已保存，正在关联歌词…");
-                if (!library.HasLyrics(image.Id))
-                {
-                    try
-                    {
-                        string lyrics = await GetOnlineScoreClient().GetFullLyricsAsync(result.Id, ct);
-                        if (!IsCurrent()) return;
-                        result.SetLyricsAvailability(!string.IsNullOrWhiteSpace(lyrics));
-                        library.StoreLyricsIfMissing(image.Id, lyrics);
-                    }
-                    catch (Exception) when (!ct.IsCancellationRequested)
-                    { lyricsStatus = "歌谱已打开；歌词暂未获取，下次点击可补取。"; }
-                }
-                else result.SetLyricsAvailability(true);
-                if (!IsCurrent()) return;
+                var image = DatabaseManagerService.GetDbContext().MediaFiles.AsNoTracking().SingleOrDefault(m => m.Path == path)
+                    ?? library.RegisterImage(path);
+                // 实际文件可证明已取得谱码；原图能力保持原有未知/已确认状态，不伪造另一类能力。
+                if (StructuredScoreDocument.IsScoreFile(path))
+                    result.SetCapabilities(new ScoreCapabilities(true, result.HasOriginalImage));
                 // 使用真实本地 ID 和文件夹归属，不再维护在线预览/缩放/播放/投影分支。
                 ReloadProjectsPreservingTreeState(TreeItemType.File, image.Id);
                 LoadSearchScopes();
@@ -328,8 +341,14 @@ namespace ImageColorChanger.UI
                     Type = TreeItemType.File, FileType = image.FileType, RootFolderId = image.FolderId };
                 SetOnlineScoreDownloadPhase("歌谱已保存，正在打开…");
                 await HandleFileNodeClickAsync(item);
-                if (IsCurrent()) OnlineScoreStatus.Text = string.IsNullOrEmpty(lyricsStatus)
-                    ? $"找到 {_onlineScoreResults.Count(score => score.MatchesKind(_onlineScoreKind))} 首" : lyricsStatus;
+                if (IsCurrent())
+                {
+                    _onlineScoreLocalPaths[result.Id] = path;
+                    PublishOnlineScoreResults(_onlineScoreResults);
+                    OnlineScoreStatus.Text = $"找到 {_onlineScoreResults.Count(score => score.MatchesKind(_onlineScoreKind))} 首";
+                    if (_imagePath == path && _currentImageId == image.Id)
+                        _ = CompleteOnlineScoreLyricsAsync(result, library, image.Id, path, version, searchVersion);
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
             catch (Exception ex) { if (IsCurrent()) OnlineScoreStatus.Text = OnlineScoreError(ex); }
@@ -341,6 +360,53 @@ namespace ImageColorChanger.UI
                     _onlineScoreSelectionCts = null;
                 }
                 cts.Dispose();
+            }
+        }
+
+        private void CancelOnlineScoreLyrics() => _onlineScoreLyricsCts?.Cancel();
+
+        private async Task CompleteOnlineScoreLyricsAsync(OnlineScoreResult result, OnlineScoreLibrary library,
+            int imageId, string path, long selectionVersion, long searchVersion)
+        {
+            CancelOnlineScoreLyrics();
+            var cancellation = new CancellationTokenSource(); _onlineScoreLyricsCts = cancellation;
+            bool IsCurrent() => !cancellation.IsCancellationRequested && !_onlineScoreClosed &&
+                IsCurrentOnlineScoreSearch(searchVersion) && selectionVersion == _onlineScoreSelectionVersion &&
+                _currentImageId == imageId && _imagePath == path;
+            bool IsEditing() => _isLyricsMode && _lyricsEntryKind == LyricsEntryKind.ImageBound && _lyricsEntryId == imageId;
+            try
+            {
+                if (!IsCurrent() || IsEditing()) return;
+                if (library.HasLyrics(imageId))
+                {
+                    new Services.Lyrics.ImageLyricsService(_dbContext).Load(imageId); // Backfill legacy database-only lyrics into the actual score file.
+                    result.SetLyricsAvailability(true); return;
+                }
+                var score = StructuredScoreDocument.ReadFromFile(path);
+                if (score?.Lyrics != null && !score.LyricsFromNotation)
+                { result.SetLyricsAvailability(!string.IsNullOrWhiteSpace(score.Lyrics.Content)); return; }
+                // 已取得的全文直接命中会话缓存；缺失时后台补取，不延长点击的下载/打开动画。
+                string lyrics = await GetOnlineScoreClient().GetFullLyricsAsync(result.Id, cancellation.Token);
+                if (!IsCurrent()) return;
+                result.SetLyricsAvailability(!string.IsNullOrWhiteSpace(lyrics));
+                // 等待期间用户可能打开编辑器或创建正文，必须重新检查；已有空正文同样不覆盖。
+                if (!IsEditing())
+                {
+                    if (!string.IsNullOrWhiteSpace(lyrics) && score != null)
+                        score.SaveLyrics(path, new Services.Lyrics.LyricsDocument { Content = lyrics });
+                    library.StoreLyricsIfMissing(imageId, lyrics);
+                }
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("在线歌谱后台歌词未补齐：" + ex.Message);
+                if (IsCurrent()) OnlineScoreStatus.Text = "歌谱已打开；歌词暂未获取，下次点击可补取。";
+            }
+            finally
+            {
+                if (_onlineScoreLyricsCts == cancellation) _onlineScoreLyricsCts = null;
+                cancellation.Dispose();
             }
         }
 

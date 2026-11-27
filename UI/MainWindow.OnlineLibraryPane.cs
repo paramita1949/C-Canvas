@@ -83,10 +83,11 @@ namespace ImageColorChanger.UI
 
         private void UpdateOnlineLibraryPane()
         {
+            UpdateProjectSearchFolderTagsVisibility();
             if (OnlineLibraryPane == null || OnlineLibraryPaneRow == null) return;
             EnsureOnlineLibraryPaneSettingsLoaded();
-            bool visible = !_isBibleMode && _currentViewMode == NavigationViewMode.Files &&
-                !IsOnlineScoreMode && _onlineLibraryTreeItems.Count > 0;
+            // 空库也保留入口与分区标题；删空歌本不等于关闭在线歌谱功能。
+            bool visible = !_isBibleMode && _currentViewMode == NavigationViewMode.Files && !IsOnlineScoreMode;
             OnlineLibraryPane.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             OnlineLibrarySplitter.Visibility = visible && !_onlineLibraryPaneCollapsed ? Visibility.Visible : Visibility.Collapsed;
             OnlineLibrarySplitterRow.Height = new GridLength(visible && !_onlineLibraryPaneCollapsed ? 5 : 0);

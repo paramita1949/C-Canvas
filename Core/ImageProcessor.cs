@@ -9,6 +9,7 @@ using SkiaSharp;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using VerticalAlignment = System.Windows.VerticalAlignment;
 using Microsoft.Extensions.Caching.Memory;
+using ImageColorChanger.Services.OnlineScores;
 
 namespace ImageColorChanger.Core
 {
@@ -95,12 +96,75 @@ namespace ImageColorChanger.Core
         
         /// <summary>当前图片路径</summary>
         public string CurrentImagePath => currentImagePath;
+        public string CurrentImageContentKey => currentImageCacheKey;
         
         /// <summary>当前显示的BitmapSource（用于验证Freeze状态）</summary>
         public BitmapSource CurrentPhoto => currentPhoto;
+        public StructuredScoreDocument CurrentStructuredScore { get; internal set; }
+
+        /// <summary>当前歌谱会话持有已解码原图和冻结显示图；翻页只交换引用，不编码/缩放。</summary>
+        public sealed class PreparedImage
+        {
+            public string RasterPath { get; }
+            public SKBitmap Bitmap { get; }
+            public BitmapSource Photo { get; }
+            public bool Inverted { get; }
+            public SKColor TargetColor { get; }
+            public bool NativeTextRendered { get; }
+            internal PreparedImage(string path, SKBitmap bitmap, BitmapSource photo, bool inverted, SKColor color, bool nativeTextRendered)
+            { RasterPath = path; Bitmap = bitmap; Photo = photo; Inverted = inverted; TargetColor = color; NativeTextRendered = nativeTextRendered; }
+        }
+
+        public PreparedImage PrepareStructuredPage(string rasterPath, bool invert, SKColor color, bool nativeTextRendered = false)
+        {
+            var bitmap = SKBitmap.Decode(rasterPath) ?? throw new IOException("无法解码歌谱缓存。");
+            try
+            {
+                BitmapSource photo;
+                if (invert && !nativeTextRendered)
+                {
+                    using var effected = bitmap.Copy();
+                    ApplyYellowTextEffect(effected, color);
+                    photo = ConvertToBitmapSource(effected);
+                }
+                else photo = ConvertToBitmapSource(bitmap);
+                if (photo == null) throw new IOException("无法生成歌谱显示缓存。");
+                return new PreparedImage(rasterPath, bitmap, photo, invert, color, nativeTextRendered);
+            }
+            catch { bitmap.Dispose(); throw; }
+        }
+
+        public bool LoadPreparedImage(string sourcePath, PreparedImage prepared)
+        {
+            if (prepared == null || prepared.Inverted != isInverted) return false;
+            // 不先清空Source：控件、悬浮层、滚动区域一直存在，避免一次翻页两次布局。
+            originalImage = currentImage = prepared.Bitmap;
+            currentImagePath = sourcePath;
+            currentImageCacheKey = prepared.RasterPath;
+            var (width, height) = CalculateSizeWithScale(scrollViewer.ActualWidth, scrollViewer.ActualHeight);
+            if (width <= 0 || height <= 0)
+            {
+                // 首次从其它视图进入时WPF可能尚未Measure；先挂冻结图，布局完成后应用尺寸。
+                currentPhoto = prepared.Photo; imageControl.Source = prepared.Photo;
+                scrollViewer.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+                {
+                    if (ReferenceEquals(currentImage, prepared.Bitmap) && scrollViewer.ActualWidth > 0 && scrollViewer.ActualHeight > 0)
+                        LoadPreparedImage(sourcePath, prepared);
+                }));
+                return true;
+            }
+            lastUpdateTime = DateTime.Now;
+            bool success = UpdateCanvasDisplay(prepared.Photo, width, height, scrollViewer.ActualWidth, scrollViewer.ActualHeight);
+            if (success) { scrollViewer.ScrollToTop(); scrollViewer.ScrollToLeftEnd(); }
+            return success;
+        }
         
         /// <summary>获取LRU图片缓存实例（用于预加载管理器）</summary>
         public IMemoryCache GetMemoryCache() => _imageMemoryCache;
+        public SKColor GetTargetColor() => GetYellowColorSettings();
+        internal void SetPreparedOriginalMode(bool value) => originalMode = value;
+        internal void SetPreparedOriginalDisplayMode(OriginalDisplayMode value) => originalDisplayMode = value;
+        internal void SetPreparedColorMode(bool value) => isInverted = value;
         
         /// <summary>
         /// 预渲染指定路径的图片到渲染缓存（用于预加载优化）
@@ -267,6 +331,7 @@ namespace ImageColorChanger.Core
         internal Action CaptureImageRestoreAction()
         {
             var original = originalImage; var current = currentImage; var photo = currentPhoto;
+            var structured = CurrentStructuredScore;
             var path = currentImagePath; var rawKey = currentImageCacheKey; var source = imageControl.Source;
             var imageLayout = (imageControl.Width, imageControl.Height, imageControl.Margin,
                 imageControl.HorizontalAlignment, imageControl.VerticalAlignment);
@@ -276,6 +341,7 @@ namespace ImageColorChanger.Core
             return () =>
             {
                 originalImage = original; currentImage = current; currentPhoto = photo; currentImagePath = path; currentImageCacheKey = rawKey;
+                CurrentStructuredScore = structured;
                 (originalMode, originalDisplayMode, originalTopScalePercent, zoomRatio, isInverted, lastUpdateTime) = state;
                 imageControl.Source = source;
                 (imageControl.Width, imageControl.Height, imageControl.Margin,
@@ -291,17 +357,29 @@ namespace ImageColorChanger.Core
             var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
+                var structured = StructuredScoreDocument.ReadFromFile(path);
+                string rasterPath = path;
+                if (structured != null)
+                {
+                    var text = structured.TextColor != null ? StructuredScoreDocument.ParseTextColor(structured.TextColor)
+                        : GetTargetColor();
+                    var background = StructuredScoreDocument.TextBackground(text);
+                    var pages = structured.RenderWithColors(text, background, System.Threading.CancellationToken.None);
+                    rasterPath = pages[Math.Min(structured.Page, pages.Count - 1)];
+                }
                 // 验证文件
-                if (!ValidateImageFile(path))
+                if (!ValidateImageFile(rasterPath))
                 {
                     throw new Exception("无效的图片文件");
                 }
                 
                 // 清除当前图片（不清除缓存，只清除当前引用）
                 ClearCurrentImageOnly();
+                CurrentStructuredScore = structured;
                 
                 //  先检查LRU缓存
-                string rawKey = ImageFileCacheKey.GetRawKey(path);
+                // 原件是歌曲身份，实际分页PNG才是像素缓存身份；切页不能使全首缓存失效。
+                string rawKey = ImageFileCacheKey.GetRawKey(rasterPath);
                 if (rawKey == null) return false;
                 currentImageCacheKey = rawKey;
                 if (_imageMemoryCache.TryGetValue(rawKey, out SKBitmap cachedImage))
@@ -314,7 +392,10 @@ namespace ImageColorChanger.Core
                 else
                 {
                     // 缓存未命中，从磁盘加载
-                    originalImage = LoadImageOptimized(path);
+                    // 结构谱的字体/音符已按固定比例排版，不用长图高度触发整谱降采样。
+                    originalImage = StructuredScoreDocument.IsScoreFile(path) || !string.Equals(rasterPath, path, StringComparison.OrdinalIgnoreCase)
+                        ? SKBitmap.Decode(rasterPath) : LoadImageOptimized(rasterPath);
+                    if (originalImage == null) throw new IOException("无法解码歌谱缓存。");
                     
                     currentImage = originalImage; //  也不Clone，直接共享
                     currentImagePath = path;
@@ -328,7 +409,7 @@ namespace ImageColorChanger.Core
                         SlidingExpiration = TimeSpan.FromMinutes(10) // 10分钟未访问则过期
                     };
                     
-                    if (rawKey == ImageFileCacheKey.GetRawKey(path))
+                    if (rawKey == ImageFileCacheKey.GetRawKey(rasterPath))
                         _imageMemoryCache.Set(rawKey, originalImage, entryOptions);
                 }
                 
@@ -468,6 +549,7 @@ namespace ImageColorChanger.Core
             currentPhoto = null;
             currentImagePath = null;
             currentImageCacheKey = null;
+            CurrentStructuredScore = null;
             
             imageControl.Source = null;
             
@@ -691,7 +773,7 @@ namespace ImageColorChanger.Core
                     return null;
                 
                 // 第二步：在缩放后的图片上应用效果（如果启用）
-                if (isInverted)
+                if (isInverted && CurrentStructuredScore == null)
                 {
                     // 应用变色效果（直接修改resizedImage）
                     ApplyYellowTextEffect(resizedImage);
@@ -739,14 +821,16 @@ namespace ImageColorChanger.Core
             
             // 克隆当前图片并应用效果
             var result = currentImage.Copy();
-            ApplyYellowTextEffect(result);
+            if (CurrentStructuredScore == null) ApplyYellowTextEffect(result);
             return result;
         }
 
         /// <summary>
         /// 应用黄字效果（智能检测背景类型）
         /// </summary>
-        public void ApplyYellowTextEffect(SKBitmap image)
+        public void ApplyYellowTextEffect(SKBitmap image) => ApplyYellowTextEffect(image, GetYellowColorSettings());
+
+        private void ApplyYellowTextEffect(SKBitmap image, SKColor yellowColor)
         {
             if (image == null) return;
             
@@ -758,7 +842,6 @@ namespace ImageColorChanger.Core
                 var bgType = DetectBackgroundType(image);
                 
                 // 2. 获取黄字颜色设置
-                var yellowColor = GetYellowColorSettings();
                 
                 // 3. 直接处理图片的每个像素
                 unsafe
@@ -959,7 +1042,7 @@ namespace ImageColorChanger.Core
                     // 原图模式：默认居中；置顶模式固定顶部对齐。
                     imageControl.HorizontalAlignment = HorizontalAlignment.Center;
                     imageControl.VerticalAlignment =
-                        originalDisplayMode == OriginalDisplayMode.FitTop
+                        CurrentStructuredScore?.Layout is StructuredScoreLayout.Paginated or StructuredScoreLayout.Combined || originalDisplayMode == OriginalDisplayMode.FitTop
                             ? VerticalAlignment.Top
                             : VerticalAlignment.Center;
                 }
@@ -971,7 +1054,15 @@ namespace ImageColorChanger.Core
                 }
                 
                 // 设置滚动区域
-                SetScrollRegion(newHeight, canvasHeight);
+                // 分页和合页不是播放长图：只容纳真实页面，不继承长图的额外一屏留白。
+                if (CurrentStructuredScore?.Layout is StructuredScoreLayout.Paginated or StructuredScoreLayout.Combined)
+                {
+                    double scale = Math.Abs(imageControl.LayoutTransform.Value.M22);
+                    double displayedHeight = newHeight * scale;
+                    imageContainer.Height = Math.Max(canvasHeight, displayedHeight);
+                    scrollViewer.VerticalScrollBarVisibility = displayedHeight > canvasHeight + 1 ? ScrollBarVisibility.Auto : ScrollBarVisibility.Hidden;
+                }
+                else SetScrollRegion(newHeight, canvasHeight);
                 
                 return true;
             }

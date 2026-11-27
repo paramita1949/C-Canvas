@@ -87,12 +87,12 @@ namespace ImageColorChanger.UI
 
         private bool CanChangeImageZoom()
         {
-            if (ImageDisplay == null || ImageScrollViewer == null || VideoContainer == null)
+            if (ImageDisplay == null || ImageScrollViewer == null)
                 return false;
 
             return ImageDisplay.Source != null &&
                    ImageScrollViewer.Visibility == Visibility.Visible &&
-                   VideoContainer.Visibility != Visibility.Visible;
+                   VideoContainer?.IsVisible != true;
         }
 
         private void ImageZoomSurface_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -172,7 +172,7 @@ namespace ImageColorChanger.UI
                 ApplyOriginalZoomTopCenterLayout();
 
                 // 原图模式下，滚轮缩放值实时持久化。
-                if (_configManager != null)
+                if (_configManager != null && !_structuredScoreForcedOriginal)
                 {
                     _originalModeZoomRatio = _currentZoom;
                     _configManager.OriginalModeZoomRatio = _currentZoom;
@@ -221,8 +221,8 @@ namespace ImageColorChanger.UI
         private bool ShouldUseOriginalTopAlignedZoomLayout()
         {
             return _originalMode &&
-                   _originalDisplayMode == OriginalDisplayMode.FitTop &&
-                   Math.Abs(_currentZoom - 1.0) > 0.001;
+                   (UsesStructuredScoreOriginalMode(_imageProcessor?.CurrentStructuredScore) ||
+                    (_originalDisplayMode == OriginalDisplayMode.FitTop && Math.Abs(_currentZoom - 1.0) > 0.001));
         }
 
         /// <summary>
@@ -237,6 +237,15 @@ namespace ImageColorChanger.UI
             {
                 ImageDisplay.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
                 ImageDisplay.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+
+                if (UsesStructuredScoreOriginalMode(_imageProcessor?.CurrentStructuredScore) &&
+                    ImageDisplay.Parent is System.Windows.Controls.Grid pageContainer)
+                {
+                    double pageHeight = ImageDisplay.Height * _currentZoom;
+                    pageContainer.Height = Math.Max(ImageScrollViewer.ActualHeight, pageHeight);
+                    ImageScrollViewer.VerticalScrollBarVisibility = pageHeight > ImageScrollViewer.ActualHeight + 1
+                        ? System.Windows.Controls.ScrollBarVisibility.Auto : System.Windows.Controls.ScrollBarVisibility.Hidden;
+                }
 
                 if (_isDragging)
                 {
@@ -302,6 +311,7 @@ namespace ImageColorChanger.UI
         private void SetOriginalDisplayMode(OriginalDisplayMode mode, bool persist)
         {
             _originalDisplayMode = mode;
+            if (_structuredScoreForcedOriginal) _structuredScoreOriginalDisplayMode = mode;
             _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
             _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
 

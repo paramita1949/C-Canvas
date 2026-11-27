@@ -5,6 +5,7 @@ using System.Linq;
 using ImageColorChanger.Database;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Utils;
+using ImageColorChanger.Services.OnlineScores;
 using Microsoft.EntityFrameworkCore;
 
 namespace ImageColorChanger.Managers
@@ -38,7 +39,7 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 所有支持的扩展名
         /// </summary>
-        public static readonly string[] AllExtensions = ImageExtensions.Concat(VideoExtensions).Concat(AudioExtensions).ToArray();
+        public static readonly string[] AllExtensions = ImageExtensions.Concat(VideoExtensions).Concat(AudioExtensions).Append(StructuredScoreDocument.Extension).ToArray();
         private static readonly HashSet<string> AllExtensionsSet = new HashSet<string>(AllExtensions, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
@@ -54,6 +55,12 @@ namespace ImageColorChanger.Managers
         /// 导入单个媒体文件（图片/视频/音频）
         /// </summary>
         public MediaFile ImportSingleFile(string filePath)
+            => ImportSingleFileCore(filePath, null);
+
+        public MediaFile ImportSingleFileIntoFolder(string filePath, int folderId)
+            => ImportSingleFileCore(filePath, folderId);
+
+        private MediaFile ImportSingleFileCore(string filePath, int? folderId)
         {
             LastError = null;
             WriteLock.Wait();
@@ -63,6 +70,8 @@ namespace ImageColorChanger.Managers
 #endif
             try
             {
+                if (string.Equals(Path.GetExtension(filePath), StructuredScoreDocument.Extension, StringComparison.OrdinalIgnoreCase))
+                    StructuredScoreDocument.Read(filePath); // 只校验容器，保留原件路径；打开时才排版。
                 if (!File.Exists(filePath))
                 {
                     LastError = "文件不存在";
@@ -77,8 +86,8 @@ namespace ImageColorChanger.Managers
                     return null;
                 }
 
-                // 添加到数据库（作为根目录文件，folderId为null）
-                var mediaFile = _dbManager.AddMediaFile(filePath, null);
+                // 单文件导入保持根目录；文件夹内新建使用现有文件夹索引。
+                var mediaFile = _dbManager.AddMediaFile(filePath, folderId);
 
                 if (mediaFile != null)
                 {
@@ -267,7 +276,12 @@ namespace ImageColorChanger.Managers
                             var extension = Path.GetExtension(file);
                             if (!string.IsNullOrWhiteSpace(extension) && AllExtensionsSet.Contains(extension))
                             {
-                                mediaFiles.Add(file);
+                                if (extension.Equals(StructuredScoreDocument.Extension, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    try { StructuredScoreDocument.Read(file); mediaFiles.Add(file); }
+                                    catch (Exception ex) { LastError = $"结构谱未导入：{Path.GetFileName(file)}；{ex.Message}"; }
+                                }
+                                else mediaFiles.Add(file);
                             }
                         }
                     }
@@ -319,6 +333,7 @@ namespace ImageColorChanger.Managers
                     }
                 }
 
+                mediaFiles = mediaFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 if (sortForImport)
                 {
                     // 导入阶段需要稳定排序；同步阶段禁用排序可显著降低冷启动扫描成本。
@@ -536,7 +551,7 @@ namespace ImageColorChanger.Managers
                     ReapplySortRuleForFolder(folder.Id);
                 }
 
-                return (0, removedWhenFolderMissing, 0);
+                return (0, removedWhenFolderMissing, RemoveEmptyOnlineFolder(folder, context));
             }
 
             // 同步阶段优先速度，不做拼音排序。
@@ -622,7 +637,22 @@ namespace ImageColorChanger.Managers
                 ReapplySortRuleForFolder(folder.Id);
             }
 
-            return (newFiles.Count, removedCount, 0);
+            return (newFiles.Count, removedCount, RemoveEmptyOnlineFolder(folder, context));
+        }
+
+        // 顶部同步、目录右键同步与自动删除同步共用此边界。
+        // 只清理已配置在线歌本的空导航记录；物理目录及歌本路径设置保留，后续下载可重新登记。
+        private int RemoveEmptyOnlineFolder(Folder folder, CanvasDbContext context)
+        {
+            if (!new OnlineScoreStorageSettings(_dbManager).IsLibraryDirectory(folder.Path) ||
+                context.MediaFiles.Any(m => m.FolderId == folder.Id) ||
+                context.FolderImages.Any(link => link.FolderId == folder.Id)) return 0;
+
+            var stored = context.Folders.SingleOrDefault(f => f.Id == folder.Id);
+            if (stored == null) return 0;
+            context.Folders.Remove(stored);
+            context.SaveChanges();
+            return 1; // 即使图片早已删除，也通知自动同步刷新目录和搜索范围。
         }
 
         private int CleanupDeletedEntriesForFolder(Folder folder, List<MediaFile> deletedFiles, CanvasDbContext context)
@@ -705,7 +735,8 @@ namespace ImageColorChanger.Managers
         /// </summary>
         public static string GetFileDialogFilter()
         {
-            return $"所有媒体|{ImageFileSupport.ImageDialogPattern};*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb;*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +
+            return $"所有媒体|{ImageFileSupport.ImageDialogPattern};*.cscore;*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb;*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +
+                   "结构化歌谱|*.cscore|" +
                    $"{ImageFileSupport.BuildImageDialogFilter()}|" +
                    "视频文件|*.mp4;*.avi;*.mkv;*.mov;*.wmv;*.flv;*.f4v;*.rm;*.rmvb|" +
                    "音频文件|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" +

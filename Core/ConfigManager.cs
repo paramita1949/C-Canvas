@@ -217,6 +217,32 @@ namespace ImageColorChanger.Core
             }
         }
 
+        /// <summary>结构化逐页原图子模式；独立保存，旧配置默认置顶。</summary>
+        public OriginalDisplayMode StructuredScoreOriginalDisplayMode
+        {
+            get => Enum.IsDefined(_config.StructuredScoreOriginalDisplayMode)
+                ? _config.StructuredScoreOriginalDisplayMode : OriginalDisplayMode.FitTop;
+            set
+            {
+                var normalized = Enum.IsDefined(value) ? value : OriginalDisplayMode.FitTop;
+                if (_config.StructuredScoreOriginalDisplayMode != normalized)
+                {
+                    _config.StructuredScoreOriginalDisplayMode = normalized;
+                    SaveConfig();
+                }
+            }
+        }
+
+        public bool StructuredScoreToolbarPinned
+        {
+            get => _config.StructuredScoreToolbarPinned;
+            set
+            {
+                if (_config.StructuredScoreToolbarPinned != value)
+                { _config.StructuredScoreToolbarPinned = value; SaveConfig(); }
+            }
+        }
+
         /// <summary>
         /// 窗口状态
         /// </summary>
@@ -1449,6 +1475,11 @@ namespace ImageColorChanger.Core
         /// </summary>
         public OriginalDisplayMode OriginalDisplayMode { get; set; } = OriginalDisplayMode.Fit;
 
+        /// <summary>结构化逐页原图子模式（默认：置顶；普通图片偏好不变）。</summary>
+        public OriginalDisplayMode StructuredScoreOriginalDisplayMode { get; set; } = OriginalDisplayMode.FitTop;
+
+        public bool StructuredScoreToolbarPinned { get; set; } = true;
+
         /// <summary>
         /// 原图置顶模式缩放百分比（默认：80）
         /// </summary>
@@ -1489,6 +1520,9 @@ namespace ImageColorChanger.Core
         /// <summary>
         /// 目标颜色 - 红色分量（默认：218，秋麒麟）
         /// </summary>
+        // 仅保留旧配置字段以兼容往返保存；应用不再使用自动变色开关。
+        public bool StructuredScoreAutoColorEffect { get; set; } = true;
+
         public byte TargetColorR { get; set; } = 218;
 
         /// <summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using SkiaSharp;
+using ImageColorChanger.Services.OnlineScores;
 
 namespace ImageColorChanger.Core
 {
@@ -56,7 +57,7 @@ namespace ImageColorChanger.Core
                 }
                 if (!readable) return null;
 
-                var bitmap = SKBitmap.Decode(fullPath);
+                var bitmap = SKBitmap.Decode(StructuredScoreDocument.ResolveImagePath(fullPath));
                 if (bitmap == null) return null; // 失败不缓存，下一次仍可恢复。
 
                 var entry = new Entry(fullPath, modifiedTicks, length, bitmap);

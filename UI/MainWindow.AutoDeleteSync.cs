@@ -117,6 +117,16 @@ namespace ImageColorChanger.UI
 
                     result[folder.Id] = path;
                 }
+
+                // 存储根目录不显示在导航、也未必导入；监听它才能捕获整个歌本目录被删除。
+                var storage = GetOnlineScoreStorageSettings();
+                int storageKey = -1;
+                foreach (string root in storage.CacheDirectories.Where(storage.IsStorageRoot))
+                {
+                    string path = NormalizeExistingDirectoryPath(root);
+                    if (string.IsNullOrWhiteSpace(path) || result.Values.Contains(path, StringComparer.OrdinalIgnoreCase)) continue;
+                    result[storageKey--] = path;
+                }
             }
             catch
             {
@@ -193,7 +203,7 @@ namespace ImageColorChanger.UI
 
         private void AutoDeleteWatcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            if (!ShouldTriggerAutoDeleteSync(e?.FullPath))
+            if (!ShouldTriggerAutoDeleteSync(e?.FullPath, _autoDeleteWatcherFolderSnapshot.Values))
             {
                 return;
             }
@@ -204,7 +214,7 @@ namespace ImageColorChanger.UI
         private void AutoDeleteWatcher_Renamed(object sender, RenamedEventArgs e)
         {
             // oldPath 被重命名离开后，等价于原路径删除。
-            if (!ShouldTriggerAutoDeleteSync(e?.OldFullPath))
+            if (!ShouldTriggerAutoDeleteSync(e?.OldFullPath, _autoDeleteWatcherFolderSnapshot.Values))
             {
                 return;
             }
@@ -219,12 +229,16 @@ namespace ImageColorChanger.UI
             _ = Dispatcher.BeginInvoke(new Action(() => RebuildAutoDeleteWatchers(force: true)), DispatcherPriority.Background);
         }
 
-        private static bool ShouldTriggerAutoDeleteSync(string path)
+        private static bool ShouldTriggerAutoDeleteSync(string path, IEnumerable<string> watchedDirectories = null)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
                 return false;
             }
+
+            // 歌本名可能带句点，不能将已登记目录误判为不支持的文件扩展名。
+            if (watchedDirectories?.Any(directory => string.Equals(
+                Path.TrimEndingDirectorySeparator(path), directory, StringComparison.OrdinalIgnoreCase)) == true) return true;
 
             string extension = Path.GetExtension(path);
             if (string.IsNullOrWhiteSpace(extension))
@@ -273,7 +287,7 @@ namespace ImageColorChanger.UI
                     }
 
                     var result = await RunAutoDeleteSyncOnceAsync(token);
-                    if (result.removed <= 0)
+                    if (result.removed <= 0 && result.updated <= 0)
                     {
                         continue;
                     }
@@ -282,7 +296,7 @@ namespace ImageColorChanger.UI
                     {
                         ReloadProjectsPreservingTreeState();
                         LoadSearchScopes();
-                        ShowStatus($"自动删除同步完成: 删除 {result.removed}");
+                        ShowStatus($"自动删除同步完成: 删除 {result.removed}，清理歌本目录 {result.updated}");
                         RebuildAutoDeleteWatchers(force: true);
                     }, DispatcherPriority.Background, token);
                 }

@@ -96,18 +96,13 @@ namespace ImageColorChanger.UI
 
         private void TryShowRootBlankAreaContextMenu(UIElement placementTarget, MouseButtonEventArgs e)
         {
-            if (_currentViewMode == NavigationViewMode.Files && IsLyricsLibraryFeatureEnabled)
+            if (_currentViewMode == NavigationViewMode.Files)
             {
-                var filesMenu = CreateNoBorderContextMenu();
-                filesMenu.MinWidth = 176;
-                filesMenu.FontSize = 14;
-
-                var newLibraryItem = CreateIconMenuItem("新建歌词库", "IconLucideBookPlus", () => CreateLyricsLibrary());
-                ApplyPremiumMenuItemState(newLibraryItem, Services.Licensing.PremiumFeature.Lyrics);
-                filesMenu.Items.Add(newLibraryItem);
-
-                filesMenu.IsOpen = true;
+                var selected = (placementTarget as System.Windows.Controls.TreeView)?.SelectedItem as ProjectTreeItem;
+                var filesMenu = BuildFilesBlankAreaContextMenu(selected);
+                if (filesMenu.Items.Count == 0) return;
                 filesMenu.PlacementTarget = placementTarget;
+                filesMenu.IsOpen = true;
                 e.Handled = true;
                 return;
             }
@@ -144,6 +139,20 @@ namespace ImageColorChanger.UI
             e.Handled = true;
         }
 
+        private ContextMenu BuildFilesBlankAreaContextMenu(ProjectTreeItem selected)
+        {
+            var menu = CreateNoBorderContextMenu();
+            menu.MinWidth = 176; menu.FontSize = 14;
+            if (IsLyricsLibraryFeatureEnabled)
+            {
+                var library = CreateIconMenuItem("新建歌词库", "IconLucideBookPlus", () => CreateLyricsLibrary());
+                ApplyPremiumMenuItemState(library, Services.Licensing.PremiumFeature.Lyrics);
+                menu.Items.Add(library);
+            }
+            BuildStructuredScoreFolderMenu(menu, ResolveStructuredScoreCreationFolder(selected));
+            return menu;
+        }
+
         private bool BuildFolderContextMenu(ContextMenu contextMenu, ProjectTreeItem item)
         {
             contextMenu.MinWidth = 176;
@@ -164,8 +173,55 @@ namespace ImageColorChanger.UI
             BuildFolderOriginalAndColorMenus(contextMenu, item, folderMenuState);
             BuildFolderPlayModeMenu(contextMenu, item, folderMenuState);
             BuildFolderSortAndActionMenus(contextMenu, item, folderMenuState);
+            BuildStructuredScoreFolderMenu(contextMenu, item);
 
             return true;
+        }
+
+        private void BuildStructuredScoreFolderMenu(ContextMenu contextMenu, ProjectTreeItem item)
+        {
+            if (item == null || item.IsOnlineScoreLibraryRoot || item.Type != TreeItemType.Folder ||
+                !System.IO.Directory.Exists(item.Path) || ResolveRootFolderId(item) <= 0) return;
+            var create = CreateIconMenuItem("创建码谱", "IconLucideMusic", () => NewStructuredScore(item));
+            if (contextMenu.Items.Count > 0 && contextMenu.Items[contextMenu.Items.Count - 1] is not Separator)
+                contextMenu.Items.Add(new Separator());
+            contextMenu.Items.Add(create);
+        }
+
+        private ProjectTreeItem ResolveStructuredScoreCreationFolder(ProjectTreeItem item)
+        {
+            bool LocalFolder(ProjectTreeItem candidate) => candidate?.Type == TreeItemType.Folder &&
+                !candidate.IsOnlineScoreLibraryRoot && System.IO.Directory.Exists(candidate.Path) && ResolveRootFolderId(candidate) > 0;
+            if (item?.Type == TreeItemType.Folder) return LocalFolder(item) ? item : null;
+            if (_projectTreeItems == null) return null;
+            var roots = _projectTreeItems.Where(LocalFolder).ToArray();
+            if (item?.Type == TreeItemType.File)
+            {
+                if (string.IsNullOrWhiteSpace(item.Path)) return null;
+                string directory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(item.Path));
+                bool ContainsDirectory(ProjectTreeItem candidate)
+                {
+                    string candidatePath = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(candidate.Path));
+                    return string.Equals(directory, candidatePath, StringComparison.OrdinalIgnoreCase) ||
+                        directory.StartsWith(candidatePath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                }
+                // 普通文件树节点没有RootFolderId，按真实路径查所属已导入文件夹，不能依赖当前选中项。
+                var root = item.RootFolderId.HasValue
+                    ? roots.FirstOrDefault(f => ResolveRootFolderId(f) == item.RootFolderId)
+                    : roots.Where(ContainsDirectory).OrderByDescending(f => f.Path.Length).FirstOrDefault();
+                if (root == null) return null;
+                string rootPath = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(root.Path));
+                if (!System.IO.Directory.Exists(directory) ||
+                    (!string.Equals(directory, rootPath, StringComparison.OrdinalIgnoreCase) &&
+                     !directory.StartsWith(rootPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))) return null;
+                if (string.Equals(directory, rootPath, StringComparison.OrdinalIgnoreCase)) return root;
+                return new ProjectTreeItem { Type = TreeItemType.Folder, IsVirtualFolder = true,
+                    RootFolderId = ResolveRootFolderId(root), Path = directory, Name = System.IO.Path.GetFileName(directory) };
+            }
+            if (item != null) return null;
+            var expanded = roots.Where(f => f.IsExpanded).ToArray();
+            var active = expanded.FirstOrDefault(f => ResolveRootFolderId(f) == _currentFolderId);
+            return active ?? (expanded.Length == 1 ? expanded[0] : null);
         }
 
         private void BuildFolderOriginalAndColorMenus(ContextMenu contextMenu, ProjectTreeItem item, ProjectTreeFolderMenuState folderMenuState)
@@ -301,6 +357,7 @@ namespace ImageColorChanger.UI
                 "IconLucideFolderOpen",
                 () => item.IsExpanded = !item.IsExpanded);
             contextMenu.Items.Add(toggleExpandItem);
+            BuildStructuredScoreFolderMenu(contextMenu, item);
         }
 
         private void AppendFolderHierarchyModeMenu(ContextMenu contextMenu, ProjectTreeItem item)
@@ -381,6 +438,7 @@ namespace ImageColorChanger.UI
 
             var deleteItem = CreateIconMenuItem("删除文件", "IconLucideX", () => DeleteFile(item));
             contextMenu.Items.Add(deleteItem);
+            BuildStructuredScoreFolderMenu(contextMenu, ResolveStructuredScoreCreationFolder(item));
         }
 
         private void BuildTextProjectContextMenu(ContextMenu contextMenu, ProjectTreeItem item)

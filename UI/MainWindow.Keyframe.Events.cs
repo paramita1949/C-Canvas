@@ -376,6 +376,9 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
+                // 结构谱先翻本首页面，不进入文件夹相似图片或关键帧导航。
+                if (await TryNavigateStructuredScoreAsync(-1)) return;
+
                 // 模式2：原图标记模式（切换相似图片）
                 if (IsOriginalMarkMode())
                 {
@@ -503,6 +506,8 @@ namespace ImageColorChanger.UI
                     //System.Diagnostics.Debug.WriteLine($"⏱ [性能] ========== 媒体切换完成，总耗时: {sw.ElapsedMilliseconds}ms ==========");
                     return;
                 }
+
+                if (await TryNavigateStructuredScoreAsync(1)) return;
 
                 // 模式2：原图标记模式（切换相似图片）
                 if (IsOriginalMarkMode())

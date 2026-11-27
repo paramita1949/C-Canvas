@@ -113,11 +113,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            _projectTreeItems.Clear();
-            foreach (var result in searchResults)
-            {
-                _projectTreeItems.Add(result);
-            }
+            PublishProjectSearchResults(searchResults, searchTerm, preserveFolder: true);
         }
 
         /// <summary>

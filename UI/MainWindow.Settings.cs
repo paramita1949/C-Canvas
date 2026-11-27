@@ -23,6 +23,7 @@ namespace ImageColorChanger.UI
                 _originalTopScalePercent = 60 + (int)Math.Round((topScale - 60) / 5.0) * 5;
                 _imageProcessor.OriginalDisplayModeValue = _originalDisplayMode;
                 _imageProcessor.OriginalTopScalePercent = _originalTopScalePercent;
+                if (StructuredScorePinButton != null) StructuredScorePinButton.IsChecked = _configManager.StructuredScoreToolbarPinned;
 
                 InitializeImageBackgroundColor();
 
@@ -113,8 +114,11 @@ namespace ImageColorChanger.UI
         {
             try
             {
-                // 保存原图显示模式到 ConfigManager
-                _configManager.OriginalDisplayMode = _originalDisplayMode;
+                // 分页内置原图子模式独立保存，不能将临时显示状态覆盖普通图片偏好。
+                if (_structuredScoreForcedOriginal)
+                    _configManager.StructuredScoreOriginalDisplayMode = _originalDisplayMode;
+                else
+                    _configManager.OriginalDisplayMode = _originalDisplayMode;
                 _configManager.OriginalTopScalePercent = _originalTopScalePercent;
 
                 // 保存分割图片显示模式偏好到 ConfigManager

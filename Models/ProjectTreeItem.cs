@@ -109,6 +109,8 @@ namespace ImageColorChanger.UI
         public string FolderName { get; set; }  // 所属文件夹名称
         public string FolderColor { get; set; } = "#666666";  // 文件夹标记颜色
         public bool ShowFolderTag { get; set; } = false;  // 是否显示文件夹标签
+        public string SearchFolderName { get; set; } // 搜索筛选名称独立于带后缀的展示标签。
+        public bool IsOnlineScoreSearchResult { get; set; }
 
         private bool _isSelected;
         public bool IsSelected

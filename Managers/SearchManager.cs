@@ -70,6 +70,7 @@ namespace ImageColorChanger.Managers
                     {
                         // 缓存已是普通本地图片：只识别来源标签，不请求网络或重新登记。
                         string onlineTag = ResolveOnlineScoreSearchTag(onlineStorage, file);
+                        if (onlineTag != null && IsNumericFolderSearch(searchTerm)) continue;
                         if (onlineTag != null && !File.Exists(file.Path)) continue;
                         var folderId = ResolveSearchFolderId(file, searchFolderId);
                         var folderName = ResolveTopLevelFolderName(file, searchFolderId);
@@ -93,6 +94,9 @@ namespace ImageColorChanger.Managers
                             Path = file.Path,
                             FileType = file.FileType,
                             FolderName = onlineTag ?? BuildFileSearchFolderTag(folderName, file.FileType),
+                            RootFolderId = folderId,
+                            SearchFolderName = folderName,
+                            IsOnlineScoreSearchResult = onlineTag != null,
                             FolderColor = onlineTag != null ? OnlineScoreStorageSettings.FolderColor : folderColor,
                             ShowFolderTag = true
                         });
@@ -124,6 +128,10 @@ namespace ImageColorChanger.Managers
 
             return results;
         }
+
+        // 只有纯数字启用本地文件夹快速定位；中文、英文及混合输入保持原有全局范围。
+        internal static bool IsNumericFolderSearch(string text) =>
+            !string.IsNullOrWhiteSpace(text) && text.Trim().All(char.IsDigit);
 
         private OnlineScoreStorageSettings ReadOnlineScoreStorageSettings()
         {
@@ -160,6 +168,7 @@ namespace ImageColorChanger.Managers
 
         private void AppendMediaSearchResults(ObservableCollection<ProjectTreeItem> results, string searchTerm, int? searchFolderId)
         {
+            var onlineStorage = ReadOnlineScoreStorageSettings();
             IEnumerable<MediaFile> mediaFiles;
             if (searchFolderId.HasValue)
             {
@@ -174,6 +183,8 @@ namespace ImageColorChanger.Managers
 
             foreach (var file in mediaFiles.Where(f => !IsAppleDoubleSidecarFileName(f?.Name)).GroupBy(f => f.Id).Select(g => g.First()))
             {
+                string onlineTag = ResolveOnlineScoreSearchTag(onlineStorage, file);
+                if (onlineTag != null && IsNumericFolderSearch(searchTerm)) continue;
                 var folderId = ResolveSearchFolderId(file, searchFolderId);
                 var folderName = ResolveTopLevelFolderName(file, searchFolderId);
 
@@ -195,6 +206,9 @@ namespace ImageColorChanger.Managers
                     Path = file.Path,
                     FileType = file.FileType,
                     FolderName = BuildFileSearchFolderTag(folderName, file.FileType),
+                    RootFolderId = folderId,
+                    SearchFolderName = folderName,
+                    IsOnlineScoreSearchResult = onlineTag != null,
                     FolderColor = folderColor,
                     ShowFolderTag = true
                 });

@@ -18,37 +18,65 @@ namespace ImageColorChanger.UI
             TryLoadImage(path);
         }
 
-        private bool TryLoadImage(string path, bool publishProjection = true, bool showError = true)
+        private bool TryLoadImage(string path, bool publishProjection = true, bool showError = true, bool refreshStructuredScore = true)
         {
             if (!Dispatcher.CheckAccess())
             {
-                return Dispatcher.Invoke(() => TryLoadImage(path, publishProjection, showError));
+                return Dispatcher.Invoke(() => TryLoadImage(path, publishProjection, showError, refreshStructuredScore));
             }
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             try
             {
+                bool prepared = TryGetPreparedStructuredView(path, out var structuredView);
+                var structuredDocument = prepared ? structuredView.Document : Services.OnlineScores.StructuredScoreDocument.ReadFromFile(path);
+                ApplyStructuredScoreColorDefault(structuredDocument != null);
+                if (!prepared && structuredDocument != null)
+                {
+                    // 兼容同步入口也按相同首选版式预备，不让底层再次读取文件切回旧版式。
+                    SelectStructuredScoreOpeningLayout(structuredDocument, System.Threading.CancellationToken.None);
+                    structuredView = GetStructuredViewAsync(structuredDocument).GetAwaiter().GetResult();
+                    structuredDocument = structuredView.Document;
+                    _structuredPreparedView = structuredView; _structuredPreparedAnchor = path;
+                    _structuredPreparedFileKey = Core.ImageFileCacheKey.GetRawKey(path);
+                    prepared = true;
+                }
                 _keyframeManager?.StopScrollAnimation();
-                _ = StopCompositePlaybackAsync();
+                if (refreshStructuredScore) _ = StopCompositePlaybackAsync();
 
                 _imagePath = path;
 
                 bool shouldUseOriginalForCurrentImage = _currentImageId > 0 &&
                     _originalManager != null &&
                     _originalManager.ShouldUseOriginalMode(_currentImageId);
-                bool preserveZoom = _originalMode || shouldUseOriginalForCurrentImage;
+                // 原图是分页的加载策略，不是新图发布后的第二次显示操作。
+                bool wasForcedOriginal = _structuredScoreForcedOriginal;
+                ApplyStructuredScoreViewingMode(path, structuredDocument, shouldUseOriginalForCurrentImage);
+                if (wasForcedOriginal && !_originalMode) ResetNormalImageZoomState();
+                bool preserveZoom = _originalMode || shouldUseOriginalForCurrentImage || UsesStructuredScoreOriginalMode(structuredDocument);
 
                 if (!preserveZoom)
                 {
                     ResetNormalImageZoomState();
                 }
 
-                _imageProcessor.IsInverted = _isColorEffectEnabled;
-                bool success = _imageProcessor.LoadImage(path);
+                _imageProcessor.CurrentStructuredScore = structuredDocument;
+                if (prepared) _imageProcessor.SetPreparedColorMode(_isColorEffectEnabled);
+                else _imageProcessor.IsInverted = _isColorEffectEnabled;
+                if (prepared)
+                {
+                    bool useOriginal = UsesStructuredScoreOriginalMode(structuredDocument) ||
+                        shouldUseOriginalForCurrentImage || (_originalMode && !_structuredScoreForcedOriginal);
+                    _imageProcessor.SetPreparedOriginalMode(useOriginal);
+                }
+                bool success = prepared
+                    ? _imageProcessor.LoadPreparedImage(path, structuredView.Frames[Math.Min(structuredDocument.Page, structuredView.Frames.Count - 1)])
+                    : _imageProcessor.LoadImage(path);
 
                 if (success)
                 {
+                    _imageProcessor.CurrentStructuredScore = structuredDocument;
                     if (_currentImageId > 0)
                     {
                         bool shouldUseOriginal = _originalManager?.ShouldUseOriginalMode(_currentImageId) == true;
@@ -76,7 +104,7 @@ namespace ImageColorChanger.UI
                         }
                     }
 
-                    if (_originalMode)
+                    if (_originalMode && !_structuredScoreForcedOriginal)
                     {
                         _currentZoom = _originalModeZoomRatio;
                         SetZoom(_currentZoom);
@@ -96,6 +124,7 @@ namespace ImageColorChanger.UI
 
                     sw.Stop();
                     ShowStatus($"已加载：{Path.GetFileName(path)}");
+                    if (refreshStructuredScore) RefreshStructuredScoreBar(path);
                     return true;
                 }
                 else
@@ -146,6 +175,9 @@ namespace ImageColorChanger.UI
                 });
 
                 _imagePath = null;
+                ApplyStructuredScoreColorDefault(false);
+                ApplyStructuredScoreViewingMode(null, null, false);
+                RefreshStructuredScoreBar(null);
                 _currentImageId = 0;
                 _imageProcessor.ClearCurrentImage();
                 _currentZoom = 1.0;

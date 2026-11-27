@@ -260,13 +260,7 @@ namespace ImageColorChanger.UI
                     var searchResults = SearchManagerService.SearchProjects(searchTerm, searchScope, GetMediaSearchFilterMode());
                     if (searchResults != null)
                     {
-                        _projectTreeItems.Clear();
-                        _filteredProjectTreeItems.Clear();
-                        foreach (var result in searchResults)
-                        {
-                            _projectTreeItems.Add(result);
-                            _filteredProjectTreeItems.Add(result);
-                        }
+                        PublishProjectSearchResults(searchResults, searchTerm, preserveFolder: true);
                     }
                 }
             }

@@ -124,9 +124,11 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void SyncFolder(ProjectTreeItem item)
         {
-            var (added, removed, _) = ImportManagerService.SyncFolder(item.Id);
+            var (added, removed, updated) = ImportManagerService.SyncFolder(item.Id);
             ReloadProjectsPreservingTreeState();
-            ShowStatus($"同步完成: {item.Name} (新增 {added}, 删除 {removed})");
+            LoadSearchScopes();
+            ShowStatus($"同步完成: {item.Name} (新增 {added}, 删除 {removed})" +
+                (updated > 0 ? $"，清理歌本目录 {updated}" : string.Empty));
         }
 
         /// <summary>

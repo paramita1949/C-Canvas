@@ -75,6 +75,7 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void LoadProjects(bool enableDetailedIcons = true, bool clearMediaPlaylistCache = true)
         {
+            ResetProjectSearchFolderTags();
             try
             {
                 var loadSw = System.Diagnostics.Stopwatch.StartNew();
@@ -714,6 +715,12 @@ namespace ImageColorChanger.UI
         /// </summary>
         private void FilterProjectTree()
         {
+            if (_projectSearchNumericActive && _currentViewMode == NavigationViewMode.Files &&
+                SearchBox?.Text?.Trim() == _projectSearchTerm)
+            {
+                ApplyProjectSearchFolderFilter();
+                return;
+            }
             _filteredProjectTreeItems.Clear();
 
             if (_currentViewMode == NavigationViewMode.Files)

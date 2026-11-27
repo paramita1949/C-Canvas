@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Controls.Primitives;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Managers;
 using MessageBox = System.Windows.MessageBox;
@@ -21,6 +25,116 @@ namespace ImageColorChanger.UI
         private bool _imageSearchFilterSelected = true;
         private bool _mediaSearchFilterSelected;
         private bool _mediaSearchFilterSelectionLoaded;
+        private bool _projectSearchNumericActive;
+        private string _projectSearchTerm;
+        private int? _projectSearchFolderId;
+
+        private void PublishProjectSearchResults(IEnumerable<ProjectTreeItem> results, string term, bool preserveFolder = false)
+        {
+            bool keepFolder = preserveFolder && _projectSearchTerm == term;
+            _projectSearchTerm = term;
+            _projectSearchNumericActive = SearchManager.IsNumericFolderSearch(term);
+            if (!keepFolder || !_projectSearchNumericActive) _projectSearchFolderId = null;
+            _projectTreeItems.Clear();
+            foreach (var item in results) _projectTreeItems.Add(item);
+            BuildProjectSearchFolderTags();
+            ApplyProjectSearchFolderFilter();
+        }
+
+        private void ApplyProjectSearchFolderFilter()
+        {
+            // ObservableCollection 的 Reset/Add 会访问视图当前位置，不能放入 DeferRefresh。
+            _filteredProjectTreeItems.Clear();
+            foreach (var item in _projectTreeItems)
+                if (!_projectSearchNumericActive || !_projectSearchFolderId.HasValue ||
+                    item.Type == TreeItemType.File && !item.IsOnlineScoreSearchResult &&
+                    (item.RootFolderId ?? 0) == _projectSearchFolderId.Value)
+                    _filteredProjectTreeItems.Add(item);
+            RefreshOnlineLibraryRoots();
+        }
+
+        private void SelectProjectSearchFolder(int? folderId)
+        {
+            _projectSearchFolderId = folderId;
+            foreach (ToggleButton chip in ProjectSearchFolderTagsWrap.Children)
+                chip.IsChecked = Equals(chip.Tag, folderId);
+            // 只过滤已经取得的结果，不重新查询数据库、联网或打开歌谱。
+            ApplyProjectSearchFolderFilter();
+        }
+
+        private void BuildProjectSearchFolderTags()
+        {
+            if (ProjectSearchFolderTagsWrap == null) return;
+            ProjectSearchFolderTagsWrap.Children.Clear();
+            if (!_projectSearchNumericActive) { UpdateProjectSearchFolderTagsVisibility(); return; }
+            var groups = _projectTreeItems.Where(i => i.Type == TreeItemType.File && !i.IsOnlineScoreSearchResult)
+                .GroupBy(i => i.RootFolderId ?? 0).ToArray();
+            if (_projectSearchFolderId.HasValue && !groups.Any(g => g.Key == _projectSearchFolderId.Value))
+                _projectSearchFolderId = null;
+            var style = (Style)ProjectSearchFolderTagsPanel.FindResource("ProjectSearchFolderChip");
+            void AddChip(int? id, string label, int count, string tooltip)
+            {
+                var chip = new ToggleButton { Style = style, Tag = id, IsChecked = id == _projectSearchFolderId,
+                    Content = new TextBlock { Text = $"{label} {count}", TextTrimming = TextTrimming.CharacterEllipsis },
+                    ToolTip = tooltip };
+                System.Windows.Automation.AutomationProperties.SetName(chip, $"{label}，{count}项");
+                chip.Click += (_, _) => SelectProjectSearchFolder(id);
+                ProjectSearchFolderTagsWrap.Children.Add(chip);
+            }
+            if (groups.Length > 0)
+            {
+                AddChip(null, "全部", _projectTreeItems.Count, "全部本地搜索结果");
+                foreach (var group in groups)
+                {
+                    var first = group.First();
+                    string label = string.IsNullOrWhiteSpace(first.SearchFolderName) ? "根目录" : first.SearchFolderName;
+                    string path = Path.GetDirectoryName(first.Path ?? "");
+                    AddChip(group.Key, label, group.Count(), string.IsNullOrEmpty(path) ? label : label + "\n" + path);
+                }
+            }
+            ProjectSearchFolderTagsScroll.MaxHeight = 64;
+            ProjectSearchFolderTagsScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            ProjectSearchFolderTagsMore.IsChecked = false;
+            ProjectSearchFolderTagsMore.Content = "更多";
+            ProjectSearchFolderTagsMore.Click -= ProjectSearchFolderTagsMore_Click;
+            ProjectSearchFolderTagsMore.Click += ProjectSearchFolderTagsMore_Click;
+            ProjectSearchFolderTagsScroll.SizeChanged -= ProjectSearchFolderTags_SizeChanged;
+            ProjectSearchFolderTagsScroll.SizeChanged += ProjectSearchFolderTags_SizeChanged;
+            UpdateProjectSearchFolderTagsVisibility();
+        }
+
+        private void ProjectSearchFolderTagsMore_Click(object sender, RoutedEventArgs e)
+        {
+            bool expanded = ProjectSearchFolderTagsMore.IsChecked == true;
+            ProjectSearchFolderTagsScroll.MaxHeight = expanded ? 180 : 64;
+            ProjectSearchFolderTagsScroll.VerticalScrollBarVisibility = expanded ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+            ProjectSearchFolderTagsMore.Content = expanded ? "收起" : "更多";
+        }
+
+        private void ProjectSearchFolderTags_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            double width = ProjectSearchFolderTagsScroll.ActualWidth;
+            if (width <= 0) return;
+            ProjectSearchFolderTagsWrap.Measure(new System.Windows.Size(width, double.PositiveInfinity));
+            ProjectSearchFolderTagsMore.Visibility = ProjectSearchFolderTagsWrap.DesiredSize.Height > 64
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateProjectSearchFolderTagsVisibility()
+        {
+            if (ProjectSearchFolderTagsPanel == null) return;
+            ProjectSearchFolderTagsPanel.Visibility = _projectSearchNumericActive && !_isBibleMode &&
+                _currentViewMode == NavigationViewMode.Files && !IsOnlineScoreMode &&
+                SearchBox?.Text?.Trim() == _projectSearchTerm && ProjectSearchFolderTagsWrap.Children.Count > 0
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void ResetProjectSearchFolderTags()
+        {
+            _projectSearchNumericActive = false; _projectSearchTerm = null; _projectSearchFolderId = null;
+            ProjectSearchFolderTagsWrap?.Children.Clear();
+            if (ProjectSearchFolderTagsPanel != null) ProjectSearchFolderTagsPanel.Visibility = Visibility.Collapsed;
+        }
 
         private async void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -31,6 +145,7 @@ namespace ImageColorChanger.UI
 
                 if (_isBibleMode)
                 {
+                    ResetProjectSearchFolderTags();
                     await HandleBibleSearchInputChangedAsync(searchTerm);
                     return;
                 }
@@ -38,6 +153,7 @@ namespace ImageColorChanger.UI
                 HideBibleSearchResults();
                 if (IsOnlineScoreMode)
                 {
+                    ResetProjectSearchFolderTags();
                     await SearchOnlineScoresAsync(searchTerm);
                     return;
                 }
@@ -67,17 +183,7 @@ namespace ImageColorChanger.UI
                     return;
                 }
 
-                // 修复：搜索结果需要同时更新 _projectTreeItems 和 _filteredProjectTreeItems
-                _projectTreeItems.Clear();
-                _filteredProjectTreeItems.Clear();
-                
-                foreach (var item in searchResults)
-                {
-                    _projectTreeItems.Add(item);
-                    _filteredProjectTreeItems.Add(item); // 关键：搜索结果直接显示，不需要过滤
-                }
-                // 搜索结果统一留在本地列表；清除上次浏览遗留的在线歌本分区。
-                RefreshOnlineLibraryRoots();
+                PublishProjectSearchResults(searchResults, searchTerm);
 
                 // 不需要重新设置ItemsSource，ObservableCollection会自动通知UI更新
             }
@@ -127,6 +233,7 @@ namespace ImageColorChanger.UI
 
         private void UpdateSearchClearButtonVisibility(string searchTerm)
         {
+            if (string.IsNullOrWhiteSpace(searchTerm)) ResetProjectSearchFolderTags();
             if (SearchClearButton == null)
             {
                 return;

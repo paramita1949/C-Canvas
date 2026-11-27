@@ -73,21 +73,18 @@ namespace ImageColorChanger.Database.Repositories
 #endif
             try
             {
-                // 先记录该目录当前映射素材，用于后续判断孤儿素材是否可清理。
+                // 目录解绑、素材清理和歌词归档必须一起提交，失败时不能留下根目录素材。
+                using var transaction = _context.Database.BeginTransaction();
+
+                // 同时收集新映射和旧归属，兼容目录仅有部分素材建立映射的情况。
                 var mappedImageIds = _context.FolderImages
                     .Where(x => x.FolderId == folderId)
                     .Select(x => x.ImageId)
+                    .Concat(_context.MediaFiles
+                        .Where(f => f.FolderId == folderId)
+                        .Select(f => f.Id))
                     .Distinct()
                     .ToList();
-
-                if (mappedImageIds.Count == 0)
-                {
-                    // 兼容旧数据：无映射时回退到旧 folder_id 关系。
-                    mappedImageIds = _context.MediaFiles
-                        .Where(f => f.FolderId == folderId)
-                        .Select(f => f.Id)
-                        .ToList();
-                }
 
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 关联素材数: {mappedImageIds.Count}");
@@ -110,6 +107,8 @@ namespace ImageColorChanger.Database.Repositories
                     DeleteOrphanImages(mappedImageIds, forceDelete, operationId);
                 }
 
+                transaction.Commit();
+
 #if DEBUG
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} v2删除完成");
 #endif
@@ -120,6 +119,7 @@ namespace ImageColorChanger.Database.Repositories
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 异常: {ex.Message}");
                 // System.Diagnostics.Trace.WriteLine($"[DeleteFolder] op={operationId} 堆栈: {ex.StackTrace}");
 #endif
+                _context.ChangeTracker.Clear();
                 throw;
             }
         }
@@ -152,7 +152,6 @@ namespace ImageColorChanger.Database.Repositories
                     .Select(t => t.BaseImageId)
                     .Distinct())
                 .Concat(_context.LyricsProjects.Where(lp => lp.ImageId.HasValue && orphanIds.Contains(lp.ImageId.Value)).Select(lp => lp.ImageId.Value).Distinct())
-                .Concat(_context.ImageLyrics.Where(lp => orphanIds.Contains(lp.ImageId)).Select(lp => lp.ImageId).Distinct())
                 .Distinct()
                 .ToHashSet();
 
@@ -186,6 +185,7 @@ namespace ImageColorChanger.Database.Repositories
 
             var images = _context.MediaFiles.Where(f => safeToDelete.Contains(f.Id)).ToList();
             _context.MediaFiles.RemoveRange(images);
+            // 私有歌词不是保留素材的业务引用；统一提交边界会先完整归档，再删除关联记录。
             _context.SaveChanges();
         }
 

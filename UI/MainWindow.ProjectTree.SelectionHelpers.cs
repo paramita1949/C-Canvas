@@ -22,6 +22,7 @@ namespace ImageColorChanger.UI
     {
         private void ApplyFolderSelectionDecision(ProjectTreeItem selectedItem, FolderSelectionDecision folderDecision)
         {
+            ApplyStructuredScoreColorDefault(false);
             if (folderDecision.EnableOriginalMode)
             {
                 ApplyOriginalModeUiState(true);
@@ -57,11 +58,14 @@ namespace ImageColorChanger.UI
 
         private void ApplyFileSelectionDecision(FileSelectionDecision fileDecision)
         {
-            if (fileDecision.EnableOriginalMode)
+            ApplyStructuredScoreColorDefault(false);
+            // 文件夹标记只管普通图片；分页保持内置原图状态，等目标文件加载时统一决策。
+            // 否则会先重绘旧谱为普通长图，再把新谱切回原图，形成闪动和错误缩放。
+            if (fileDecision.EnableOriginalMode && !_structuredScoreForcedOriginal)
             {
                 ApplyOriginalModeUiState(true);
             }
-            else if (fileDecision.DisableOriginalMode)
+            else if (fileDecision.DisableOriginalMode && !_structuredScoreForcedOriginal)
             {
                 ApplyOriginalModeUiState(false);
             }
@@ -80,6 +84,7 @@ namespace ImageColorChanger.UI
 
         private async Task HandleImageFileSingleClickAsync(ProjectTreeItem selectedItem, int fileId)
         {
+            if (!await PrepareStructuredImageAsync(selectedItem.Path)) return;
             if (TextEditorPanel.Visibility == Visibility.Visible && IsInSplitMode())
             {
                 await LoadImageToSplitRegion(selectedItem.Path);
@@ -106,6 +111,8 @@ namespace ImageColorChanger.UI
 
         private void HandleMediaFileSingleClick(ProjectTreeItem selectedItem, int fileId)
         {
+            ++_structuredOpenVersion;
+            RefreshStructuredScoreBar(null);
             if (IsAppleDoubleSidecarPath(selectedItem.Path))
             {
                 ShowStatus($"已跳过系统伴随文件: {selectedItem.Name}");
@@ -139,8 +146,9 @@ namespace ImageColorChanger.UI
             ShowStatus($"正在播放: {selectedItem.Name}");
         }
 
-        private void HandleImageFileDoubleClick(ProjectTreeItem selectedItem, Stopwatch clickTime)
+        private async void HandleImageFileDoubleClick(ProjectTreeItem selectedItem, Stopwatch clickTime)
         {
+            if (!await PrepareStructuredImageAsync(selectedItem.Path)) return;
             if (_isLyricsMode)
             {
                 HandleImageSelectionInLyricsMode(selectedItem, selectedItem.Id);

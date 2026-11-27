@@ -66,7 +66,7 @@ namespace ImageColorChanger.UI
                 if (folderId.HasValue && _projectTreeSelectionStateController != null)
                 {
                     var decision = _projectTreeSelectionStateController.EvaluateFileSelection(
-                        folderId.Value, oldImageId, _originalMode, _isColorEffectEnabled, _currentFolderId);
+                        folderId.Value, oldImageId, _originalMode, SelectionColorEffectEnabled, _currentFolderId);
                     ApplyFileSelectionDecision(decision);
                 }
                 // 准备正确的目标bitmap，但不投影中间图片帧；F6退出后也是目标图。

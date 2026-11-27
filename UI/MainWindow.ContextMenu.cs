@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -255,60 +255,67 @@ namespace ImageColorChanger.UI
                 }
             }
 
-            // 变色颜色菜单（无分隔线）
-            var colorMenuItem = new MenuItem { Header = "变色颜色" };
-
-            // 从 ConfigManager 获取所有颜色预设
-            var allPresets = _configManager.GetAllColorPresets();
-            
-            foreach (var preset in allPresets)
+            if (_structuredScore != null)
             {
-                var menuItem = new MenuItem 
-                { 
-                    Header = preset.Name,
-                    IsCheckable = true,
-                    IsChecked = _currentTargetColor.Red == preset.R && 
-                               _currentTargetColor.Green == preset.G && 
-                               _currentTargetColor.Blue == preset.B
-                };
-                
-                // 捕获当前预设到局部变量
-                var currentPreset = preset;
-                
-                menuItem.Click += (s, args) =>
+                contextMenu.Items.Add(BuildStructuredScoreTextColorMenu());
+            }
+            else
+            {
+                // 普通图片仍使用原来的像素变色菜单。
+                var colorMenuItem = new MenuItem { Header = "变色颜色" };
+                var menuTextColor = _currentTargetColor;
+
+                // 从 ConfigManager 获取所有颜色预设
+                var allPresets = _configManager.GetAllColorPresets();
+            
+                foreach (var preset in allPresets)
                 {
-                    _currentTargetColor = currentPreset.ToSKColor();
-                    _currentTargetColorName = currentPreset.Name; // 保存颜色名称
-                    if (_isColorEffectEnabled)
+                    var menuItem = new MenuItem
                     {
-                        // 如果颜色效果已启用，清除缓存并更新显示
-                        _imageProcessor.ClearCache();
-                        _imageProcessor.UpdateImage();
-                    }
-                    // 保存颜色设置
-                    SaveSettings();
-                    ShowStatus($"✨ 已切换颜色: {currentPreset.Name}");
-                };
-                colorMenuItem.Items.Add(menuItem);
-            }
+                        Header = preset.Name,
+                        IsCheckable = true,
+                        IsChecked = menuTextColor.Red == preset.R &&
+                                   menuTextColor.Green == preset.G &&
+                                   menuTextColor.Blue == preset.B
+                    };
+                
+                    // 捕获当前预设到局部变量
+                    var currentPreset = preset;
+                
+                    menuItem.Click += (s, args) =>
+                    {
+                        _currentTargetColor = currentPreset.ToSKColor();
+                        _currentTargetColorName = currentPreset.Name; // 保存颜色名称
+                        if (_isColorEffectEnabled)
+                        {
+                            // 如果颜色效果已启用，清除缓存并更新显示
+                            _imageProcessor.ClearCache(); _imageProcessor.UpdateImage();
+                        }
+                        // 保存颜色设置
+                        SaveSettings();
+                        ShowStatus($"✨ 已切换颜色: {currentPreset.Name}");
+                    };
+                    colorMenuItem.Items.Add(menuItem);
+                }
 
-            // 添加分隔线
-            colorMenuItem.Items.Add(new Separator());
+                // 添加分隔线
+                colorMenuItem.Items.Add(new Separator());
 
-            // 自定义颜色
-            var customColorItem = new MenuItem { Header = "自定义颜色..." };
-            customColorItem.Click += (s, args) => OpenColorPicker();
-            colorMenuItem.Items.Add(customColorItem);
+                // 自定义颜色
+                var customColorItem = new MenuItem { Header = "自定义颜色..." };
+                customColorItem.Click += (s, args) => OpenColorPicker();
+                colorMenuItem.Items.Add(customColorItem);
             
-            // 保存当前颜色为预设
-            if (_currentTargetColorName == "自定义")
-            {
-                var savePresetItem = new MenuItem { Header = "保存当前颜色为预设..." };
-                savePresetItem.Click += (s, args) => SaveCurrentColorAsPreset();
-                colorMenuItem.Items.Add(savePresetItem);
-            }
+                // 保存当前颜色为预设
+                if (_currentTargetColorName == "自定义")
+                {
+                    var savePresetItem = new MenuItem { Header = "保存当前颜色为预设..." };
+                    savePresetItem.Click += (s, args) => SaveCurrentColorAsPreset();
+                    colorMenuItem.Items.Add(savePresetItem);
+                }
 
-            contextMenu.Items.Add(colorMenuItem);
+                contextMenu.Items.Add(colorMenuItem);
+            }
 
             // 图片背景色菜单
             var imageBackgroundMenuItem = new MenuItem { Header = "背景色" };

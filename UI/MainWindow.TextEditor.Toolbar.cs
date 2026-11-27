@@ -1838,7 +1838,7 @@ namespace ImageColorChanger.UI
                         
                         try
                         {
-                            using var skBitmap = SkiaSharp.SKBitmap.Decode(imagePath);
+                            using var skBitmap = SkiaSharp.SKBitmap.Decode(Services.OnlineScores.StructuredScoreDocument.ResolveImagePath(imagePath));
                             if (skBitmap != null)
                             {
                                 #if DEBUG
@@ -2441,7 +2441,7 @@ namespace ImageColorChanger.UI
                         
                         try
                         {
-                            using var skBitmap = SkiaSharp.SKBitmap.Decode(regionData.ImagePath);
+                            using var skBitmap = SkiaSharp.SKBitmap.Decode(Services.OnlineScores.StructuredScoreDocument.ResolveImagePath(regionData.ImagePath));
                             if (skBitmap != null)
                             {
                                 #if DEBUG

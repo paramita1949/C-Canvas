@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using SkiaSharp;
 using ImageColorChanger.Core;
+using ImageColorChanger.Services.OnlineScores;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace ImageColorChanger.Managers
@@ -39,6 +40,8 @@ namespace ImageColorChanger.Managers
 
             try
             {
+                var structured = _imageProcessor.CurrentStructuredScore ??
+                    (string.IsNullOrEmpty(currentImagePath) ? null : StructuredScoreDocument.ReadFromFile(currentImagePath));
                 // 确定效果类型
                 string effectName = _imageProcessor.IsInverted ? "变色" : "原图";
 
@@ -119,6 +122,11 @@ namespace ImageColorChanger.Managers
                 }
                 
                 // 静默保存，不显示成功提示（与Python版本一致）
+                if (saveSuccess && structured != null)
+                {
+                    if (extension is ".jpg" or ".jpeg") structured.Save(Path.ChangeExtension(savePath, StructuredScoreDocument.Extension));
+                    else structured.WritePng(savePath, savePath, System.Threading.CancellationToken.None);
+                }
                 return saveSuccess;
             }
             catch (Exception ex)
@@ -140,6 +148,8 @@ namespace ImageColorChanger.Managers
 
             try
             {
+                var structured = _imageProcessor.CurrentStructuredScore ??
+                    (string.IsNullOrEmpty(_imageProcessor.CurrentImagePath) ? null : StructuredScoreDocument.ReadFromFile(_imageProcessor.CurrentImagePath));
                 var extension = Path.GetExtension(targetPath).ToLower();
                 
                 SKBitmap imageToSave;
@@ -174,6 +184,11 @@ namespace ImageColorChanger.Managers
                     imageToSave.Dispose();
                 }
                 
+                if (saveSuccess && structured != null)
+                {
+                    if (extension is ".jpg" or ".jpeg") structured.Save(Path.ChangeExtension(targetPath, StructuredScoreDocument.Extension));
+                    else structured.WritePng(targetPath, targetPath, System.Threading.CancellationToken.None);
+                }
                 return saveSuccess;
             }
             catch (Exception)
