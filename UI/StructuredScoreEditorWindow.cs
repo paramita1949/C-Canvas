@@ -31,6 +31,7 @@ namespace ImageColorChanger.UI
         private readonly ComboBox _layout, _textColor;
         private string _textColorHex;
         private readonly string _defaultTextColor;
+        [System.Reflection.Obfuscation(Exclude = true, ApplyToMembers = true)]
         private sealed record ColorChoice(string Name, string Hex)
         {
             public string Swatch => Hex == null || Hex == "custom" ? "#94A3B8" : Hex;
