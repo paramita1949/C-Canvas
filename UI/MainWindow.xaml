@@ -1724,8 +1724,10 @@
                             <Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogBorder}"/>
                         </Style>
                     </Border.Resources>
+                    <!-- 随页码自然加宽；窗口不足时横向滚动，按钮和页码均不换行。 -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" CanContentScroll="False">
                     <StackPanel>
-                    <WrapPanel x:Name="StructuredScoreMainActions" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel x:Name="StructuredScoreMainActions" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Button x:Name="StructuredScorePaginatedButton" Content="分页" Tag="0" Padding="10,4" Click="StructuredScoreLayout_Click"/>
                         <Button x:Name="StructuredScoreLongButton" Content="长页" Tag="2" Padding="10,4" Margin="4,0" Click="StructuredScoreLayout_Click"/>
                         <Button x:Name="StructuredScoreCombinedButton" Content="合页" Tag="1" IsEnabled="False" Padding="10,4" Click="StructuredScoreLayout_Click"/>
@@ -1754,17 +1756,16 @@
                                     <Path Data="{StaticResource IconLucidePin}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
                                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"/>
                         </ToggleButton>
-                    </WrapPanel>
+                    </StackPanel>
                     <TextBlock x:Name="StructuredScorePageText" Visibility="Collapsed"/>
-                    <Grid x:Name="StructuredScorePageNavigation" HorizontalAlignment="Center" Margin="0,4,0,0"
-                          MaxWidth="{Binding ActualWidth, ElementName=StructuredScoreMainActions}" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid x:Name="StructuredScorePageNavigation" HorizontalAlignment="Center" Margin="0,4,0,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <Button x:Name="StructuredScorePreviousButton" Grid.Column="0" VerticalAlignment="Top" ToolTip="上一页" AutomationProperties.Name="上一页"
                                 Padding="6,4" MinWidth="28" Click="StructuredScorePrevious_Click">
                             <Path Data="{StaticResource IconLucideChevronLeft}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
                         </Button>
-                        <WrapPanel x:Name="StructuredScorePageNumbers" Grid.Column="1" HorizontalAlignment="Center" Visibility="Collapsed"
+                        <StackPanel x:Name="StructuredScorePageNumbers" Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Center" Visibility="Collapsed"
                                    AutomationProperties.Name="歌谱页码"/>
                         <Button x:Name="StructuredScoreNextButton" Grid.Column="2" VerticalAlignment="Bottom" ToolTip="下一页" AutomationProperties.Name="下一页"
                                 Padding="6,4" MinWidth="28" Click="StructuredScoreNext_Click">
@@ -1773,6 +1774,7 @@
                         </Button>
                     </Grid>
                     </StackPanel>
+                    </ScrollViewer>
                 </Border>
                 <!-- 图片显示区域（支持滚动和缩放） -->
                 <ScrollViewer x:Name="ImageScrollViewer"

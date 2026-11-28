@@ -156,16 +156,11 @@ namespace ImageColorChanger.UI
 
                     for (int i = 0; i < sortedFiles.Count; i++)
                     {
-                        sortedFiles[i].OrderIndex = i + 1;
-                    }
-
-                    for (int i = 0; i < sortedFiles.Count; i++)
-                    {
                         string originalFileName = System.IO.Path.GetFileNameWithoutExtension(sortedFiles[i].Path);
                         sortedFiles[i].Name = originalFileName;
                     }
 
-                    dbManager.UpdateMediaFilesOrder(sortedFiles);
+                    dbManager.UpdateFolderMediaFilesOrder(item.Id, sortedFiles);
                 }
 
                 ReloadProjectsPreservingTreeState();

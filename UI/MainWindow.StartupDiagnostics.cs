@@ -9,6 +9,7 @@ namespace ImageColorChanger.UI
         {
             StartupPerfLogger.Mark("MainWindow.ContentRendered");
             StartupSplashController.Close();
+            WarmStructuredRendererAfterStartup();
         }
     }
 }

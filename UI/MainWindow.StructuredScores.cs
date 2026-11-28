@@ -29,6 +29,7 @@ namespace ImageColorChanger.UI
             public StructuredScoreDocument Document { get; init; }
             public IReadOnlyList<string> Paths { get; init; }
             public IReadOnlyList<Core.ImageProcessor.PreparedImage> Frames { get; init; }
+            // 悬浮入口仅允许实际能合成一页的多节同旋律谱，不等于解析器的“存在同旋律歌词”。
             public bool CanCombine { get; init; }
             public Func<int, Task<Core.ImageProcessor.PreparedImage>> PrepareFrame { get; init; }
             public Task Rendering { get; init; }
@@ -39,6 +40,9 @@ namespace ImageColorChanger.UI
         private string _structuredPreparedAnchor, _structuredPreparedFileKey;
         private long _structuredSwitchVersion;
         private CancellationTokenSource _structuredWarmCancellation;
+        private bool _structuredRendererWarmupStarted;
+        private CancellationTokenSource _structuredRendererWarmupCancellation;
+        private Task _structuredRendererWarmupTask;
         private StructuredScoreLayout? _structuredButtonLayout;
         private bool? _structuredButtonCanCombine;
         private int _structuredPageButtonIndex = -1;
@@ -271,11 +275,17 @@ namespace ImageColorChanger.UI
         {
             // 自动分页方案在首次渲染时才补齐；其身份由内容和渲染版本决定，不能因此生成第二个会话。
             var identity = CloneStructuredScore(document);
+            // 旧来源未知但已有数字的方案按人工保留，必须在缓存身份阶段就统一，不能与其他切点串页。
+            identity.PageLinesManual ??= identity.PageLines != null;
+            identity.CombinedPageLinesManual ??= identity.CombinedPageLines != null;
             if (identity.Layout == StructuredScoreLayout.Paginated && identity.PageLinesManual != true)
                 identity.PageLines = null;
             else if (identity.Layout == StructuredScoreLayout.Combined && identity.CombinedPageLinesManual != true)
                 identity.CombinedPageLines = null;
-            return identity.CacheKey() + "|" + _isColorEffectEnabled + "|" + ResolveStructuredTextColor(document);
+            // 当前显示分页时，编辑合页脚本也必须刷新入口可用状态；自动方案补齐不改变会话身份。
+            string combinedOverride = identity.CombinedPageLinesManual == true
+                ? System.Text.Json.JsonSerializer.Serialize(identity.CombinedPageLines) : "auto";
+            return identity.CacheKey() + "|" + _isColorEffectEnabled + "|" + ResolveStructuredTextColor(document) + "|combined=" + combinedOverride;
         }
 
         private string StructuredEditorDefaultTextColor()
@@ -333,6 +343,7 @@ namespace ImageColorChanger.UI
 
         private Task<StructuredScoreView> GetStructuredViewAsync(StructuredScoreDocument document)
         {
+            StopStructuredRendererWarmup(); // 用户打开优先；不与启动预热同时争抢解析/绘制资源。
             _structuredViews ??= new();
             var snapshot = CloneStructuredScore(document);
             var color = ResolveStructuredTextColor(snapshot);
@@ -347,7 +358,7 @@ namespace ImageColorChanger.UI
             {
                 using var trace = Utils.StructuredScorePerfTrace.Start("view-first-frame");
                 cancellation.ThrowIfCancellationRequested();
-                bool canCombine = ExtendedScoreNotationRenderer.CanCombine(snapshot.Notation, cancellation);
+                bool canCombine = PrepareSinglePageCombinedAvailability(snapshot, cancellation);
                 trace?.Mark("analysis");
                 if (snapshot.Layout == StructuredScoreLayout.Combined && !canCombine)
                 {
@@ -470,41 +481,107 @@ namespace ImageColorChanger.UI
             previous?.Dispose();
         }
 
+        private void WarmStructuredRendererAfterStartup()
+        {
+            if (_structuredRendererWarmupStarted) return;
+            _structuredRendererWarmupStarted = true;
+            _structuredRendererWarmupCancellation ??= new CancellationTokenSource();
+            _structuredRendererWarmupTask = RunStructuredRendererWarmupAsync(_structuredRendererWarmupCancellation.Token);
+        }
+
+        private async Task RunStructuredRendererWarmupAsync(CancellationToken ct)
+        {
+            try
+            {
+                // 主窗口首帧和当前输入先完成；整个预热只做一次，不载入歌本。
+                await Dispatcher.InvokeAsync(static () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle, ct);
+                await Task.Delay(300, ct);
+                await Task.Factory.StartNew(() =>
+                {
+                    // 独立后台线程避免改变线程池线程的优先级；前台选歌随时取消。
+                    var thread = Thread.CurrentThread;
+                    var priority = thread.Priority;
+                    try
+                    {
+                        thread.Priority = ThreadPriority.BelowNormal;
+                        WarmStructuredRendererCore(ct);
+                    }
+                    finally { thread.Priority = priority; }
+                }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                Utils.StructuredScorePerfTrace.Event("renderer-warmup-completed");
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                Utils.StructuredScorePerfTrace.Event("renderer-warmup-canceled");
+            }
+            catch (Exception ex)
+            {
+                Utils.StructuredScorePerfTrace.Error("renderer-warmup-failed", ex);
+                System.Diagnostics.Debug.WriteLine("结构谱渲染预热失败：" + ex.Message);
+            }
+        }
+
+        private void StopStructuredRendererWarmup()
+        {
+            // 首帧显示前已选歌时，也不再安排迟到的预热；真正打开会自然激活同一管线。
+            _structuredRendererWarmupStarted = true;
+            _structuredRendererWarmupCancellation?.Cancel();
+        }
+
+        private void WarmStructuredRendererCore(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            var processor = _imageProcessor;
+            if (processor == null) return;
+            using var trace = Utils.StructuredScorePerfTrace.Start("renderer-warmup");
+            var document = new StructuredScoreDocument
+            {
+                Id = "renderer-warmup",
+                Title = "渲染预热",
+                Notation = "T:渲染预热\nXL:1\nTR:预热\n1=C 4/4\nQ:1d.1/ (3/4/) 5g\"hx:C\" - ||\nC1:<1.>预热歌谱\nC2:<2.>内存显示",
+                Layout = StructuredScoreLayout.Paginated
+            };
+            SelectStructuredScoreOpeningLayout(document, ct);
+            document.PreparePageLines(ct);
+            trace?.Mark("small-score-analysis");
+            var textColor = SkiaSharp.SKColors.Black;
+            using var score = ExtendedScoreNotationRenderer.Record(document.Notation,
+                document.Layout == StructuredScoreLayout.Combined ? null : 0, ct, textColor: textColor);
+            ct.ThrowIfCancellationRequested();
+            // 走真实解析、字体、矢量绘制和冻结像素管线，但不生成正式1920页或任何PNG/文件索引。
+            using var bitmap = new SkiaSharp.SKBitmap(640, 480, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Opaque);
+            using (var canvas = new SkiaSharp.SKCanvas(bitmap))
+            {
+                canvas.Clear(SkiaSharp.SKColors.White);
+                canvas.Scale(640f / 1800);
+                canvas.DrawPicture(score.Picture);
+            }
+            trace?.Mark("small-score-draw");
+            ct.ThrowIfCancellationRequested();
+            var prepared = processor.PrepareStructuredBitmap("renderer-warmup-memory", bitmap,
+                invert: false, color: textColor, nativeTextRendered: true);
+            prepared.Bitmap.Dispose(); // 不挂载到Image控件，不加入当前歌会话，冻结图也不保留。
+            trace?.Mark("small-frame-frozen");
+        }
+
         private static bool UsesStructuredScoreOriginalMode(StructuredScoreDocument document) =>
             document?.Layout is StructuredScoreLayout.Paginated or StructuredScoreLayout.Combined;
 
-        // 只用于新歌打开，不放进通用渲染入口，避免覆盖用户在当前歌里的手动版式切换。
+        private static bool PrepareSinglePageCombinedAvailability(StructuredScoreDocument document, CancellationToken ct,
+            Utils.StructuredScorePerfTrace trace = null)
+        {
+            bool available = document.PrepareSinglePageCombinedAvailability(ct);
+            trace?.Mark("opening-combined-page-count-resolved");
+            return available;
+        }
+
+        // 首选仅能选择可用模式；明确首选合页也不能绕过实际单页限制。
         private static void SelectStructuredScoreOpeningLayout(StructuredScoreDocument document, CancellationToken ct,
             Utils.StructuredScorePerfTrace trace = null)
         {
-            ct.ThrowIfCancellationRequested();
-            bool singleCombinedPage = false;
-            bool canCombine = ExtendedScoreNotationRenderer.CanCombine(document.Notation, ct);
-            trace?.Mark("opening-can-combine-checked");
-            if (canCombine)
-            {
-                // 在副本上兼容旧分页，避免合页探测更新了分页模式尚未迁移的版本/来源。
-                var combined = CloneStructuredScore(document); combined.Layout = StructuredScoreLayout.Combined;
-                try
-                {
-                    bool needsAnalysis = combined.CombinedPageLines == null || combined.RenderRevision != StructuredScoreDocument.CurrentRenderRevision;
-                    combined.PreparePageLines(ct);
-                    trace?.Mark("opening-combined-page-lines-prepared");
-                    singleCombinedPage = (needsAnalysis && (document.CombinedPageLines == null || combined.PaginationWasUpdated)
-                        ? combined.CombinedPageLines.Length
-                        : StructuredScoreLayoutRenderer.GetCombinedPageCount(combined.Notation,
-                            combined.CombinedPageLines, combined.CombinedPageLinesManual == true, ct)) == 1;
-                    trace?.Mark("opening-combined-page-count-resolved");
-                    document.CombinedPageLines = combined.CombinedPageLines;
-                    document.CombinedPageLinesManual = combined.CombinedPageLinesManual;
-                }
-                catch (ScoreIntegrationException ex)
-                {
-                    // 合页脚本无效时仍可先读分页；不删除用户切分，编辑器可继续修正。
-                    System.Diagnostics.Debug.WriteLine("默认合页不可用，改用分页：" + ex.Message);
-                }
-            }
-            document.Layout = singleCombinedPage ? StructuredScoreLayout.Combined : StructuredScoreLayout.Paginated;
+            bool singlePage = PrepareSinglePageCombinedAvailability(document, ct, trace);
+            document.Layout = singlePage && document.PreferredOpeningLayout != StructuredScoreLayout.Paginated
+                ? StructuredScoreLayout.Combined : StructuredScoreLayout.Paginated;
             document.Page = 0;
             trace?.Mark("opening-layout-selected");
         }
@@ -618,6 +695,7 @@ namespace ImageColorChanger.UI
 
         private async Task<bool> PrepareStructuredImageAsync(string path)
         {
+            StopStructuredRendererWarmup();
             CancelStructuredScoreImageRequest(); ++_structuredSwitchVersion;
             long version = ++_structuredOpenVersion;
             _structuredOpenCancellation?.Cancel();
@@ -915,7 +993,7 @@ namespace ImageColorChanger.UI
         {
             Id = source.Id, Title = source.Title, Notation = source.Notation, ShigebenId = source.ShigebenId,
             NotationType = source.NotationType, Layout = source.Layout, Page = source.Page,
-            TextColor = source.TextColor, RenderRevision = source.RenderRevision,
+            TextColor = source.TextColor, RenderRevision = source.RenderRevision, PreferredOpeningLayout = source.PreferredOpeningLayout,
             Lyrics = source.Lyrics == null ? null : source.GetLyrics(), LyricsFromNotation = source.LyricsFromNotation,
             PageLinesManual = source.PageLinesManual, CombinedPageLinesManual = source.CombinedPageLinesManual,
             PageLines = source.PageLines?.Select(p => p.ToArray()).ToArray(), CombinedPageLines = source.CombinedPageLines?.ToArray()

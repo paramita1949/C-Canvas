@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using ImageColorChanger.Database.Models;
 using ImageColorChanger.Database.Models.Enums;
 using ImageColorChanger.Database.Repositories;
@@ -99,6 +100,40 @@ namespace ImageColorChanger.Database
         public List<string> GetAllMediaPaths() => _mediaRepository.GetAllMediaPaths();
         public void DeleteMediaFile(int mediaFileId) => _mediaRepository.DeleteMediaFile(mediaFileId);
         public void UpdateMediaFilesOrder(List<MediaFile> mediaFiles) => _mediaRepository.UpdateMediaFilesOrder(mediaFiles);
+
+        /// <summary>一次提交目录排序；目录映射是V2读取顺序，不影响其它重叠目录的顺序。</summary>
+        public bool UpdateFolderMediaFilesOrder(int folderId, List<MediaFile> mediaFiles)
+        {
+            if (mediaFiles == null || mediaFiles.Count == 0) return false;
+            var orderById = mediaFiles.Select((file, index) => new { file.Id, Order = index + 1 })
+                .ToDictionary(x => x.Id, x => x.Order);
+            bool changed = false;
+            foreach (var file in mediaFiles)
+            {
+                // 同一实体可能被多个目录引用；只同步实体所属目录的旧版顺序。
+                if (file.FolderId == folderId && file.OrderIndex != orderById[file.Id])
+                {
+                    file.OrderIndex = orderById[file.Id];
+                    changed = true;
+                }
+            }
+            if (IsFolderSystemV2Enabled())
+            {
+                var links = _context.FolderImages.Where(link => link.FolderId == folderId).ToList();
+                foreach (var link in links)
+                {
+                    if (orderById.TryGetValue(link.ImageId, out int order) && link.OrderIndex != order)
+                    {
+                        link.OrderIndex = order;
+                        link.UpdatedAt = DateTime.Now;
+                        changed = true;
+                    }
+                }
+            }
+            // SaveChanges将实体与映射的修改放在同一事务中，禁止先保存一半再保存另一半。
+            if (changed || _context.ChangeTracker.HasChanges()) _context.SaveChanges();
+            return changed;
+        }
 
         public MediaFile GetMediaFileById(int id) => _mediaRepository.GetMediaFileById(id);
         public MediaFile GetNextMediaFile(int folderId, int? currentOrderIndex, FileType? fileType = null) => _mediaRepository.GetNextMediaFile(folderId, currentOrderIndex, fileType);

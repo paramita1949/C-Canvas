@@ -88,7 +88,7 @@ namespace ImageColorChanger.Services.OnlineScores
         private sealed class PageBreak { }
         private sealed class FreeText { public string Text; public float Offset; }
         private sealed class TemporarySegment { public Voice Voice; public Note Anchor; public bool Below, Accompaniment; public char Bracket; public int Height; }
-        private sealed class SystemRow { public List<Voice> Voices = new(); public List<TemporarySegment> Segments = new(); public Note VoiceStart; }
+        private sealed class SystemRow { public List<Voice> Voices = new(); public List<TemporarySegment> Segments = new(); public Note VoiceStart; public bool IsChorus; }
         private sealed class Section
         {
             public Section Copy() => (Section)MemberwiseClone();
@@ -106,7 +106,7 @@ namespace ImageColorChanger.Services.OnlineScores
         private sealed class Score { public List<Section> Sections = new(); public List<Arc> Arcs = new(); public List<Ending> Endings = new(); public List<string> Diagnostics = new(); }
         private sealed class Line { public Voice Voice; public Section Section; public List<Note> Notes; public float Baseline, Bottom, ExtraBelow, LabelRight, NoteScale = 1; public int From, To; public TemporarySegment Segment; }
         private sealed class PositionedText { public string Tag, Text; public float Y, XOffset; public Section Signature, Owner; }
-        private sealed class Layout { public List<Line> Lines = new(); public List<PositionedText> Texts = new(); public List<(float Top, float Bottom)> Bands = new(); public List<int> PageBreaks = new(); public int Height; }
+        private sealed class Layout { public List<Line> Lines = new(); public List<PositionedText> Texts = new(); public List<(float Top, float Bottom)> Bands = new(); public List<int> PageBreaks = new(); public List<int> ChorusBands = new(); public int Height; }
         private static ScoreIntegrationException Error(int line, string reason) => new($"结构化歌谱第 {line} 行：{reason}；原始谱文保留，未忽略音乐内容。");
         // 只保留最近使用的解析模板，不把整本谱或Skia资源常驻；模板从不参与排版和逐节裁选。
         // 所有显示/编辑工作副本都深复制可变节点，并维持弧线/反复框/临时声部的音符身份关系。
@@ -301,6 +301,17 @@ namespace ImageColorChanger.Services.OnlineScores
                             pendingSegments.Add(segment); system.Segments.Add(segment); score.Arcs.AddRange(inner.Arcs); score.Endings.AddRange(inner.Endings);
                             offset = close + 1; continue;
                         }
+                        // 全局qPattern跳过行首孤立的强断线符；此处没有前音符可供连接。
+                        if (voice.Notes.Count == 0 && content[offset] == '^')
+                        { score.Diagnostics.Add($"第{line}行行首孤立强断线符：按诗歌本保留后续音符，原码保留。"); offset++; continue; }
+                        // 实测旧谱把第二个hx写在引号外。网站只读取第一个有效注释；
+                        // 不补造第二个和弦，不改原文，也不放宽对未知音乐语法的检查。
+                        var brokenChord = Regex.Match(content[offset..], "^(?<before>[^\\\"\\r\\n]*\\\"hx:[^\\\"\\r\\n]*\\\")hx:[^\\\"\\r\\n]*\\\"\\\"");
+                        if (brokenChord.Success)
+                        {
+                            content = content[..offset] + brokenChord.Groups["before"].Value + content[(offset + brokenChord.Length)..];
+                            score.Diagnostics.Add($"第{line}行引号外重复和弦标签：按诗歌本仅使用有效引号内注释，完整原码保留。");
+                        }
                         var token = Token.Match(content, offset);
                         if (!token.Success || token.Index != offset || token.Length == 0) throw Error(line, "无法识别的音符附近：" + content.Substring(offset, Math.Min(24, content.Length - offset)));
                         offset += token.Length; var note = new Note { Symbol = token.Groups["note"].Value, Voice = id };
@@ -327,9 +338,9 @@ namespace ImageColorChanger.Services.OnlineScores
                         }
                         note.PlayStart = tail.Contains('*');
                         tail = Regex.Replace(tail, @"[\[\]]/?|«[^»]*»", "").Replace("+", "").Replace(")", "").Replace("*", "");
-                        var legacyResidue = Regex.Matches(tail, "[ay·…]+");
+                        var legacyResidue = Regex.Matches(tail, "[ay·…]+|s(?=d)|(?<=#)w");
                         if (legacyResidue.Count > 0)
-                        { score.Diagnostics.Add($"第{line}行音符 {note.Symbol} 的旧谱残留 {string.Join("、", legacyResidue.Select(m => m.Value))}：网站没有赋予音乐语义，保持已识别音区、减时线和附点，原码保留。"); tail = Regex.Replace(tail, "[ay·…]+", ""); }
+                        { score.Diagnostics.Add($"第{line}行音符 {note.Symbol} 的旧谱残留 {string.Join("、", legacyResidue.Select(m => m.Value))}：网站没有赋予音乐语义，保持已识别音区、减时线和附点，原码保留。"); tail = Regex.Replace(tail, "[ay·…]+|s(?=d)|(?<=#)w", ""); }
                         if (tail.Any(c => !char.IsWhiteSpace(c) && !"dg./^~#b♯♭♮@<>!𝄪𝄫".Contains(c))) throw Error(line, "未知音符修饰 " + tail.Trim());
                         note.Octave = tail.Count(c => c == 'g') - tail.Count(c => c == 'd'); note.Dots = tail.Count(c => c == '.'); note.Beams = tail.Count(c => c == '/');
                         note.BeamTag = tail.Contains('~') ? '~' : tail.Contains('^') ? '^' : '\0'; note.Hairpin = tail.Contains('<') ? '<' : tail.Contains('>') ? '>' : '\0'; note.StopHairpin |= tail.Contains('!');
@@ -492,6 +503,7 @@ namespace ImageColorChanger.Services.OnlineScores
             public List<(float Top, float Bottom)> Bands;
             public List<VerseLabel> VerseLabels = new();
             public List<int> PageBreaks = new();
+            public List<(int Start, int End)> ChorusRanges = new();
             public float HeaderHeight;
             public int Height;
             public void Dispose() => Picture?.Dispose();
@@ -573,6 +585,26 @@ namespace ImageColorChanger.Services.OnlineScores
         internal static RecordedScore Record(string source, int? verseIndex, CancellationToken ct, bool compact = true, SKColor? textColor = null, bool measureOnly = false)
         {
             var score = Parse(source, ct);
+            // 在选节之前识别公共副歌，避免C1..C4被筛成单节后丢失段落身份。
+            // 来源是解析节点而非原始字符串切割；副歌中的全部实际换行band共享保护范围。
+            foreach (var section in score.Sections)
+            {
+                bool numberedSeen = false, chorus = false, explicitChorusActive = false;
+                foreach (var row in section.Blocks.OfType<SystemRow>())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    bool numbered = row.Voices.Any(v => v.Lyrics.Any(l => l.No.HasValue));
+                    bool common = row.Voices.Any(v => v.Lyrics.Any(l => !l.No.HasValue && l.Cells.Any(c => c.Text.Length > 0)));
+                    bool explicitChorus = row.Voices.Any(v => v.Notes.Any(n => n.Comment.Contains("副歌")));
+                    if (row.Voices.Any(v => v.Notes.Any(n => n.Comment.Contains("主歌"))))
+                    { chorus = false; explicitChorusActive = false; numberedSeen = false; }
+                    if (numbered && !explicitChorusActive) chorus = false;
+                    if (explicitChorus) { chorus = true; explicitChorusActive = true; }
+                    if (numberedSeen && common && !numbered) chorus = true;
+                    row.IsChorus = chorus;
+                    numberedSeen |= numbered;
+                }
+            }
             if (verseIndex.HasValue)
             {
                 var verseNumbers = VerseNumbers(score); if (verseIndex.Value < 0 || verseIndex.Value >= verseNumbers.Length) throw Error(1, "歌词节索引无效");
@@ -738,7 +770,14 @@ namespace ImageColorChanger.Services.OnlineScores
                 if (bands.Count == 0) throw Error(1, "没有可排版的谱行");
                 for (int i = 0; i < bands.Count; i++)
                     bands[i] = (bands[i].Top, i + 1 < bands.Count ? bands[i + 1].Top : layout.Height);
-                return new RecordedScore { Picture = picture, Bands = bands, VerseLabels = verseLabels, PageBreaks = layout.PageBreaks.Where(i => i > 0 && i < bands.Count).Distinct().ToList(), HeaderHeight = bands[0].Top, Height = layout.Height };
+                var chorusRanges = new List<(int Start, int End)>();
+                foreach (int band in layout.ChorusBands)
+                {
+                    if (chorusRanges.Count > 0 && chorusRanges[^1].End == band)
+                        chorusRanges[^1] = (chorusRanges[^1].Start, band + 1);
+                    else chorusRanges.Add((band, band + 1));
+                }
+                return new RecordedScore { Picture = picture, Bands = bands, VerseLabels = verseLabels, PageBreaks = layout.PageBreaks.Where(i => i > 0 && i < bands.Count).Distinct().ToList(), ChorusRanges = chorusRanges, HeaderHeight = bands[0].Top, Height = layout.Height };
             }
             catch { picture?.Dispose(); throw; }
         }
@@ -838,7 +877,8 @@ namespace ImageColorChanger.Services.OnlineScores
         }
         private static Layout PositionCore(Score score, SKFont words, CancellationToken ct, bool compact, TextMetrics metrics)
         {
-            var layout = new Layout(); float y = 80; float right = compact ? Left : Right;
+            // 投影版仅压缩页头空白，谱字/歌词字号和完整谱行内部间距保持不变。
+            var layout = new Layout(); float y = compact ? 32 : 80; float right = compact ? Left : Right;
             var noteOrder = score.Sections.SelectMany(s => s.Blocks.OfType<SystemRow>()).SelectMany(s => s.Voices.Concat(s.Segments.Select(t => t.Voice))).SelectMany(v => v.Notes)
                 .Select((n, index) => (n, index)).ToDictionary(p => p.n, p => p.index);
             foreach (var section in score.Sections)
@@ -875,8 +915,9 @@ namespace ImageColorChanger.Services.OnlineScores
                     y = titleBaseline + 56 * Math.Max(1, section.Ratio("t", 1.5f));
                     if (section.Key.Length > 0)
                     {
-                        y = Math.Max(y, leftBottom + ProjectionTextSize * section.Ratio("tl") + 12);
-                        layout.Texts.Add(new() { Tag = "W", Text = section.Key, Y = y + 24, Signature = section }); y += 89;
+                        // 左侧分类末行与拍号之间仍留足字形下沿/分数上沿间距。
+                        y = Math.Max(y, leftBottom + ProjectionTextSize * .8f * section.Ratio("tl") + 6);
+                        layout.Texts.Add(new() { Tag = "W", Text = section.Key, Y = y + 24, Signature = section }); y += 65;
                     }
                     y = Math.Max(y, Math.Max(subtitleY + 54, rightBottom + ProjectionTextSize * section.Ratio("tr") + 24));
                 }
@@ -1049,7 +1090,9 @@ namespace ImageColorChanger.Services.OnlineScores
                             if (voice.Header.Length > 0) layout.Texts.Add(new() { Tag = "W", Text = voice.Header, Y = y - 48 });
                             y = bottom + (compact ? 12 : 32);
                         }
-                        y += (compact ? 10 : 20) + Math.Max(-10, section.QuSpace - 30); layout.Bands.Add((systemTop, y)); from = to;
+                        y += (compact ? 10 : 20) + Math.Max(-10, section.QuSpace - 30);
+                        if (system.IsChorus) layout.ChorusBands.Add(layout.Bands.Count);
+                        layout.Bands.Add((systemTop, y)); from = to;
                     }
                 }
                 var footerRows = new Dictionary<string, int>(); float footerBottom = y;

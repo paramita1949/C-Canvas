@@ -13,6 +13,7 @@ namespace ImageColorChanger.Services.OnlineScores
     public static class StructuredScoreLayoutRenderer
     {
         public const int Width = 1920, PageHeight = 1440;
+        internal const int AutomaticRowsPerPage = 5;
         private const float Scale = 1920f / 1800f, BottomMargin = 42;
 
         public static (int Height, float[] Bottoms) GetCutPreview(string source, StructuredScoreLayout layout, int verse, string path, CancellationToken ct)
@@ -33,10 +34,7 @@ namespace ImageColorChanger.Services.OnlineScores
             for (int verse = 0; verse < count; verse++)
             {
                 using var score = ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct, measureOnly: true);
-                float capacity = PageHeight / Scale - score.HeaderHeight - BottomMargin;
-                // 谱文显式分页优先，不再在标记之间额外拆页；高页由原图完整显示。
-                plan[verse] = (score.PageBreaks.Count > 0 ? SplitAtBreaks(new[] { (Start: 0, End: score.Bands.Count) }, score.PageBreaks) :
-                    Balance(score.Bands.Select(b => b.Bottom - b.Top).ToArray(), capacity)).Select(p => p.End - p.Start).ToArray();
+                plan[verse] = SelectAutomaticPages(score).Select(p => p.End - p.Start).ToArray();
             }
             return plan;
         }
@@ -51,10 +49,75 @@ namespace ImageColorChanger.Services.OnlineScores
 
         private static IReadOnlyList<(int Start, int End)> SelectPages(ExtendedScoreNotationRenderer.RecordedScore score, int[] pageLines, bool ignoreSourcePageBreaks)
         {
-            float capacity = PageHeight / Scale - score.HeaderHeight - BottomMargin;
-            var heights = score.Bands.Select(b => b.Bottom - b.Top).ToArray();
-            return pageLines == null ? (score.PageBreaks.Count > 0 ? SplitAtBreaks(new[] { (Start: 0, End: heights.Length) }, score.PageBreaks) : Balance(heights, capacity)) :
-                ignoreSourcePageBreaks ? ReadPageLines(pageLines, heights, capacity) : SplitAtBreaks(ReadPageLines(pageLines, heights, capacity), score.PageBreaks);
+            if (pageLines != null)
+            {
+                var pages = ReadPageLines(pageLines, score.Bands.Count); // 无效方案不能被自动优化掩盖。
+                if (ignoreSourcePageBreaks) return pages; // 人工数字完整优先，不额外切断。
+            }
+            return SelectAutomaticPages(score);
+        }
+
+        private static IReadOnlyList<(int Start, int End)> SelectAutomaticPages(ExtendedScoreNotationRenderer.RecordedScore score)
+        {
+            int count = score.Bands.Count;
+            if (count == 0) return Array.Empty<(int Start, int End)>();
+            if (count <= AutomaticRowsPerPage) return new[] { (Start: 0, End: count) };
+            var forbidden = new bool[count + 1];
+            var required = new bool[count + 1];
+            foreach (var chorus in score.ChorusRanges)
+            {
+                if (chorus.End - chorus.Start <= AutomaticRowsPerPage)
+                    for (int i = chorus.Start + 1; i < chorus.End; i++) forbidden[i] = true;
+                else
+                {
+                    // 超长副歌只在自身内均分，不把它的开头强塞进主歌页。
+                    required[chorus.Start] = required[chorus.End] = true;
+                }
+            }
+            var requiredPrefix = new int[count + 1];
+            for (int i = 1; i <= count; i++) requiredPrefix[i] = requiredPrefix[i - 1] + (required[i] ? 1 : 0);
+            bool Allowed(int start, int end) => !forbidden[end] && requiredPrefix[end - 1] == requiredPrefix[start];
+            var minimum = Enumerable.Repeat(int.MaxValue, count + 1).ToArray(); minimum[0] = 0;
+            for (int end = 1; end <= count; end++)
+                for (int start = Math.Max(0, end - AutomaticRowsPerPage); start < end; start++)
+                    if (Allowed(start, end) && minimum[start] != int.MaxValue)
+                        minimum[end] = Math.Min(minimum[end], minimum[start] + 1);
+            int pageCount = minimum[count];
+            // 总行数 -> 能完整容纳的最少页数 -> 前页同量、末页收余。
+            // 单行尾页也允许；不能为了避短尾页把少行页移到前面。
+            int frontRows = (int)Math.Ceiling((double)count / pageCount);
+            int tailRows = count - frontRows * (pageCount - 1);
+            var uniform = new List<(int Start, int End)>();
+            if (tailRows > 0 && tailRows <= frontRows)
+            {
+                int start = 0;
+                for (int page = 0; page < pageCount; page++)
+                {
+                    int end = start + (page == pageCount - 1 ? tailRows : frontRows);
+                    if (!Allowed(start, end)) { uniform.Clear(); break; }
+                    uniform.Add((start, end)); start = end;
+                }
+                if (uniform.Count == pageCount) return uniform;
+            }
+            // 仅完整副歌等语义边界使统一方案不可行时，在相同最少页数内回退。
+            double target = (double)count / pageCount;
+            var costs = Enumerable.Repeat(double.PositiveInfinity, count + 1).ToArray(); costs[0] = 0;
+            var previous = new int[count + 1];
+            var references = score.PageBreaks.ToHashSet();
+            for (int end = 1; end <= count; end++)
+                for (int start = Math.Max(0, end - AutomaticRowsPerPage); start < end; start++)
+                {
+                    if (!Allowed(start, end) || minimum[start] == int.MaxValue || minimum[end] != minimum[start] + 1) continue;
+                    int rows = end - start;
+                    double cost = costs[start] + Math.Pow(rows - target, 2) * 100
+                        - (references.Contains(end) ? 1 : 0);
+                    // 同等均衡时前页稍满；原谱切点只是低权重参考，不能拆开完整副歌。
+                    if (cost < costs[end] - .001 || Math.Abs(cost - costs[end]) <= .001 && rows < end - previous[end])
+                    { costs[end] = cost; previous[end] = start; }
+                }
+            var result = new List<(int Start, int End)>();
+            for (int end = count; end > 0;) { int start = previous[end]; result.Add((start, end)); end = start; }
+            result.Reverse(); return result;
         }
 
         public static IReadOnlyList<string> Render(string source, StructuredScoreLayout layout, string outputDirectory, CancellationToken ct, int[][] pageLines = null,
@@ -98,6 +161,19 @@ namespace ImageColorChanger.Services.OnlineScores
                     if (StopRequested()) return CanceledOutput();
                     recordings.Add(ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct, textColor: textColor, measureOnly: lazyVerses));
                 }
+                if (layout != StructuredScoreLayout.LongPage && pageLines != null && !ignoreSourcePageBreaks)
+                {
+                    // 老自动数字可覆盖全曲或分节；先校验覆盖，再按统一段落策略重算。
+                    if (pageLines.Length == 1 && recordings.Count > 1)
+                        ReadPageLines(pageLines[0], recordings.Sum(s => s.Bands.Count));
+                    else
+                    {
+                        if (pageLines.Length != recordings.Count) throw new ScoreIntegrationException("分页数据的歌词节数与谱文不符。");
+                        for (int i = 0; i < recordings.Count; i++)
+                            ReadPageLines(pageLines[i], recordings[i].Bands.Count);
+                    }
+                    pageLines = recordings.Select(s => SelectAutomaticPages(s).Select(p => p.End - p.Start).ToArray()).ToArray();
+                }
                 IReadOnlyList<string> expected = null;
                 if (pageReady != null || firstBitmapReady != null)
                 {
@@ -105,11 +181,8 @@ namespace ImageColorChanger.Services.OnlineScores
                     if (layout == StructuredScoreLayout.LongPage) pages = 1;
                     else if (layout == StructuredScoreLayout.Paginated && pageLines?.Length == 1 && recordings.Count > 1)
                     {
-                        var heights = recordings.SelectMany(s => s.Bands.Select(b => b.Bottom - b.Top)).ToArray();
-                        var cuts = ReadPageLines(pageLines[0], heights, PageHeight / Scale - recordings[0].HeaderHeight - BottomMargin);
-                        int at = 0; var breaks = new List<int>();
-                        foreach (var score in recordings) { breaks.AddRange(score.PageBreaks.Select(b => b + at)); at += score.Bands.Count; }
-                        pages = (ignoreSourcePageBreaks ? cuts : SplitAtBreaks(cuts, breaks)).Count;
+                        var cuts = ReadPageLines(pageLines[0], recordings.Sum(s => s.Bands.Count));
+                        pages = cuts.Count; // 只有人工全曲方案会进入此分支，不再按原谱*拆开。
                     }
                     else
                     {
@@ -152,9 +225,7 @@ namespace ImageColorChanger.Services.OnlineScores
                         // 数字编辑器的单行方案覆盖全曲，不强迫用户按歌词节分别填写。
                         var rows = recordings.SelectMany((score, verse) => score.Bands.Select((band, index) => (Score: score, Band: band, Verse: verse, Index: index))).ToArray();
                         var heights = rows.Select(row => row.Band.Bottom - row.Band.Top).ToArray();
-                        var boundaries = new List<int>(); int start = 0;
-                        foreach (var score in recordings) { boundaries.AddRange(score.PageBreaks.Select(i => i + start)); start += score.Bands.Count; }
-                        var pages = ignoreSourcePageBreaks ? ReadPageLines(pageLines[0], heights, 0) : SplitAtBreaks(ReadPageLines(pageLines[0], heights, 0), boundaries);
+                        var pages = ReadPageLines(pageLines[0], heights.Length);
                         foreach (var page in pages)
                         {
                             if (StopRequested()) return CanceledOutput();
@@ -223,9 +294,9 @@ namespace ImageColorChanger.Services.OnlineScores
             finally { foreach (var score in recordings) score.Dispose(); }
         }
 
-        private static IReadOnlyList<(int Start, int End)> ReadPageLines(int[] counts, float[] heights, float capacity)
+        private static IReadOnlyList<(int Start, int End)> ReadPageLines(int[] counts, int totalLines)
         {
-            if (counts == null || counts.Length == 0 || counts.Any(n => n <= 0) || counts.Sum(n => (long)n) != heights.Length)
+            if (counts == null || counts.Length == 0 || counts.Any(n => n <= 0) || counts.Sum(n => (long)n) != totalLines)
                 throw new ScoreIntegrationException("文件分页数据必须恰好覆盖全部完整谱行，不能漏行或重复；请修改PageLines/CombinedPageLines。");
             var pages = new List<(int, int)>(); int at = 0;
             foreach (int count in counts)
@@ -233,30 +304,6 @@ namespace ImageColorChanger.Services.OnlineScores
                 pages.Add((at, at + count)); at += count;
             }
             return pages;
-        }
-
-        // 显式*是硬边界；数字方案仍保留每个原切点，只拆跨越*的页，不漏行、不重复。
-        private static IReadOnlyList<(int Start, int End)> SplitAtBreaks(IReadOnlyList<(int Start, int End)> pages, IEnumerable<int> breaks)
-        {
-            var result = new List<(int, int)>(); var points = breaks.Distinct().OrderBy(i => i).ToArray();
-            foreach (var page in pages)
-            {
-                int start = page.Start;
-                foreach (int point in points.Where(i => i > page.Start && i < page.End)) { result.Add((start, point)); start = point; }
-                result.Add((start, page.End));
-            }
-            return result;
-        }
-
-        private static IReadOnlyList<(int Start, int End)> BalanceWithBreaks(float[] heights, float capacity, IEnumerable<int> breaks)
-        {
-            var result = new List<(int, int)>(); int start = 0;
-            foreach (int end in breaks.Where(i => i > 0 && i < heights.Length).Append(heights.Length).Distinct().OrderBy(i => i))
-            {
-                result.AddRange(Balance(heights.Skip(start).Take(end - start).ToArray(), capacity).Select(p => (p.Start + start, p.End + start)));
-                start = end;
-            }
-            return result;
         }
 
         private static SKBitmap NewBitmap(int height)
@@ -306,49 +353,5 @@ namespace ImageColorChanger.Services.OnlineScores
             catch { if (created) File.Delete(path); throw; }
         }
 
-        // 先求最少页数，再在相同页数内平衡谱行数与占用高度。
-        private static IReadOnlyList<(int Start, int End)> Balance(float[] heights, float capacity)
-        {
-            if (capacity <= 0 || heights.Any(h => h > capacity))
-                return Enumerable.Range(0, heights.Length).Select(i => (i, i + 1)).ToArray();
-            int n = heights.Length; var sum = new float[n + 1]; var minimum = Enumerable.Repeat(int.MaxValue, n + 1).ToArray(); minimum[0] = 0;
-            for (int i = 0; i < n; i++) sum[i + 1] = sum[i] + heights[i];
-            for (int end = 1; end <= n; end++)
-                for (int start = end - 1; start >= 0 && sum[end] - sum[start] <= capacity + .01f; start--)
-                    minimum[end] = Math.Min(minimum[end], minimum[start] + 1);
-            int pages = minimum[n]; double targetCount = (double)n / pages, targetHeight = sum[n] / pages;
-            // 能保持最少页数且每页放得下时，前面使用同一行数，余数只放末页。
-            var uniform = new List<(int Start, int End)>(); double uniformCost = double.PositiveInfinity;
-            foreach (int count in new[] { (int)Math.Floor(targetCount), (int)Math.Ceiling(targetCount) }.Distinct())
-            {
-                int tail = n - count * (pages - 1);
-                if (count <= 0 || tail <= 0 || tail == 1 && n >= pages * 2) continue;
-                var candidate = new List<(int Start, int End)>(); int start = 0; bool fits = true;
-                for (int p = 0; p < pages; p++)
-                {
-                    int end = start + (p == pages - 1 ? tail : count);
-                    if (sum[end] - sum[start] > capacity + .01f) { fits = false; break; }
-                    candidate.Add((start, end)); start = end;
-                }
-                double cost = (pages - 1) * Math.Pow(count - targetCount, 2) + Math.Pow(tail - targetCount, 2);
-                if (fits && cost < uniformCost) { uniform = candidate; uniformCost = cost; }
-            }
-            if (uniform.Count > 0) return uniform;
-            var costs = new double[pages + 1, n + 1]; var previous = new int[pages + 1, n + 1];
-            for (int p = 0; p <= pages; p++) for (int end = 0; end <= n; end++) costs[p, end] = double.PositiveInfinity;
-            costs[0, 0] = 0;
-            for (int p = 1; p <= pages; p++)
-                for (int end = p; end <= n; end++)
-                    for (int start = end - 1; start >= p - 1 && sum[end] - sum[start] <= capacity + .01f; start--)
-                    {
-                        int count = end - start;
-                        double cost = costs[p - 1, start] + Math.Pow(count - targetCount, 2) * 100 + Math.Pow((sum[end] - sum[start] - targetHeight) / capacity, 2);
-                        if (count == 1 && n >= pages * 2) cost += 10000;
-                        if (cost < costs[p, end]) { costs[p, end] = cost; previous[p, end] = start; }
-                    }
-            var result = new List<(int, int)>(); int at = n;
-            for (int p = pages; p > 0; p--) { int start = previous[p, at]; result.Add((start, at)); at = start; }
-            result.Reverse(); return result;
-        }
     }
 }

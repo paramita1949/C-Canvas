@@ -397,7 +397,7 @@ namespace ImageColorChanger.Managers
         /// <summary>
         /// 为指定文件夹重新应用排序规则
         /// </summary>
-        private void ReapplySortRuleForFolder(int folderId)
+        private bool ReapplySortRuleForFolder(int folderId)
         {
             try
             {
@@ -405,12 +405,12 @@ namespace ImageColorChanger.Managers
                 if (_dbManager.IsManualSortFolder(folderId))
                 {
                     //System.Diagnostics.Debug.WriteLine($" 跳过手动排序文件夹 {folderId} 的自动排序");
-                    return;
+                    return false;
                 }
 
                 // 获取文件夹中的所有文件
                 var files = _dbManager.GetMediaFilesByFolder(folderId);
-                if (files.Count == 0) return;
+                if (files.Count == 0) return false;
 
                 // 使用SortManager的排序键对文件进行排序
                 var sortedFiles = files
@@ -426,45 +426,12 @@ namespace ImageColorChanger.Managers
                     .Select(x => x.File)
                     .ToList();
 
-                // 更新OrderIndex
-                for (int i = 0; i < sortedFiles.Count; i++)
-                {
-                    sortedFiles[i].OrderIndex = i + 1;
-                }
-
-                // 使用DatabaseManager的UpdateMediaFilesOrder方法保存更改
-                _dbManager.UpdateMediaFilesOrder(sortedFiles);
-
-                // V2 模式下，项目树与重启后的读取优先使用 folder_images.order_index，
-                // 需要同步映射表顺序，否则新增文件会长期停留在末尾。
-                if (_dbManager.IsFolderSystemV2Enabled())
-                {
-                    var context = _dbManager.GetDbContext();
-                    var desiredOrderByImageId = sortedFiles
-                        .Select((f, idx) => new { f.Id, OrderIndex = idx + 1 })
-                        .ToDictionary(x => x.Id, x => x.OrderIndex);
-
-                    var folderLinks = context.FolderImages
-                        .Where(fi => fi.FolderId == folderId && desiredOrderByImageId.Keys.Contains(fi.ImageId))
-                        .ToList();
-
-                    foreach (var link in folderLinks)
-                    {
-                        if (desiredOrderByImageId.TryGetValue(link.ImageId, out int nextOrder))
-                        {
-                            link.OrderIndex = nextOrder;
-                            link.UpdatedAt = DateTime.Now;
-                        }
-                    }
-
-                    context.SaveChanges();
-                }
-
-                //System.Diagnostics.Debug.WriteLine($" 已为文件夹 {folderId} 重新应用排序规则，共 {sortedFiles.Count} 个文件");
+                return _dbManager.UpdateFolderMediaFilesOrder(folderId, sortedFiles);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                //System.Diagnostics.Debug.WriteLine($"重新应用排序规则失败: {ex}");
+                LastError = $"更新文件夹排序失败：{ex.Message}";
+                return false;
             }
         }
 
@@ -632,12 +599,16 @@ namespace ImageColorChanger.Managers
 
             int removedCount = CleanupDeletedEntriesForFolder(folder, deletedFiles, context);
 
-            if (newFiles.Count > 0 || removedCount > 0)
+            // 旧码谱目录可能保存过文字顺序。正常同步即使无增删也修复它，
+            // 删除专用后台扫描保持轻量，不额外排序；手动目录仍由统一入口跳过。
+            bool sortUpdated = false;
+            if (newFiles.Count > 0 || removedCount > 0 ||
+                includeAdditions && dbFiles.Any(file => StructuredScoreDocument.IsScoreFile(file.Path)))
             {
-                ReapplySortRuleForFolder(folder.Id);
+                sortUpdated = ReapplySortRuleForFolder(folder.Id);
             }
 
-            return (newFiles.Count, removedCount, RemoveEmptyOnlineFolder(folder, context));
+            return (newFiles.Count, removedCount, RemoveEmptyOnlineFolder(folder, context) + (sortUpdated ? 1 : 0));
         }
 
         // 顶部同步、目录右键同步与自动删除同步共用此边界。

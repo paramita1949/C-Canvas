@@ -24,11 +24,12 @@ using Brush = System.Windows.Media.Brush;
 
 namespace ImageColorChanger.UI
 {
-    /// <summary>谱文自带分页优先，紧凑数字控制手动分页；不执行输入代码。</summary>
+    /// <summary>统一自动分页与紧凑数字人工覆盖；不执行输入代码。</summary>
     public sealed class StructuredScoreEditorWindow : Window
     {
         private readonly TextBox _title, _notation, _pageMarks;
         private readonly ComboBox _layout, _textColor;
+        private readonly ComboBoxItem _combinedLayoutItem;
         private string _textColorHex;
         private readonly string _defaultTextColor;
         [System.Reflection.Obfuscation(Exclude = true, ApplyToMembers = true)]
@@ -97,8 +98,13 @@ namespace ImageColorChanger.UI
             DockPanel.SetDock(tools, Dock.Top); root.Children.Add(tools);
             var viewTools = new StackPanel { Orientation = Orientation.Horizontal };
             DockPanel.SetDock(viewTools, Dock.Right); tools.Children.Add(viewTools);
-            _layout = new ComboBox { Width = 96, ItemsSource = new[] { "分页", "合页", "长页" }, SelectedIndex = (int)document.Layout,
+            _layout = new ComboBox { Width = 96,
                 Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(8, 0, 0, 0), ToolTip = "显示版式" };
+            _layout.Items.Add(new ComboBoxItem { Content = "分页" });
+            _combinedLayoutItem = new ComboBoxItem { Content = "合页", IsEnabled = false, ToolTip = "同旋律不同歌词，并且合成后只有一页时可用" };
+            _layout.Items.Add(_combinedLayoutItem);
+            _layout.Items.Add(new ComboBoxItem { Content = "长页" });
+            _layout.SelectedIndex = (int)document.Layout;
             System.Windows.Automation.AutomationProperties.SetName(_layout, "显示版式");
             var choices = new List<ColorChoice> { new("跟随显示", null), new("黄色", "#FFFF00"), new("秋麒麟", "#DAA520"), new("白色", "#FFFFFF"), new("黑色", "#000000") };
             if (_textColorHex != null && !choices.Any(c => c.Hex == _textColorHex)) choices.Add(new("自定义", _textColorHex));
@@ -113,13 +119,13 @@ namespace ImageColorChanger.UI
             _pageMarks = new TextBox { Width = 172, MaxWidth = 220, AcceptsReturn = false, FontFamily = new FontFamily("Consolas"), FontSize = 17,
                 Background = EditorBrush("#E7EAF0"), BorderThickness = new Thickness(0), Padding = new Thickness(4, 5, 4, 5), VerticalContentAlignment = VerticalAlignment.Center,
                 TextAlignment = TextAlignment.Left, HorizontalContentAlignment = HorizontalAlignment.Left,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, ToolTip = "分页脚本：默认使用谱文分页；手动如333，末页自动收余。兼容空格，多位行数如12 4。" };
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, ToolTip = "空白使用统一自动分页；手动如444，最后一位收余。兼容空格，多位行数如12 4。" };
             System.Windows.Automation.AutomationProperties.SetName(_pageMarks, "每页谱行数");
             var marksHost = new Grid(); marksHost.Children.Add(_pageMarks);
             _pageHint = new TextBlock { IsHitTestVisible = false, Foreground = EditorBrush("#929CAA"), FontFamily = new FontFamily("Consolas"), FontSize = 17,
                 Margin = new Thickness(7, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
             marksHost.Children.Add(_pageHint); numberRow.Children.Add(marksHost);
-            var auto = MakeButton("默认"); auto.ToolTip = "恢复原谱分页；无标记时自动分配"; auto.Background = Brushes.Transparent; auto.Foreground = EditorBrush("#2563EB"); numberRow.Children.Add(auto);
+            var auto = MakeButton("默认"); auto.ToolTip = "清空人工脚本，恢复统一自动分页"; auto.Background = Brushes.Transparent; auto.Foreground = EditorBrush("#2563EB"); numberRow.Children.Add(auto);
             _pageSummary = new TextBlock { Foreground = EditorBrush("#64748B"), MaxWidth = 150, TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             numberRow.Children.Add(_pageSummary);
@@ -427,7 +433,7 @@ namespace ImageColorChanger.UI
             {
                 var values = ReadNumbers();
                 long total = values.Sum(n => (long)n);
-                string kind = !string.IsNullOrWhiteSpace(_pageMarks.Text) ? "手动" : Regex.IsMatch(_notation.Text, @"^\s*\*\s*$", RegexOptions.Multiline) ? "原谱" : "自动";
+                string kind = !string.IsNullOrWhiteSpace(_pageMarks.Text) ? "手动" : "自动";
                 _pageSummary.Text = $"{kind} · {values.Length} 页 · {total} 行";
                 _pageSummary.Foreground = _totalLines > 0 && total != _totalLines ? Brushes.Firebrick : Brushes.DimGray;
             }
@@ -445,7 +451,7 @@ namespace ImageColorChanger.UI
             var layout = (StructuredScoreLayout)_layout.SelectedIndex;
             var document = new StructuredScoreDocument { Id = _original.Id, Title = title, Notation = notation, ShigebenId = _original.ShigebenId,
                 Lyrics = _original.Lyrics, LyricsFromNotation = _original.LyricsFromNotation,
-                NotationType = _original.NotationType, TextColor = _textColorHex, Layout = layout, Page = 0, RenderRevision = _original.RenderRevision,
+                NotationType = _original.NotationType, TextColor = _textColorHex, Layout = layout, Page = 0, RenderRevision = _original.RenderRevision, PreferredOpeningLayout = _original.PreferredOpeningLayout,
                 PageLinesManual = _pageLinesManual, CombinedPageLinesManual = _combinedPageLinesManual,
                 PageLines = _pageLines?.Select(p => p.ToArray()).ToArray(), CombinedPageLines = _combinedPageLines?.ToArray() };
             if (readNumbers && layout != StructuredScoreLayout.LongPage)
@@ -470,18 +476,24 @@ namespace ImageColorChanger.UI
             if (sourceChanged) _codeLineCount.Text = "";
             string titleBeforeAnalysis = _title.Text;
             var layout = sourceChanged && reset ? StructuredScoreLayout.Paginated : (StructuredScoreLayout)_layout.SelectedIndex;
+            var combinedPlan = sourceChanged && reset ? null : _combinedPageLines?.ToArray();
+            bool? combinedManual = sourceChanged && reset ? false : _combinedPageLinesManual;
+            string renderRevision = _original.RenderRevision;
             _status.Text = "正在分析谱文…";
             try
             {
-                var result = await Task.Run(() =>
+                var analysis = await Task.Run(() =>
                 {
-                    int[][] plan;
-                    try { plan = StructuredScoreLayoutRenderer.CreatePageLines(source, layout == StructuredScoreLayout.LongPage ? StructuredScoreLayout.Paginated : layout, cts.Token); }
-                    catch (ScoreIntegrationException) when (sourceChanged && reset && layout == StructuredScoreLayout.Paginated)
-                    { layout = StructuredScoreLayout.Combined; plan = StructuredScoreLayoutRenderer.CreatePageLines(source, layout, cts.Token); }
-                    return plan;
+                    var availability = new StructuredScoreDocument { Notation = source, RenderRevision = renderRevision,
+                        CombinedPageLines = combinedPlan, CombinedPageLinesManual = combinedManual };
+                    bool canCombine = availability.PrepareSinglePageCombinedAvailability(cts.Token);
+                    var selected = layout == StructuredScoreLayout.Combined && !canCombine ? StructuredScoreLayout.Paginated : layout;
+                    var plan = StructuredScoreLayoutRenderer.CreatePageLines(source,
+                        selected == StructuredScoreLayout.LongPage ? StructuredScoreLayout.Paginated : selected, cts.Token);
+                    return (Plan: plan, Selected: selected, CanCombine: canCombine);
                 }, cts.Token);
                 if (version != _editVersion || _closed) return;
+                var result = analysis.Plan; layout = analysis.Selected;
                 if (result.Length == 0 || result.Sum(p => p.Length) == 0) throw new ScoreIntegrationException("谱文无效，没有可显示的完整谱行。");
                 _suppressChanges = true;
                 if (sourceChanged)
@@ -489,6 +501,7 @@ namespace ImageColorChanger.UI
                     var title = Regex.Match(source, @"^T(?:<[^>]*>)?[:：]([^\r\n]*)", RegexOptions.Multiline);
                     if (title.Success && !string.IsNullOrWhiteSpace(title.Groups[1].Value) && _title.Text == titleBeforeAnalysis) _title.Text = title.Groups[1].Value.Trim();
                 }
+                _combinedLayoutItem.IsEnabled = analysis.CanCombine;
                 _layout.SelectedIndex = (int)layout; _suppressChanges = false;
                 _totalLines = result.Sum(p => p.Sum());
                 _codeLineCount.Text = $"· {_totalLines} 行";
@@ -499,13 +512,13 @@ namespace ImageColorChanger.UI
                 if (layout == StructuredScoreLayout.Combined)
                 {
                     _defaultCombinedPageLines = result[0];
-                    if (_combinedPageLinesManual == null) _combinedPageLinesManual = _combinedPageLines != null && !_combinedPageLines.SequenceEqual(result[0]);
+                    if (_combinedPageLinesManual == null) _combinedPageLinesManual = _combinedPageLines != null;
                     if (_combinedPageLinesManual != true || _combinedPageLines == null) _combinedPageLines = result[0];
                 }
                 else
                 {
                     _defaultPageLines = result;
-                    if (_pageLinesManual == null) _pageLinesManual = _pageLines != null && System.Text.Json.JsonSerializer.Serialize(_pageLines) != System.Text.Json.JsonSerializer.Serialize(result);
+                    if (_pageLinesManual == null) _pageLinesManual = _pageLines != null;
                     if (_pageLinesManual != true || _pageLines == null) _pageLines = result;
                 }
                 _analyzedNotation = source; WriteMarks();
@@ -523,6 +536,10 @@ namespace ImageColorChanger.UI
             try
             {
                 var document = ReadEditor(); document.Validate();
+                if (document.Layout == StructuredScoreLayout.Combined &&
+                    !await Task.Run(() => document.PrepareSinglePageCombinedAvailability(CancellationToken.None)))
+                    throw new ScoreIntegrationException("合页必须只有一页，请恢复默认或改用分页；原方案未保存。");
+                if (version != _editVersion || _closed) return;
                 bool persist = _applyCuts != null && document.Notation == _original.Notation && document.Title == _original.Title;
                 await _writeGate.WaitAsync();
                 try
@@ -562,7 +579,12 @@ namespace ImageColorChanger.UI
                 try
                 {
                     _writing = true;
-                    await Task.Run(() => document.Render(CancellationToken.None));
+                    await Task.Run(() =>
+                    {
+                        if (document.Layout == StructuredScoreLayout.Combined && !document.PrepareSinglePageCombinedAvailability(CancellationToken.None))
+                            throw new ScoreIntegrationException("合页必须只有一页，请恢复默认或改用分页。");
+                        document.Render(CancellationToken.None);
+                    });
                     Result = document; _numbersDirty = false; _needsAnalysis = false;
                 }
                 finally { _writing = false; _writeGate.Release(); }
@@ -571,6 +593,25 @@ namespace ImageColorChanger.UI
             catch (Exception ex) { _status.Text = "未保存：" + ex.Message; }
             finally { _writing = false; _save.IsEnabled = true; }
         }
+        private static Task<IReadOnlyList<string>> RenderPreviewAsync(StructuredScoreDocument document, SkiaSharp.SKColor color, CancellationToken ct)
+        {
+            // 编辑预览不是导出：被新输入替代的任务正常结束，不把取消保存变成故障任务。
+            // 不传Task.Run的调度取消令牌，让工作体统一观察取消并释放自己的渲染资源。
+            return Task.Run<IReadOnlyList<string>>(() =>
+            {
+                if (ct.IsCancellationRequested) return Array.Empty<string>();
+                try
+                {
+                    return document.RenderForDisplay(color, StructuredScoreDocument.TextBackground(color), ct, (_, _) => { });
+                }
+                catch (OperationCanceledException ex) when (ct.IsCancellationRequested && ex.CancellationToken == ct)
+                {
+                    Utils.StructuredScorePerfTrace.Event("editor-preview-canceled");
+                    return Array.Empty<string>();
+                }
+            });
+        }
+
         private async Task RefreshPreviewAsync(StructuredScoreDocument document)
         {
             CancelPreviewWork();
@@ -579,24 +620,28 @@ namespace ImageColorChanger.UI
             try
             {
                 var previewColor = StructuredScoreDocument.ParseTextColor(document.TextColor ?? _defaultTextColor);
-                var pages = await Task.Run(() => document.RenderWithColors(previewColor, StructuredScoreDocument.TextBackground(previewColor), cts.Token), cts.Token);
-                if (cts.IsCancellationRequested || version != _editVersion || _closed || _previewPane.Visibility != Visibility.Visible) return;
+                var pages = await RenderPreviewAsync(document, previewColor, cts.Token);
+                if (cts.IsCancellationRequested || _previewCts != cts || version != _editVersion || _closed || _previewPane.Visibility != Visibility.Visible) return;
+                if (pages.Count == 0) throw new ScoreIntegrationException("谱文没有可预览的页面。");
                 if (_previewPages == null || !_previewPages.SequenceEqual(pages)) _previewBitmaps.Clear();
                 int page = Math.Min(_previewPage, pages.Count - 1);
                 var bitmap = await LoadPreviewBitmapAsync(pages[page], cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
-                if (cts.IsCancellationRequested || version != _editVersion || _closed) return;
+                if (cts.IsCancellationRequested || _previewCts != cts || version != _editVersion || _closed) return;
                 _previewPages = pages; _previewPage = page; _preview.Source = bitmap; _pageNumber.Text = $"{page + 1} / {pages.Count}";
                 var background = StructuredScoreDocument.TextBackground(previewColor);
                 _previewPane.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(background.Red, background.Green, background.Blue));
                 var diagnostics = await Task.Run(() => ExtendedScoreNotationRenderer.GetDiagnostics(document.Notation, cts.Token), cts.Token);
-                if (cts.IsCancellationRequested || version != _editVersion || _closed) return;
+                if (cts.IsCancellationRequested || _previewCts != cts || version != _editVersion || _closed) return;
                 _status.ToolTip = diagnostics.Count > 0 || document.PaginationNotice != null ? string.Join("\n", diagnostics.Concat(document.PaginationNotice == null ? Array.Empty<string>() : new[] { document.PaginationNotice })) : null;
                 if (diagnostics.Count > 0) _status.Text = $"可预览 · {diagnostics.Count} 项谱文提示";
                 else if (document.PaginationWasUpdated) _status.Text = "已兼容旧分页脚本";
             }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
-            catch (Exception ex) { if (version == _editVersion && !_closed) _status.Text = "预览失败，原文件不变：" + ex.Message; }
+            catch (OperationCanceledException ex) when (cts.IsCancellationRequested && ex.CancellationToken == cts.Token) { }
+            catch (Exception ex)
+            {
+                Utils.StructuredScorePerfTrace.Error("editor-preview-failed", ex);
+                if (_previewCts == cts && version == _editVersion && !_closed) _status.Text = "预览失败，原文件不变：" + ex.Message;
+            }
             finally { if (_previewCts == cts) _previewCts = null; cts.Dispose(); }
         }
         private async void ShowPreviewPage(int page)

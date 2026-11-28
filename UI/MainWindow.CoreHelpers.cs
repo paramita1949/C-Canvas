@@ -30,6 +30,10 @@ namespace ImageColorChanger.UI
 
         protected override void OnClosed(EventArgs e)
         {
+            StopStructuredRendererWarmup();
+            var warmupCancellation = _structuredRendererWarmupCancellation;
+            _structuredRendererWarmupCancellation = null;
+            warmupCancellation?.Dispose();
             try
             {
                 DisposeLiveCaption();

@@ -30,7 +30,7 @@ namespace ImageColorChanger.Services.OnlineScores
         public int NotationType { get; set; }
         // 旧PNG中没有此字段，导入时必须刷新像素，不能沿用旧解析器生成的预览。
         public string RenderRevision { get; set; }
-        internal const string CurrentRenderRevision = "native-score-v2.8-aligned-progressive";
+        internal const string CurrentRenderRevision = "native-score-v2.12-unified-front-remainder";
         [System.Text.Json.Serialization.JsonIgnore]
         public bool PaginationWasUpdated { get; private set; }
         [System.Text.Json.Serialization.JsonIgnore]
@@ -46,6 +46,8 @@ namespace ImageColorChanger.Services.OnlineScores
         }
         public static SKColor TextBackground(SKColor color) => color.Red == 0 && color.Green == 0 && color.Blue == 0 ? SKColors.White : SKColors.Black;
         public StructuredScoreLayout Layout { get; set; } = StructuredScoreLayout.Paginated;
+        /// <summary>歌本显式指定的打开首选；旧文件null保持原来的自动选择，不覆盖当前会话手动切换。</summary>
+        public StructuredScoreLayout? PreferredOpeningLayout { get; set; }
         public int Page { get; set; }
         /// <summary>每节各页的完整谱行数；如[[4],[4],[4],[4]]、单节长谱[[3,3,4,3]]。</summary>
         public int[][] PageLines { get; set; }
@@ -93,6 +95,8 @@ namespace ImageColorChanger.Services.OnlineScores
                 throw new ScoreIntegrationException("分页数据无效：每页谱行数必须是正整数。");
             if (PageLinesManual == true && PageLines == null || CombinedPageLinesManual == true && CombinedPageLines == null)
                 throw new ScoreIntegrationException("手动分页缺少行数，请调整脚本或清空恢复默认分页。");
+            if (PreferredOpeningLayout.HasValue && PreferredOpeningLayout is not (StructuredScoreLayout.Paginated or StructuredScoreLayout.Combined))
+                throw new ScoreIntegrationException("打开首选必须为分页或合页。");
         }
 
         public static StructuredScoreDocument Read(string path)
@@ -216,10 +220,15 @@ namespace ImageColorChanger.Services.OnlineScores
             lock (CacheGates.GetOrAdd(key, _ => new object())) return RenderCore(ct, key, text, background, pageReady, firstBitmapReady);
         }
 
-        /// <summary>只迁移旧渲染版本的过期切分；当前版本无效方案仍拒绝，不掩盖数字编辑错误。</summary>
+        /// <summary>统一旧数字来源并迁移过期自动方案；人工覆盖保留，无效覆盖仍拒绝。</summary>
         public void PreparePageLines(CancellationToken ct)
         {
-            Validate(); PaginationWasUpdated = false; PaginationNotice = null;
+            Validate(); ct.ThrowIfCancellationRequested(); PaginationWasUpdated = false; PaginationNotice = null;
+            // 未记来源的旧数字保守视为人工方案；主显示与编辑器不能猜出两种结果。
+            if (Layout == StructuredScoreLayout.Paginated && PageLinesManual == null && PageLines != null)
+                PageLinesManual = true;
+            if (Layout == StructuredScoreLayout.Combined && CombinedPageLinesManual == null && CombinedPageLines != null)
+                CombinedPageLinesManual = true;
             if (Layout == StructuredScoreLayout.Paginated && PageLines == null)
             {
                 PageLines = StructuredScoreLayoutRenderer.CreatePageLines(Notation, Layout, ct);
@@ -230,10 +239,9 @@ namespace ImageColorChanger.Services.OnlineScores
                 CombinedPageLines = StructuredScoreLayoutRenderer.CreatePageLines(Notation, Layout, ct)[0];
                 CombinedPageLinesManual = false;
             }
-            // v2.7到v2.8只改变行首绘制与交付时机，谱行单位不变；不为刷新像素重复分析整首分页。
-            // 更早版本仍正常迁移（包含v2.7修复的歌词节专属尾声）。无效数字仍由实际渲染拒绝。
-            else if (Layout != StructuredScoreLayout.LongPage && RenderRevision != CurrentRenderRevision &&
-                RenderRevision != "native-score-v2.7-chord-annotations")
+            // v2.12：五行内完整显示、副歌保护、最少页数、前页同量末页收余。
+            // 无效数字仍由实际渲染拒绝，不能因刷新排版缓存覆盖有效手动编辑。
+            else if (Layout != StructuredScoreLayout.LongPage && RenderRevision != CurrentRenderRevision)
             {
                 var canonical = StructuredScoreLayoutRenderer.CreatePageLines(Notation, Layout, ct);
                 var stored = Layout == StructuredScoreLayout.Paginated ? PageLines : new[] { CombinedPageLines };
@@ -243,7 +251,7 @@ namespace ImageColorChanger.Services.OnlineScores
                 if (defaultMode && JsonSerializer.Serialize(stored) != JsonSerializer.Serialize(canonical))
                 {
                     if (Layout == StructuredScoreLayout.Paginated) PageLines = canonical; else CombinedPageLines = canonical[0];
-                    PaginationWasUpdated = true; PaginationNotice = "默认分页已按谱文标记与当前排版更新。";
+                    PaginationWasUpdated = true; PaginationNotice = "默认分页已按完整副歌、前页均分与末页收余规则更新。";
                 }
                 else if (!covers)
                 {
@@ -255,6 +263,30 @@ namespace ImageColorChanger.Services.OnlineScores
                 }
             }
             RenderRevision = CurrentRenderRevision;
+        }
+
+        /// <summary>主显示与编辑器共用：同旋律不同歌词，并且实际合谱结果恰好一页。</summary>
+        internal bool PrepareSinglePageCombinedAvailability(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!ExtendedScoreNotationRenderer.CanCombine(Notation, ct)) return false;
+            // Prepare只替换字段，不写数组元素；浅快照不复制歌词，也不更新分页版本。
+            var combined = (StructuredScoreDocument)MemberwiseClone();
+            combined.Layout = StructuredScoreLayout.Combined;
+            try
+            {
+                combined.PreparePageLines(ct);
+                bool available = StructuredScoreLayoutRenderer.GetCombinedPageCount(combined.Notation,
+                    combined.CombinedPageLines, combined.CombinedPageLinesManual == true, ct) == 1;
+                CombinedPageLines = combined.CombinedPageLines;
+                CombinedPageLinesManual = combined.CombinedPageLinesManual;
+                return available;
+            }
+            catch (ScoreIntegrationException ex)
+            {
+                System.Diagnostics.Debug.WriteLine("合页不可用，改用分页：" + ex.Message);
+                return false; // 保留原数据供编辑；正常取消不在这里吞掉。
+            }
         }
 
         private IReadOnlyList<string> RenderCore(CancellationToken ct, string key, SKColor text, SKColor background, Action<IReadOnlyList<string>, int> pageReady = null,
