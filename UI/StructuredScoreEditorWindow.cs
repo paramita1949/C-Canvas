@@ -52,6 +52,8 @@ namespace ImageColorChanger.UI
         private readonly DispatcherTimer _editTimer;
         private readonly SemaphoreSlim _writeGate = new(1, 1);
         private CancellationTokenSource _analysisCts;
+        private CancellationTokenSource _previewCts, _previewPageCts;
+        private readonly Dictionary<string, Task<BitmapSource>> _previewBitmaps = new(StringComparer.Ordinal);
         private int[][] _pageLines;
         private int[] _combinedPageLines;
         private int[][] _defaultPageLines;
@@ -215,7 +217,7 @@ namespace ImageColorChanger.UI
                     if (_save.IsEnabled) _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(Close));
                 }
             };
-            Closed += (_, _) => { _closed = true; ++_editVersion; _editTimer.Stop(); _analysisCts?.Cancel(); };
+            Closed += (_, _) => { _closed = true; ++_editVersion; _editTimer.Stop(); _analysisCts?.Cancel(); CancelPreviewWork(); _previewBitmaps.Clear(); };
         }
 
         private static Brush EditorBrush(string hex) => (Brush)new BrushConverter().ConvertFromString(hex);
@@ -354,7 +356,7 @@ namespace ImageColorChanger.UI
         private void ScheduleEdit(bool analyze)
         {
             if (_suppressChanges || _closed) return;
-            ++_editVersion; _analysisCts?.Cancel();
+            ++_editVersion; _analysisCts?.Cancel(); CancelPreviewWork();
             _needsAnalysis |= analyze; _numbersDirty |= !analyze;
             _save.IsEnabled = false; _editTimer.Stop(); _editTimer.Start();
             if (!analyze) UpdateSummary();
@@ -571,38 +573,67 @@ namespace ImageColorChanger.UI
         }
         private async Task RefreshPreviewAsync(StructuredScoreDocument document)
         {
+            CancelPreviewWork();
+            var cts = new CancellationTokenSource(); _previewCts = cts;
             long version = _editVersion;
             try
             {
                 var previewColor = StructuredScoreDocument.ParseTextColor(document.TextColor ?? _defaultTextColor);
-                var pages = await Task.Run(() => document.RenderWithColors(previewColor, StructuredScoreDocument.TextBackground(previewColor), CancellationToken.None));
-                if (version != _editVersion || _closed || _previewPane.Visibility != Visibility.Visible) return;
+                var pages = await Task.Run(() => document.RenderWithColors(previewColor, StructuredScoreDocument.TextBackground(previewColor), cts.Token), cts.Token);
+                if (cts.IsCancellationRequested || version != _editVersion || _closed || _previewPane.Visibility != Visibility.Visible) return;
+                if (_previewPages == null || !_previewPages.SequenceEqual(pages)) _previewBitmaps.Clear();
                 int page = Math.Min(_previewPage, pages.Count - 1);
-                var bitmap = await Task.Run(() => LoadBitmap(pages[page]));
-                if (version != _editVersion || _closed) return;
+                var bitmap = await LoadPreviewBitmapAsync(pages[page], cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
+                if (cts.IsCancellationRequested || version != _editVersion || _closed) return;
                 _previewPages = pages; _previewPage = page; _preview.Source = bitmap; _pageNumber.Text = $"{page + 1} / {pages.Count}";
                 var background = StructuredScoreDocument.TextBackground(previewColor);
                 _previewPane.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(background.Red, background.Green, background.Blue));
-                var diagnostics = await Task.Run(() => ExtendedScoreNotationRenderer.GetDiagnostics(document.Notation, CancellationToken.None));
-                if (version != _editVersion || _closed) return;
+                var diagnostics = await Task.Run(() => ExtendedScoreNotationRenderer.GetDiagnostics(document.Notation, cts.Token), cts.Token);
+                if (cts.IsCancellationRequested || version != _editVersion || _closed) return;
                 _status.ToolTip = diagnostics.Count > 0 || document.PaginationNotice != null ? string.Join("\n", diagnostics.Concat(document.PaginationNotice == null ? Array.Empty<string>() : new[] { document.PaginationNotice })) : null;
                 if (diagnostics.Count > 0) _status.Text = $"可预览 · {diagnostics.Count} 项谱文提示";
                 else if (document.PaginationWasUpdated) _status.Text = "已兼容旧分页脚本";
             }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
             catch (Exception ex) { if (version == _editVersion && !_closed) _status.Text = "预览失败，原文件不变：" + ex.Message; }
+            finally { if (_previewCts == cts) _previewCts = null; cts.Dispose(); }
         }
         private async void ShowPreviewPage(int page)
         {
             if (_previewPages == null || _previewPages.Count == 0) return;
+            _previewPageCts?.Cancel();
+            var cts = new CancellationTokenSource(); _previewPageCts = cts;
             page = (page % _previewPages.Count + _previewPages.Count) % _previewPages.Count;
             _previewPage = page; var pages = _previewPages;
             try
             {
-                var bitmap = await Task.Run(() => LoadBitmap(pages[page]));
+                var bitmap = await LoadPreviewBitmapAsync(pages[page], cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
                 if (_closed || pages != _previewPages || page != _previewPage) return;
                 _preview.Source = bitmap; _pageNumber.Text = $"{page + 1} / {pages.Count}";
             }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
             catch (Exception ex) { if (!_closed) _status.Text = "预览失败：" + ex.Message; }
+            finally { if (_previewPageCts == cts) _previewPageCts = null; cts.Dispose(); }
+        }
+
+        private void CancelPreviewWork()
+        {
+            _previewCts?.Cancel(); _previewPageCts?.Cancel();
+        }
+
+        private async Task<BitmapSource> LoadPreviewBitmapAsync(string path, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            string key = Core.ImageFileCacheKey.GetRawKey(path) ?? throw new IOException("歌谱预览缓存不存在。");
+            if (!_previewBitmaps.TryGetValue(key, out var task) || task.IsCanceled || task.IsFaulted)
+            {
+                // 同一页的解码任务可被后续点击复用；取消等待不能毒化共享缓存。
+                task = Task.Run(() => LoadBitmap(path));
+                _previewBitmaps[key] = task;
+            }
+            return await task.WaitAsync(ct);
         }
         internal static BitmapSource LoadBitmap(string path)
         {

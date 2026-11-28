@@ -104,7 +104,7 @@ namespace ImageColorChanger.UI
                 return;
             }
 
-            SwitchToImageMode();
+            SwitchToImageMode(selectedItem.Path);
             _currentImageId = fileId;
             LoadImage(selectedItem.Path);
         }
@@ -159,7 +159,8 @@ namespace ImageColorChanger.UI
             System.Diagnostics.Debug.WriteLine($"切换到图片: {selectedItem.Name}");
 #endif
             var switchStart = clickTime.ElapsedMilliseconds;
-            SwitchToImageMode();
+            SwitchToImageMode(selectedItem.Path);
+            _currentImageId = selectedItem.Id;
 
             if (_playbackViewModel != null && _playbackViewModel.IsPlaying)
             {

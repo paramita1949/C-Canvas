@@ -1719,21 +1719,17 @@
                                 <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/></Trigger>
                             </Style.Triggers>
                         </Style>
+                        <Style x:Key="StructuredScorePageNumberButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Setter Property="Background" Value="{DynamicResource BrushMediaDialogSelected}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource BrushMediaDialogBorder}"/>
+                        </Style>
                     </Border.Resources>
-                    <WrapPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel>
+                    <WrapPanel x:Name="StructuredScoreMainActions" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Button x:Name="StructuredScorePaginatedButton" Content="分页" Tag="0" Padding="10,4" Click="StructuredScoreLayout_Click"/>
                         <Button x:Name="StructuredScoreLongButton" Content="长页" Tag="2" Padding="10,4" Margin="4,0" Click="StructuredScoreLayout_Click"/>
                         <Button x:Name="StructuredScoreCombinedButton" Content="合页" Tag="1" IsEnabled="False" Padding="10,4" Click="StructuredScoreLayout_Click"/>
                         <Button x:Name="StructuredScoreLyricsButton" Content="歌词" ToolTip="进入当前歌谱的歌词" Margin="4,0,0,0" Padding="10,4" Click="StructuredScoreLyrics_Click"/>
-                        <Button x:Name="StructuredScorePreviousButton" ToolTip="上一页" AutomationProperties.Name="上一页" Margin="6,0,0,0" Padding="8,4" MinWidth="32" Click="StructuredScorePrevious_Click">
-                                    <Path Data="{StaticResource IconLucideChevronLeft}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
-                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
-                        </Button>
-                        <TextBlock x:Name="StructuredScorePageText" VerticalAlignment="Center" Margin="8,0" Foreground="#15803D" FontWeight="Bold" FontSize="16"/>
-                        <Button x:Name="StructuredScoreNextButton" ToolTip="下一页" AutomationProperties.Name="下一页" Padding="8,4" MinWidth="32" Click="StructuredScoreNext_Click">
-                                    <Path Data="{StaticResource IconLucideChevronRight}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
-                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
-                        </Button>
                         <Button Content="编辑谱文" Margin="8,0,0,0" Padding="6,2" Click="StructuredScoreEdit_Click"/>
                         <Button x:Name="StructuredScoreImageButton" Content="显示图片" Visibility="Collapsed" ToolTip="下载诗歌本提供的图片兜底，谱码保留；再次点击返回谱码" Margin="4,0,0,0" Padding="8,4" Click="StructuredScoreImage_Click"/>
                         <ToggleButton x:Name="StructuredScorePinButton" ToolTip="固定工具栏：点亮常显，关闭后移出隐藏" AutomationProperties.Name="固定歌谱工具栏"
@@ -1759,6 +1755,24 @@
                                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type ToggleButton}}}"/>
                         </ToggleButton>
                     </WrapPanel>
+                    <TextBlock x:Name="StructuredScorePageText" Visibility="Collapsed"/>
+                    <Grid x:Name="StructuredScorePageNavigation" HorizontalAlignment="Center" Margin="0,4,0,0"
+                          MaxWidth="{Binding ActualWidth, ElementName=StructuredScoreMainActions}" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Button x:Name="StructuredScorePreviousButton" Grid.Column="0" VerticalAlignment="Top" ToolTip="上一页" AutomationProperties.Name="上一页"
+                                Padding="6,4" MinWidth="28" Click="StructuredScorePrevious_Click">
+                            <Path Data="{StaticResource IconLucideChevronLeft}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                        </Button>
+                        <WrapPanel x:Name="StructuredScorePageNumbers" Grid.Column="1" HorizontalAlignment="Center" Visibility="Collapsed"
+                                   AutomationProperties.Name="歌谱页码"/>
+                        <Button x:Name="StructuredScoreNextButton" Grid.Column="2" VerticalAlignment="Bottom" ToolTip="下一页" AutomationProperties.Name="下一页"
+                                Padding="6,4" MinWidth="28" Click="StructuredScoreNext_Click">
+                            <Path Data="{StaticResource IconLucideChevronRight}" Style="{StaticResource LucideIconPathStyle}" Width="14" Height="14"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                        </Button>
+                    </Grid>
+                    </StackPanel>
                 </Border>
                 <!-- 图片显示区域（支持滚动和缩放） -->
                 <ScrollViewer x:Name="ImageScrollViewer"

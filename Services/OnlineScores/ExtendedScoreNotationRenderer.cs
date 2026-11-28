@@ -35,6 +35,7 @@ namespace ImageColorChanger.Services.OnlineScores
         }
         private sealed class Cell
         {
+            public Cell Copy() => (Cell)MemberwiseClone();
             public string Text = "", Head = "";
             public bool Underline, LeftAligned; public int HoldCells;
             public float Scale = 1, HeadGap;
@@ -68,9 +69,10 @@ namespace ImageColorChanger.Services.OnlineScores
             }
             public void Dispose() { foreach (var font in fonts.Values) font.Dispose(); }
         }
-        private sealed class Verse { public string Label = ""; public float LabelGap; public int? No, ToNo; public List<Cell> Cells = new(); }
+        private sealed class Verse { public string Label = ""; public float LabelGap; public int? No, ToNo; public List<Cell> Cells = new(); public Verse Copy() => (Verse)MemberwiseClone(); }
         private sealed class Note
         {
+            public Note Copy() => (Note)MemberwiseClone();
             public string Symbol, Accidental = "", Beat = "", Chord = "", Comment = "", Dynamics = "", Repeat = "", Key = "";
             public List<string> Marks = new(); public List<Note> Grace = new(); public bool GraceAfter;
             public int Octave, Dots, Beams, Height, Measure, Ordinal, Voice, BeatCount = 4, BeatUnit = 4, RowIndex = -1, LyricIndex = -1;
@@ -82,13 +84,14 @@ namespace ImageColorChanger.Services.OnlineScores
             public bool Syllable => Symbol is "1" or "2" or "3" or "4" or "5" or "6" or "7" or "8" or "X" || ((Symbol is "0" or "-") && LyricIndex >= 0);
             public bool Invisible => Symbol is "8" or "9";
         }
-        private sealed class Voice { public int Id, SharedStart = -1; public string Header = "", WidthTag = ""; public List<Note> Notes = new(); public List<Verse> Lyrics = new(); public Note Anchor; public bool Hidden; }
+        private sealed class Voice { public int Id, SharedStart = -1; public string Header = "", WidthTag = ""; public List<Note> Notes = new(); public List<Verse> Lyrics = new(); public Note Anchor; public bool Hidden; public Voice Copy() => (Voice)MemberwiseClone(); }
         private sealed class PageBreak { }
         private sealed class FreeText { public string Text; public float Offset; }
         private sealed class TemporarySegment { public Voice Voice; public Note Anchor; public bool Below, Accompaniment; public char Bracket; public int Height; }
         private sealed class SystemRow { public List<Voice> Voices = new(); public List<TemporarySegment> Segments = new(); public Note VoiceStart; }
         private sealed class Section
         {
+            public Section Copy() => (Section)MemberwiseClone();
             public string Key = "", Beat = "", Tempo = ""; public int Beats = 4, BeatType = 4;
             public List<(string Tag, string Text)> Header = new(), Footer = new();
             public Dictionary<string, float> TextOffsets = new(StringComparer.Ordinal);
@@ -105,15 +108,76 @@ namespace ImageColorChanger.Services.OnlineScores
         private sealed class PositionedText { public string Tag, Text; public float Y, XOffset; public Section Signature, Owner; }
         private sealed class Layout { public List<Line> Lines = new(); public List<PositionedText> Texts = new(); public List<(float Top, float Bottom)> Bands = new(); public List<int> PageBreaks = new(); public int Height; }
         private static ScoreIntegrationException Error(int line, string reason) => new($"结构化歌谱第 {line} 行：{reason}；原始谱文保留，未忽略音乐内容。");
+        // 只保留最近使用的解析模板，不把整本谱或Skia资源常驻；模板从不参与排版和逐节裁选。
+        // 所有显示/编辑工作副本都深复制可变节点，并维持弧线/反复框/临时声部的音符身份关系。
+        private sealed class Analysis
+        {
+            public string Source;
+            public Score Template;
+            public int[] VerseNumbers;
+            public bool CanCombine;
+        }
+        private static readonly object AnalysisGate = new();
+        private static Analysis latestAnalysis;
+        private static Analysis GetAnalysis(string source, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            lock (AnalysisGate)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (latestAnalysis != null && string.Equals(latestAnalysis.Source, source, StringComparison.Ordinal)) return latestAnalysis;
+                var score = ParseCore(source, ct, 0);
+                ct.ThrowIfCancellationRequested();
+                return latestAnalysis = new Analysis { Source = source, Template = score, VerseNumbers = VerseNumbers(score), CanCombine = CanCombineScore(score) };
+            }
+        }
+        private static Score CopyScore(Score template, CancellationToken ct)
+        {
+            var notes = new Dictionary<Note, Note>();
+            Note CopyNote(Note source)
+            {
+                if (source == null) return null;
+                if (notes.TryGetValue(source, out var existing)) return existing;
+                ct.ThrowIfCancellationRequested();
+                var result = source.Copy(); notes.Add(source, result);
+                result.Marks = new(source.Marks); result.Grace = source.Grace.Select(CopyNote).ToList();
+                return result;
+            }
+            Voice CopyVoice(Voice source)
+            {
+                var result = source.Copy(); result.Anchor = CopyNote(source.Anchor); result.Notes = source.Notes.Select(CopyNote).ToList();
+                result.Lyrics = source.Lyrics.Select(v => { var copy = v.Copy(); copy.Cells = v.Cells.Select(c => c.Copy()).ToList(); return copy; }).ToList();
+                return result;
+            }
+            var score = new Score { Diagnostics = new(template.Diagnostics) };
+            foreach (var section in template.Sections)
+            {
+                ct.ThrowIfCancellationRequested();
+                var copy = section.Copy();
+                copy.Header = new(section.Header); copy.Footer = new(section.Footer);
+                copy.TextOffsets = new(section.TextOffsets, section.TextOffsets.Comparer);
+                copy.FontRatios = new(section.FontRatios, section.FontRatios.Comparer); copy.Octaves = new(section.Octaves);
+                copy.Blocks = section.Blocks.Select(block => block is SystemRow row ? (object)new SystemRow
+                {
+                    VoiceStart = CopyNote(row.VoiceStart), Voices = row.Voices.Select(CopyVoice).ToList(),
+                    Segments = row.Segments.Select(s => new TemporarySegment { Voice = CopyVoice(s.Voice), Anchor = CopyNote(s.Anchor),
+                        Below = s.Below, Accompaniment = s.Accompaniment, Bracket = s.Bracket, Height = s.Height }).ToList()
+                } : block is FreeText text ? new FreeText { Text = text.Text, Offset = text.Offset } : new PageBreak()).ToList();
+                score.Sections.Add(copy);
+            }
+            score.Arcs = template.Arcs.Select(a => new Arc(CopyNote(a.Start), CopyNote(a.End), a.Depth, a.Tuplet)).ToList();
+            score.Endings = template.Endings.Select(e => new Ending(CopyNote(e.Start), CopyNote(e.End), e.Label, e.Closed, e.Height)).ToList();
+            return score;
+        }
         public static bool CanRender(string source, out string reason)
         {
-            try { Parse(source, CancellationToken.None); reason = null; return true; }
+            try { GetAnalysis(source, CancellationToken.None); reason = null; return true; }
             catch (ScoreIntegrationException ex) { reason = ex.Message; return false; }
             catch (OverflowException) { reason = "谱文时值超出安全范围。"; return false; }
         }
-        public static IReadOnlyList<string> GetDiagnostics(string source, CancellationToken ct) => Parse(source, ct).Diagnostics;
+        public static IReadOnlyList<string> GetDiagnostics(string source, CancellationToken ct) => GetAnalysis(source, ct).Template.Diagnostics.ToArray();
         private static Score Parse(string source, CancellationToken ct)
-            => ParseCore(source, ct, 0);
+            => CopyScore(GetAnalysis(source, ct).Template, ct);
         private static Score ParseCore(string source, CancellationToken ct, int depth)
         {
             if (depth > 2) throw Error(1, "临时声部嵌套过多");
@@ -345,7 +409,7 @@ namespace ImageColorChanger.Services.OnlineScores
                 n.Height = Math.Max(n.Height, Math.Min(24, height));
                 switch (tag)
                 {
-                    case "hx": n.Chord = text; break;
+                    case "hx": n.Chord = NormalizeChord(text); break;
                     case "d": n.Key = (text == text.ToLowerInvariant() ? "6=" : "1=") + text; break;
                     case "p": case "p/":
                         var beat = Regex.Match(text, @"^(\d{1,2})/(\d{1,2})$"); if (!beat.Success) throw Error(line, "无效变拍号"); ValidateBeat(int.Parse(beat.Groups[1].Value), int.Parse(beat.Groups[2].Value), line); n.Beat = text; n.HideBeat = tag == "p/"; break;
@@ -433,9 +497,10 @@ namespace ImageColorChanger.Services.OnlineScores
             public void Dispose() => Picture?.Dispose();
         }
         public static bool CanCombine(string source, CancellationToken ct)
+            => GetAnalysis(source, ct).CanCombine;
+        private static bool CanCombineScore(Score score)
         {
             // C行必须挂在同一个Q声部下；分段的歌词、不同声部和节号本身不算同旋律多节歌词。
-            var score = Parse(source, ct);
             foreach (var voice in score.Sections.SelectMany(s => s.Blocks.OfType<SystemRow>()).SelectMany(s => s.Voices))
             {
                 int alignedCells = voice.Notes.Count(n => n.LyricIndex >= 0);
@@ -456,10 +521,10 @@ namespace ImageColorChanger.Services.OnlineScores
             int unnumbered = voices.Select(v => v.Lyrics.Count(l => !l.No.HasValue)).DefaultIfEmpty().Max();
             return numbers.Length > 0 ? numbers : Enumerable.Range(1, Math.Max(1, unnumbered)).ToArray();
         }
-        internal static int VerseCount(string source, CancellationToken ct) => VerseNumbers(Parse(source, ct)).Length;
+        internal static int VerseCount(string source, CancellationToken ct) => GetAnalysis(source, ct).VerseNumbers.Length;
         internal static string ExtractLyrics(string source)
         {
-            var score = Parse(source, CancellationToken.None);
+            var score = GetAnalysis(source, CancellationToken.None).Template;
             var rows = score.Sections.SelectMany(s => s.Blocks.OfType<SystemRow>()).ToArray();
             var numbers = VerseNumbers(score); var verses = new List<string>();
             for (int index = 0; index < numbers.Length; index++)
@@ -505,13 +570,24 @@ namespace ImageColorChanger.Services.OnlineScores
             if (encoded == null) throw Error(1, "渲染文件失败");
             using var file = new FileStream(path, FileMode.CreateNew); encoded.SaveTo(file);
         }
-        internal static RecordedScore Record(string source, int? verseIndex, CancellationToken ct, bool compact = true, SKColor? textColor = null)
+        internal static RecordedScore Record(string source, int? verseIndex, CancellationToken ct, bool compact = true, SKColor? textColor = null, bool measureOnly = false)
         {
             var score = Parse(source, ct);
             if (verseIndex.HasValue)
             {
                 var verseNumbers = VerseNumbers(score); if (verseIndex.Value < 0 || verseIndex.Value >= verseNumbers.Length) throw Error(1, "歌词节索引无效");
                 int number = verseNumbers[verseIndex.Value];
+                // 仅在整行明确限定其它歌词节时省略（如C4专属的阿们）。
+                // 无词间奏、无节号公共段、多声部公共旋律及临时声部不属于此条件。
+                foreach (var section in score.Sections)
+                    section.Blocks.RemoveAll(block => block is SystemRow row && row.Segments.Count == 0 && row.Voices.Count > 0 &&
+                        row.Voices.All(v => v.SharedStart < 0 && v.Lyrics.Count > 0 &&
+                            v.Lyrics.All(l => l.No.HasValue && !(number >= l.No && number <= l.ToNo))));
+                var retainedNotes = score.Sections.SelectMany(s => s.Blocks.OfType<SystemRow>())
+                    .SelectMany(r => r.Voices.Concat(r.Segments.Select(t => t.Voice))).SelectMany(v => v.Notes).ToHashSet();
+                // 连音线和反复框不能再指向本节未演唱的段落，保留其余完整音乐标记。
+                score.Arcs.RemoveAll(a => !retainedNotes.Contains(a.Start) || !retainedNotes.Contains(a.End));
+                score.Endings.RemoveAll(e => !retainedNotes.Contains(e.Start) || e.End != null && !retainedNotes.Contains(e.End));
                 foreach (var voice in score.Sections.SelectMany(s => s.Blocks.OfType<SystemRow>()).SelectMany(s => s.Voices))
                     if (voice.Lyrics.Any(v => v.No.HasValue))
                     {
@@ -545,6 +621,8 @@ namespace ImageColorChanger.Services.OnlineScores
             using var paint = new SKPaint { Color = textColor ?? SKColors.Black, IsAntialias = true };
             using var stroke = new SKPaint { Color = textColor ?? SKColors.Black, IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2.4f };
             var layout = PositionCore(score, words, ct, compact, metrics);
+            // 分页分析仅需要完整谱行边界；复用相同量字/排版，不绘制不会显示的音符和歌词。
+            if (measureOnly) return CompleteRecording(layout, null, verseLabels, ct);
             using var recorder = new SKPictureRecorder();
             var canvas = recorder.BeginRecording(new SKRect(0, 0, Width, layout.Height));
             foreach (var item in layout.Texts)
@@ -648,12 +726,21 @@ namespace ImageColorChanger.Services.OnlineScores
                     x = Math.Max(8, x);
                     canvas.DrawLine(x, first.Baseline - 40, x, last.Baseline + 18, stroke); canvas.DrawLine(x, first.Baseline - 40, x + 13, first.Baseline - 40, stroke); canvas.DrawLine(x, last.Baseline + 18, x + 13, last.Baseline + 18, stroke);
                 }
-            ct.ThrowIfCancellationRequested();
-            var bands = layout.Bands;
-            if (bands.Count == 0) throw Error(1, "没有可排版的谱行");
-            for (int i = 0; i < bands.Count; i++)
-                bands[i] = (bands[i].Top, i + 1 < bands.Count ? bands[i + 1].Top : layout.Height);
-            return new RecordedScore { Picture = recorder.EndRecording(), Bands = bands, VerseLabels = verseLabels, PageBreaks = layout.PageBreaks.Where(i => i > 0 && i < bands.Count).Distinct().ToList(), HeaderHeight = bands[0].Top, Height = layout.Height };
+            return CompleteRecording(layout, recorder.EndRecording(), verseLabels, ct);
+        }
+
+        private static RecordedScore CompleteRecording(Layout layout, SKPicture picture, List<RecordedScore.VerseLabel> verseLabels, CancellationToken ct)
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                var bands = layout.Bands;
+                if (bands.Count == 0) throw Error(1, "没有可排版的谱行");
+                for (int i = 0; i < bands.Count; i++)
+                    bands[i] = (bands[i].Top, i + 1 < bands.Count ? bands[i + 1].Top : layout.Height);
+                return new RecordedScore { Picture = picture, Bands = bands, VerseLabels = verseLabels, PageBreaks = layout.PageBreaks.Where(i => i > 0 && i < bands.Count).Distinct().ToList(), HeaderHeight = bands[0].Top, Height = layout.Height };
+            }
+            catch { picture?.Dispose(); throw; }
         }
         private static void DrawSignature(SKCanvas canvas, Section section, float baseline, SKFont font, SKPaint ink, SKPaint stroke)
         {
@@ -687,6 +774,58 @@ namespace ImageColorChanger.Services.OnlineScores
             foreach (string input in cell.Lines)
             { string line = ""; foreach (var rune in input.EnumerateRunes()) { string next = rune.ToString(); if (line.Length > 0 && (metrics?.Measure(line + next, font.Size) ?? font.MeasureText(line + next)) > maxWidth) { output.Add(line); line = ""; } line += next; } output.Add(line); }
             return output;
+        }
+        // 和弦不是歌词单元：/是转位低音，不能按歌词空位处理；兼容bE与Eb两种写法。
+        private static string NormalizeChord(string text) => Regex.Replace(text,
+            @"(?<edge>^|[/|])(?<before>[b#♭♯]?)(?<root>[A-G])(?<after>[b#♭♯]?)",
+            m => m.Groups["edge"].Value + m.Groups["root"].Value +
+                (m.Groups["before"].Value + m.Groups["after"].Value).Replace("b", "♭").Replace("#", "♯"),
+            RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        private static IEnumerable<string> ChordRuns(string text)
+        {
+            int start = 0;
+            for (int i = 0; i < text.Length; i++)
+                if (text[i] is '♭' or '♯' or '♮')
+                {
+                    if (i > start) yield return text[start..i];
+                    yield return text[i].ToString(); start = i + 1;
+                }
+            if (start < text.Length) yield return text[start..];
+        }
+        private static bool ChordAccidental(string run) => run is "♭" or "♯" or "♮";
+        private static float AnnotationMeasure(string text, SKFont font, bool chord) => chord
+            ? ChordRuns(text).Sum(run => ChordAccidental(run) ? font.Size * .45f : font.MeasureText(run))
+            : font.MeasureText(text);
+        private static List<string> WrapAnnotation(string text, SKFont font, float maxWidth, bool chord)
+        {
+            var output = new List<string>();
+            foreach (string input in text.Split('|'))
+            {
+                string line = "";
+                foreach (var rune in input.EnumerateRunes())
+                {
+                    string next = rune.ToString();
+                    if (line.Length > 0 && AnnotationMeasure(line + next, font, chord) > maxWidth)
+                    { output.Add(line); line = ""; }
+                    line += next;
+                }
+                output.Add(line);
+            }
+            return output;
+        }
+        private static void DrawChord(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint ink, SKPaint line)
+        {
+            x -= AnnotationMeasure(text, font, true) / 2;
+            foreach (string run in ChordRuns(text))
+            {
+                if (ChordAccidental(run))
+                {
+                    float width = font.Size * .45f;
+                    canvas.Save(); canvas.Translate(x + width / 2, y - font.Size * .18f); canvas.Scale(font.Size / 43 * .8f);
+                    Accidental(canvas, run, 0, 0, ink, line); canvas.Restore(); x += width;
+                }
+                else { canvas.DrawText(run, x, y, font, ink); x += font.MeasureText(run); }
+            }
         }
         private static float LyricLineScale(Verse verse, List<Note> notes) => Math.Max(1, notes
             .Where(n => n.LyricIndex >= 0 && n.LyricIndex < verse.Cells.Count)
@@ -811,7 +950,8 @@ namespace ImageColorChanger.Services.OnlineScores
                                 float glyphScale = (compact ? ProjectionBodySize / Size : 1) * section.Ratio("q", 1.1f);
                                 if (glyphScale > (compact ? ProjectionBodySize / Size : 1))
                                     w = Math.Max(w, (n.Bar ? 18 : 40 + n.Dots * 10 + n.Accidental.Length * 20) * glyphScale);
-                                if (n.Chord.Length > 0 && !section.HideChords) w = Math.Max(w, metrics.Measure(n.Chord, words.Size) + 18);
+                                if (n.Chord.Length > 0 && !section.HideChords)
+                                    w = Math.Max(w, AnnotationMeasure(n.Chord, metrics.Font((compact ? 43.2f : LyricSize) * section.Ratio("hx")), true) + 18);
                                 if (n.LyricIndex >= 0)
                                     foreach (var verse in voicesById[n.Voice].Lyrics.Where(v => v.Cells.Count > n.LyricIndex))
                                     {
@@ -851,6 +991,30 @@ namespace ImageColorChanger.Services.OnlineScores
                             (balancedEnds == null || to < balancedEnds[from])) total += widths[to++];
                         if (to == from) throw Error(1, "小节宽度超出限制");
                         float expand = naturalWidth ? 1 : (Width - left - right) / Math.Max(1, total);
+                        float origin = left;
+                        if (compact && !naturalWidth)
+                        {
+                            // 行首不能随整行伸展比例移动：不同和弦/附点曾把第二行推到右边。
+                            // 仅固定第一个时间槽；弱起、多声部和临时声部仍共用完整时间线。
+                            float firstSlot = slots[from][0].X;
+                            float inset = Math.Max(words.Size, ProjectionBodySize * section.Ratio("q", 1.1f)) / 2;
+                            foreach (var n in notesByMeasure[from].Where(n => n.Start == slots[from][0].Start && SlotOrder(n) == slots[from][0].Order))
+                            {
+                                if (!n.GraceAfter && n.Grace.Count > 0) inset = Math.Max(inset, n.Grace.Count * 32 + 16);
+                                if (n.Accidental.Length > 0) inset = Math.Max(inset, 55 * ProjectionBodySize / Size * section.Ratio("q", 1.1f));
+                            }
+                            foreach (var n in notesByMeasure[from].Where(n => n.Start == slots[from][0].Start && SlotOrder(n) == slots[from][0].Order && n.LyricIndex >= 0))
+                                foreach (var verse in voicesById[n.Voice].Lyrics.Where(v => v.Cells.Count > n.LyricIndex))
+                                {
+                                    var cell = verse.Cells[n.LyricIndex];
+                                    float size = words.Size * cell.Scale;
+                                    if (cell.LeftAligned) inset = Math.Max(inset, size / 2 + 2);
+                                    else foreach (string text in metrics.Wrap(cell, size, 360))
+                                        inset = Math.Max(inset, metrics.Measure(LyricCore(text), size) / 2 + 2);
+                                }
+                            expand = (Width - left - right - inset) / Math.Max(1, total - firstSlot);
+                            origin = left + inset - firstSlot * expand;
+                        }
                         float systemTop = firstBand && !firstSection ? sectionStart : y; firstBand = false;
                         foreach (var voice in system.Voices)
                         {
@@ -866,7 +1030,7 @@ namespace ImageColorChanger.Services.OnlineScores
                             var rowEndings = compact ? score.Endings.Where(e => e.Start.Voice == voice.Id && noteOrder[e.Start] <= lastNote && (e.End == null || noteOrder[e.End] >= firstNote)).ToList() : score.Endings;
                             if (rowEndings.Count > 0) arcSpace = Math.Max(arcSpace, 65 + rowEndings.Max(e => e.Height) * 12);
                             y += TopSpace(notes, section) + (compact ? arcSpace + 8 : 95) + above;
-                            float x = left; int rowIndex = layout.Lines.Count;
+                            float x = origin; int rowIndex = layout.Lines.Count;
                             for (int m = from; m < to; m++)
                             { foreach (var n in notes.Where(n => n.Measure == m)) { int order = SlotOrder(n); var slot = slots[m].First(s => s.Start == n.Start && s.Order == order); n.X = x + slot.X * expand; n.Y = y; n.RowIndex = rowIndex; } x += widths[m] * expand; }
                             float lyricHeight = voice.Lyrics.Sum(v => Math.Max(1, notes.Where(n => n.LyricIndex >= 0 && n.LyricIndex < v.Cells.Count).Select(n => metrics.Wrap(v.Cells[n.LyricIndex], words.Size * v.Cells[n.LyricIndex].Scale, 360).Count).DefaultIfEmpty(1).Max()) * (compact ? ProjectionLyricStep : 40) * section.Ratio("c", 1.1f) * LyricLineScale(v, notes) + (compact ? 0 : 8));
@@ -877,7 +1041,7 @@ namespace ImageColorChanger.Services.OnlineScores
                             {
                                 var segmentNotes = segment.Voice.Notes.Where(n => n.Measure >= from && n.Measure < to).ToList();
                                 float sy = segment.Below ? lowerY + segment.Height * 8 : upperY - segment.Height * 8;
-                                float sx = left; int segmentRowIndex = layout.Lines.Count;
+                                float sx = origin; int segmentRowIndex = layout.Lines.Count;
                                 for (int m = from; m < to; m++) { foreach (var n in segmentNotes.Where(n => n.Measure == m)) { var slot = slots[m].First(s => s.Start == n.Start && s.Order == SlotOrder(n)); n.X = sx + slot.X * expand; n.Y = sy; n.RowIndex = segmentRowIndex; } sx += widths[m] * expand; }
                                 layout.Lines.Add(new() { Voice = segment.Voice, Section = section, Notes = segmentNotes, Baseline = sy, Bottom = sy + 50, From = from, To = to, Segment = segment });
                                 if (segment.Below) lowerY += 135 + segment.Height * 8; else upperY -= 135 + segment.Height * 8;
@@ -946,7 +1110,7 @@ namespace ImageColorChanger.Services.OnlineScores
             {
                 float height = 72 + Math.Max(0, n.Octave) * 10 + n.Height * 8 + n.Marks.Count(m => m is not ("zkh" or "ykh")) * 40;
                 foreach (var annotation in AnnotationTexts(n, section))
-                { font.Size = 43.2f * section.Ratio(annotation.Tag); height += WrapCell(new Cell { Text = annotation.Text }, font, AnnotationWidth(section)).Count * Math.Max(39, font.Size * 1.2f); }
+                { font.Size = 43.2f * section.Ratio(annotation.Tag); height += WrapAnnotation(annotation.Text, font, AnnotationWidth(section), annotation.Tag == "hx").Count * Math.Max(39, font.Size * 1.2f); }
                 return height;
             });
         }
@@ -1006,13 +1170,16 @@ namespace ImageColorChanger.Services.OnlineScores
             foreach (var annotation in AnnotationTexts(n, section))
             {
                 using var annotationFont = new SKFont(font.Typeface, baseSize * section.Ratio(annotation.Tag));
-                var lines = WrapCell(new Cell { Text = annotation.Text }, annotationFont, AnnotationWidth(section));
+                bool chord = annotation.Tag == "hx";
+                var lines = WrapAnnotation(annotation.Text, annotationFont, AnnotationWidth(section), chord);
                 float step = Math.Max(39, annotationFont.Size * 1.2f);
                 for (int i = 0; i < lines.Count; i++)
                 {
-                    float half = annotationFont.MeasureText(lines[i]) / 2;
+                    float half = AnnotationMeasure(lines[i], annotationFont, chord) / 2;
                     float x = Math.Clamp(n.X, section.LeftMargin + half, Width - section.RightMargin - half);
-                    Text(c, lines[i], x, y - (lines.Count - 1 - i) * step, annotationFont, ink, 0);
+                    float baseline = y - (lines.Count - 1 - i) * step;
+                    if (chord) DrawChord(c, lines[i], x, baseline, annotationFont, ink, line);
+                    else Text(c, lines[i], x, baseline, annotationFont, ink, 0);
                 }
                 y -= lines.Count * step;
             }

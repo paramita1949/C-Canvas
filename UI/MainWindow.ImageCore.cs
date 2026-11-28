@@ -34,9 +34,12 @@ namespace ImageColorChanger.UI
                 ApplyStructuredScoreColorDefault(structuredDocument != null);
                 if (!prepared && structuredDocument != null)
                 {
+                    using var trace = Utils.StructuredScorePerfTrace.Start("sync-open-fallback");
                     // 兼容同步入口也按相同首选版式预备，不让底层再次读取文件切回旧版式。
                     SelectStructuredScoreOpeningLayout(structuredDocument, System.Threading.CancellationToken.None);
+                    trace?.Mark("opening-policy");
                     structuredView = GetStructuredViewAsync(structuredDocument).GetAwaiter().GetResult();
+                    trace?.Mark("blocking-first-frame");
                     structuredDocument = structuredView.Document;
                     _structuredPreparedView = structuredView; _structuredPreparedAnchor = path;
                     _structuredPreparedFileKey = Core.ImageFileCacheKey.GetRawKey(path);

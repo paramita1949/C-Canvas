@@ -30,7 +30,7 @@ namespace ImageColorChanger.Services.OnlineScores
         public int NotationType { get; set; }
         // 旧PNG中没有此字段，导入时必须刷新像素，不能沿用旧解析器生成的预览。
         public string RenderRevision { get; set; }
-        internal const string CurrentRenderRevision = "native-score-v2.6-page-labels";
+        internal const string CurrentRenderRevision = "native-score-v2.8-aligned-progressive";
         [System.Text.Json.Serialization.JsonIgnore]
         public bool PaginationWasUpdated { get; private set; }
         [System.Text.Json.Serialization.JsonIgnore]
@@ -202,6 +202,19 @@ namespace ImageColorChanger.Services.OnlineScores
             string key = CacheKey(text, background);
             lock (CacheGates.GetOrAdd(key, _ => new object())) return RenderCore(ct, key, text, background);
         }
+        internal IReadOnlyList<string> RenderForDisplay(SKColor text, SKColor background, CancellationToken ct, Action<IReadOnlyList<string>, int> pageReady)
+        {
+            PreparePageLines(ct);
+            string key = CacheKey(text, background);
+            lock (CacheGates.GetOrAdd(key, _ => new object())) return RenderCore(ct, key, text, background, pageReady);
+        }
+        internal IReadOnlyList<string> RenderForDisplayMemory(SKColor text, SKColor background, CancellationToken ct,
+            Action<IReadOnlyList<string>, int> pageReady, Action<IReadOnlyList<string>, int, SKBitmap> firstBitmapReady)
+        {
+            PreparePageLines(ct);
+            string key = CacheKey(text, background);
+            lock (CacheGates.GetOrAdd(key, _ => new object())) return RenderCore(ct, key, text, background, pageReady, firstBitmapReady);
+        }
 
         /// <summary>只迁移旧渲染版本的过期切分；当前版本无效方案仍拒绝，不掩盖数字编辑错误。</summary>
         public void PreparePageLines(CancellationToken ct)
@@ -217,7 +230,10 @@ namespace ImageColorChanger.Services.OnlineScores
                 CombinedPageLines = StructuredScoreLayoutRenderer.CreatePageLines(Notation, Layout, ct)[0];
                 CombinedPageLinesManual = false;
             }
-            else if (Layout != StructuredScoreLayout.LongPage && RenderRevision != CurrentRenderRevision)
+            // v2.7到v2.8只改变行首绘制与交付时机，谱行单位不变；不为刷新像素重复分析整首分页。
+            // 更早版本仍正常迁移（包含v2.7修复的歌词节专属尾声）。无效数字仍由实际渲染拒绝。
+            else if (Layout != StructuredScoreLayout.LongPage && RenderRevision != CurrentRenderRevision &&
+                RenderRevision != "native-score-v2.7-chord-annotations")
             {
                 var canonical = StructuredScoreLayoutRenderer.CreatePageLines(Notation, Layout, ct);
                 var stored = Layout == StructuredScoreLayout.Paginated ? PageLines : new[] { CombinedPageLines };
@@ -241,7 +257,8 @@ namespace ImageColorChanger.Services.OnlineScores
             RenderRevision = CurrentRenderRevision;
         }
 
-        private IReadOnlyList<string> RenderCore(CancellationToken ct, string key, SKColor text, SKColor background)
+        private IReadOnlyList<string> RenderCore(CancellationToken ct, string key, SKColor text, SKColor background, Action<IReadOnlyList<string>, int> pageReady = null,
+            Action<IReadOnlyList<string>, int, SKBitmap> firstBitmapReady = null)
         {
             Validate(); ct.ThrowIfCancellationRequested();
             string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CanvasCast", "StructuredScores", key);
@@ -253,7 +270,11 @@ namespace ImageColorChanger.Services.OnlineScores
                 {
                     var names = JsonSerializer.Deserialize<string[]>(File.ReadAllText(index));
                     if (names?.Length > 0 && names.All(n => Path.GetFileName(n) == n && File.Exists(Path.Combine(directory, n))))
-                        return names.Select(n => Path.Combine(directory, n)).ToArray();
+                    {
+                        var cached = names.Select(n => Path.Combine(directory, n)).ToArray();
+                        for (int i = 0; i < cached.Length; i++) pageReady?.Invoke(cached, i);
+                        return cached;
+                    }
                 }
                 catch (JsonException) { }
             }
@@ -262,9 +283,27 @@ namespace ImageColorChanger.Services.OnlineScores
             {
                 var plan = Layout == StructuredScoreLayout.Paginated ? PageLines : Layout == StructuredScoreLayout.Combined ? new[] { CombinedPageLines } : null;
                 bool manual = Layout == StructuredScoreLayout.Paginated ? PageLinesManual == true : Layout == StructuredScoreLayout.Combined && CombinedPageLinesManual == true;
-                var paths = StructuredScoreLayoutRenderer.Render(Notation, Layout, stage, ct, plan, text, background, ignoreSourcePageBreaks: manual);
+                void PublishPage(IReadOnlyList<string> expected, int page)
+                {
+                    if (ct.IsCancellationRequested) return;
+                    Directory.CreateDirectory(directory);
+                    var committed = expected.Select(p => Path.Combine(directory, Path.GetFileName(p))).ToArray();
+                    File.Move(expected[page], committed[page], true);
+                    pageReady(committed, page);
+                }
+                void PublishBitmap(IReadOnlyList<string> expected, int page, SKBitmap bitmap)
+                {
+                    if (ct.IsCancellationRequested) return;
+                    var committed = expected.Select(p => Path.Combine(directory, Path.GetFileName(p))).ToArray();
+                    firstBitmapReady(committed, page, bitmap); // 借用位图，仅在回调期间有效；PNG尚未编码。
+                }
+                var paths = pageReady == null ? StructuredScoreLayoutRenderer.Render(Notation, Layout, stage, ct, plan, text, background, ignoreSourcePageBreaks: manual)
+                    : StructuredScoreLayoutRenderer.RenderProgressively(Notation, Layout, stage, ct, plan, text, background, manual, PublishPage,
+                        firstBitmapReady == null ? null : PublishBitmap);
+                // 后台显示返回空结果表示主动停止；不写成功索引，不将半套分页当作完成。
+                if (pageReady != null && ct.IsCancellationRequested) return Array.Empty<string>();
                 ct.ThrowIfCancellationRequested(); Directory.CreateDirectory(directory);
-                foreach (string path in paths) File.Move(path, Path.Combine(directory, Path.GetFileName(path)), true);
+                if (pageReady == null) foreach (string path in paths) File.Move(path, Path.Combine(directory, Path.GetFileName(path)), true);
                 AtomicWrite(index, s => s.Write(JsonSerializer.SerializeToUtf8Bytes(paths.Select(Path.GetFileName).ToArray())));
                 return paths.Select(p => Path.Combine(directory, Path.GetFileName(p))).ToArray();
             }

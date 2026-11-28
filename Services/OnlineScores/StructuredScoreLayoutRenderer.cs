@@ -32,7 +32,7 @@ namespace ImageColorChanger.Services.OnlineScores
             var plan = new int[count][];
             for (int verse = 0; verse < count; verse++)
             {
-                using var score = ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct);
+                using var score = ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct, measureOnly: true);
                 float capacity = PageHeight / Scale - score.HeaderHeight - BottomMargin;
                 // 谱文显式分页优先，不再在标记之间额外拆页；高页由原图完整显示。
                 plan[verse] = (score.PageBreaks.Count > 0 ? SplitAtBreaks(new[] { (Start: 0, End: score.Bands.Count) }, score.PageBreaks) :
@@ -45,7 +45,7 @@ namespace ImageColorChanger.Services.OnlineScores
         internal static int GetCombinedPageCount(string source, int[] pageLines, bool ignoreSourcePageBreaks, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            using var score = ExtendedScoreNotationRenderer.Record(source, null, ct);
+            using var score = ExtendedScoreNotationRenderer.Record(source, null, ct, measureOnly: true);
             return SelectPages(score, pageLines, ignoreSourcePageBreaks).Count;
         }
 
@@ -59,18 +59,74 @@ namespace ImageColorChanger.Services.OnlineScores
 
         public static IReadOnlyList<string> Render(string source, StructuredScoreLayout layout, string outputDirectory, CancellationToken ct, int[][] pageLines = null,
             SKColor? textColor = null, SKColor? backgroundColor = null, bool ignoreSourcePageBreaks = false)
+            => RenderCore(source, layout, outputDirectory, ct, pageLines, textColor, backgroundColor, ignoreSourcePageBreaks, null);
+
+        internal static IReadOnlyList<string> RenderProgressively(string source, StructuredScoreLayout layout, string outputDirectory, CancellationToken ct,
+            int[][] pageLines, SKColor textColor, SKColor backgroundColor, bool ignoreSourcePageBreaks, Action<IReadOnlyList<string>, int> pageReady,
+            Action<IReadOnlyList<string>, int, SKBitmap> firstBitmapReady = null)
+            => RenderCore(source, layout, outputDirectory, ct, pageLines, textColor, backgroundColor, ignoreSourcePageBreaks, pageReady, firstBitmapReady);
+
+        private static IReadOnlyList<string> RenderCore(string source, StructuredScoreLayout layout, string outputDirectory, CancellationToken ct, int[][] pageLines,
+            SKColor? textColor, SKColor? backgroundColor, bool ignoreSourcePageBreaks, Action<IReadOnlyList<string>, int> pageReady,
+            Action<IReadOnlyList<string>, int, SKBitmap> firstBitmapReady = null)
         {
             if (!Enum.IsDefined(layout)) throw new ScoreIntegrationException("未知歌谱版式。");
             ct.ThrowIfCancellationRequested(); Directory.CreateDirectory(outputDirectory);
             int count = layout == StructuredScoreLayout.Combined ? 1 : ExtendedScoreNotationRenderer.VerseCount(source, ct);
+            // 普通逐节分页只先量全部节的边界；后续节到实际输出时才绘制，不阻塞首页。
+            // 跨节手动分页和长页需要联合绘制，仍保留完整记录路径。
+            bool lazyVerses = pageReady != null && layout == StructuredScoreLayout.Paginated && count > 1 && (pageLines == null || pageLines.Length == count);
             var recordings = new List<ExtendedScoreNotationRenderer.RecordedScore>();
             var output = new List<string>();
+            IReadOnlyList<string> CanceledOutput()
+            {
+                foreach (string path in output) if (File.Exists(path)) File.Delete(path);
+                return Array.Empty<string>();
+            }
+            bool StopRequested()
+            {
+                if (!ct.IsCancellationRequested) return false;
+                // 导出API仍保留标准取消异常；交互式后台生成用空结果表示停止，
+                // 不在已经交付首帧之后为一次正常切歌抛出保存异常。
+                if (pageReady == null) ct.ThrowIfCancellationRequested();
+                return true;
+            }
             try
             {
                 for (int verse = 0; verse < count; verse++)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    recordings.Add(ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct, textColor: textColor));
+                    if (StopRequested()) return CanceledOutput();
+                    recordings.Add(ExtendedScoreNotationRenderer.Record(source, layout == StructuredScoreLayout.Combined ? null : verse, ct, textColor: textColor, measureOnly: lazyVerses));
+                }
+                IReadOnlyList<string> expected = null;
+                if (pageReady != null || firstBitmapReady != null)
+                {
+                    int pages;
+                    if (layout == StructuredScoreLayout.LongPage) pages = 1;
+                    else if (layout == StructuredScoreLayout.Paginated && pageLines?.Length == 1 && recordings.Count > 1)
+                    {
+                        var heights = recordings.SelectMany(s => s.Bands.Select(b => b.Bottom - b.Top)).ToArray();
+                        var cuts = ReadPageLines(pageLines[0], heights, PageHeight / Scale - recordings[0].HeaderHeight - BottomMargin);
+                        int at = 0; var breaks = new List<int>();
+                        foreach (var score in recordings) { breaks.AddRange(score.PageBreaks.Select(b => b + at)); at += score.Bands.Count; }
+                        pages = (ignoreSourcePageBreaks ? cuts : SplitAtBreaks(cuts, breaks)).Count;
+                    }
+                    else
+                    {
+                        if (pageLines != null && pageLines.Length != recordings.Count)
+                            throw new ScoreIntegrationException("分页数据的歌词节数与谱文不符，请修改此文件的PageLines。");
+                        pages = recordings.Select((s, i) => SelectPages(s, pageLines?[i], ignoreSourcePageBreaks).Count).Sum();
+                    }
+                    expected = Enumerable.Range(1, pages).Select(n => Path.Combine(outputDirectory, $"page-{n:0000}.png")).ToArray();
+                }
+                bool SavePage(SKBitmap bitmap, string path)
+                {
+                    if (StopRequested()) return false;
+                    if (output.Count == 0) firstBitmapReady?.Invoke(expected, 0, bitmap);
+                    if (!Save(bitmap, path, ct, output)) { StopRequested(); return false; }
+                    if (StopRequested()) return false;
+                    pageReady?.Invoke(expected, output.Count - 1);
+                    return !StopRequested();
                 }
                 if (layout == StructuredScoreLayout.LongPage)
                 {
@@ -87,7 +143,7 @@ namespace ImageColorChanger.Services.OnlineScores
                         DrawVerseLabels(canvas, score, 0, score.HeaderHeight, y, textColor);
                         y += score.Height - score.HeaderHeight + 40;
                     }
-                    Save(bitmap, Path.Combine(outputDirectory, "page-0001.png"), ct, output);
+                    if (!SavePage(bitmap, Path.Combine(outputDirectory, "page-0001.png"))) return CanceledOutput();
                 }
                 else
                 {
@@ -101,7 +157,7 @@ namespace ImageColorChanger.Services.OnlineScores
                         var pages = ignoreSourcePageBreaks ? ReadPageLines(pageLines[0], heights, 0) : SplitAtBreaks(ReadPageLines(pageLines[0], heights, 0), boundaries);
                         foreach (var page in pages)
                         {
-                            ct.ThrowIfCancellationRequested();
+                            if (StopRequested()) return CanceledOutput();
                             var header = rows[page.Start].Score;
                             float height = header.HeaderHeight + BottomMargin;
                             for (int i = page.Start; i < page.End; i++) height += heights[i];
@@ -117,7 +173,7 @@ namespace ImageColorChanger.Services.OnlineScores
                                         i == page.Start && pages.Count > 1 ? (output.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "." : null);
                                 y += heights[i];
                             }
-                            Save(bitmap, Path.Combine(outputDirectory, $"page-{output.Count + 1:0000}.png"), ct, output);
+                            if (!SavePage(bitmap, Path.Combine(outputDirectory, $"page-{output.Count + 1:0000}.png"))) return CanceledOutput();
                         }
                         return output;
                     }
@@ -125,12 +181,19 @@ namespace ImageColorChanger.Services.OnlineScores
                         throw new ScoreIntegrationException("分页数据的歌词节数与谱文不符，请修改此文件的PageLines。");
                     for (int verse = 0; verse < recordings.Count; verse++)
                     {
+                        if (StopRequested()) return CanceledOutput();
+                        if (lazyVerses)
+                        {
+                            var measured = recordings[verse];
+                            recordings[verse] = ExtendedScoreNotationRenderer.Record(source, verse, ct, textColor: textColor);
+                            measured.Dispose();
+                        }
                         var score = recordings[verse];
                         var heights = score.Bands.Select(b => b.Bottom - b.Top).ToArray();
                         var pages = SelectPages(score, pageLines?[verse], ignoreSourcePageBreaks);
                         foreach (var page in pages)
                         {
-                            ct.ThrowIfCancellationRequested();
+                            if (StopRequested()) return CanceledOutput();
                             float contentHeight = score.HeaderHeight + BottomMargin;
                             for (int i = page.Start; i < page.End; i++) contentHeight += heights[i];
                             // 文件指定切分优先；较高页由原图完整显示，不裁断或强行再分页。
@@ -146,7 +209,7 @@ namespace ImageColorChanger.Services.OnlineScores
                                         (output.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "." : null);
                                 y += band.Bottom - band.Top;
                             }
-                            Save(bitmap, Path.Combine(outputDirectory, $"page-{output.Count + 1:0000}.png"), ct, output);
+                            if (!SavePage(bitmap, Path.Combine(outputDirectory, $"page-{output.Count + 1:0000}.png"))) return CanceledOutput();
                         }
                     }
                 }
@@ -224,16 +287,21 @@ namespace ImageColorChanger.Services.OnlineScores
                 font.Size = label.Size; canvas.DrawText(text, label.Right - font.MeasureText(text) - label.Gap * font.Size, y + label.Y - top, font, ink);
             }
         }
-        private static void Save(SKBitmap bitmap, string path, CancellationToken ct, List<string> output)
+        private static bool Save(SKBitmap bitmap, string path, CancellationToken ct, List<string> output)
         {
-            using var image = SKImage.FromBitmap(bitmap); using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            if (ct.IsCancellationRequested) return false;
+            // 谱面缓存仍是无损PNG；低压缩级别避免交互路径花时间反复尝试每行滤波。
+            using var pixels = bitmap.PeekPixels();
+            using var data = pixels.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.None, 1));
             if (data == null) throw new ScoreIntegrationException("歌谱图片编码失败。");
-            ct.ThrowIfCancellationRequested();
+            if (ct.IsCancellationRequested) return false;
             bool created = false;
             try
             {
                 using (var stream = new FileStream(path, FileMode.CreateNew)) { created = true; data.SaveTo(stream); }
-                ct.ThrowIfCancellationRequested(); output.Add(path);
+                if (ct.IsCancellationRequested) { File.Delete(path); return false; }
+                output.Add(path);
+                return true;
             }
             catch { if (created) File.Delete(path); throw; }
         }

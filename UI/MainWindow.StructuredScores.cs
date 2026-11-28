@@ -30,14 +30,18 @@ namespace ImageColorChanger.UI
             public IReadOnlyList<string> Paths { get; init; }
             public IReadOnlyList<Core.ImageProcessor.PreparedImage> Frames { get; init; }
             public bool CanCombine { get; init; }
+            public Func<int, Task<Core.ImageProcessor.PreparedImage>> PrepareFrame { get; init; }
+            public Task Rendering { get; init; }
         }
         private Dictionary<string, Task<StructuredScoreView>> _structuredViews = new();
+        private CancellationTokenSource _structuredViewCancellation = new();
         private StructuredScoreView _structuredCurrentView, _structuredPreparedView;
         private string _structuredPreparedAnchor, _structuredPreparedFileKey;
         private long _structuredSwitchVersion;
         private CancellationTokenSource _structuredWarmCancellation;
         private StructuredScoreLayout? _structuredButtonLayout;
         private bool? _structuredButtonCanCombine;
+        private int _structuredPageButtonIndex = -1;
         private SemaphoreSlim _structuredWriteGate = new(1, 1);
         private bool _structuredShowingImage, _structuredImageLoading;
         private CancellationTokenSource _structuredImageCancellation;
@@ -71,6 +75,43 @@ namespace ImageColorChanger.UI
             }
             if (StructuredScorePreviousButton != null) StructuredScorePreviousButton.IsEnabled = !_structuredShowingImage;
             if (StructuredScoreNextButton != null) StructuredScoreNextButton.IsEnabled = !_structuredShowingImage;
+            UpdateStructuredScorePageNumbers();
+        }
+
+        private void UpdateStructuredScorePageNumbers()
+        {
+            if (StructuredScorePageNumbers == null) return;
+            int count = !_structuredShowingImage && _structuredScore != null && _structuredScore.Layout != StructuredScoreLayout.LongPage
+                ? _structuredCurrentView?.Paths.Count ?? 0 : 0;
+            if (count <= 1) count = 0;
+            // 翻页只改变两个按钮的选择状态，不重建第一行工具栏或重复生成页码。
+            if (StructuredScorePageNumbers.Children.Count != count)
+            {
+                StructuredScorePageNumbers.Children.Clear();
+                _structuredPageButtonIndex = -1;
+                for (int page = 0; page < count; page++)
+                {
+                    var button = new System.Windows.Controls.Button
+                    {
+                        Content = (page + 1).ToString(), Tag = page, MinWidth = 32, MinHeight = 32,
+                        Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(2, 0, 2, 0),
+                        FontSize = 14, FontWeight = FontWeights.Bold, ToolTip = $"第 {page + 1} 页"
+                    };
+                    System.Windows.Automation.AutomationProperties.SetName(button, $"第 {page + 1} 页");
+                    button.SetResourceReference(FrameworkElement.StyleProperty, "StructuredScorePageNumberButtonStyle");
+                    button.Click += StructuredScorePageNumber_Click;
+                    StructuredScorePageNumbers.Children.Add(button);
+                }
+            }
+            StructuredScorePageNumbers.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (StructuredScorePageNavigation != null) StructuredScorePageNavigation.Visibility = StructuredScorePageNumbers.Visibility;
+            int selected = count > 0 ? Math.Clamp(_structuredScore.Page, 0, count - 1) : -1;
+            if (selected == _structuredPageButtonIndex) return;
+            if (_structuredPageButtonIndex >= 0 && _structuredPageButtonIndex < count)
+                System.Windows.Controls.Primitives.Selector.SetIsSelected(StructuredScorePageNumbers.Children[_structuredPageButtonIndex], false);
+            if (selected >= 0)
+                System.Windows.Controls.Primitives.Selector.SetIsSelected(StructuredScorePageNumbers.Children[selected], true);
+            _structuredPageButtonIndex = selected;
         }
 
         private void CancelStructuredScoreImageRequest()
@@ -226,8 +267,16 @@ namespace ImageColorChanger.UI
             document?.TextColor != null ? StructuredScoreDocument.ParseTextColor(document.TextColor)
                 : _imageProcessor.GetTargetColor();
 
-        private string StructuredViewKey(StructuredScoreDocument document) =>
-            document.CacheKey() + "|" + _isColorEffectEnabled + "|" + ResolveStructuredTextColor(document);
+        private string StructuredViewKey(StructuredScoreDocument document)
+        {
+            // 自动分页方案在首次渲染时才补齐；其身份由内容和渲染版本决定，不能因此生成第二个会话。
+            var identity = CloneStructuredScore(document);
+            if (identity.Layout == StructuredScoreLayout.Paginated && identity.PageLinesManual != true)
+                identity.PageLines = null;
+            else if (identity.Layout == StructuredScoreLayout.Combined && identity.CombinedPageLinesManual != true)
+                identity.CombinedPageLines = null;
+            return identity.CacheKey() + "|" + _isColorEffectEnabled + "|" + ResolveStructuredTextColor(document);
+        }
 
         private string StructuredEditorDefaultTextColor()
         {
@@ -243,10 +292,13 @@ namespace ImageColorChanger.UI
             try
             {
                 var view = await GetStructuredViewAsync(document);
+                int page = Math.Min(document.Page, view.Paths.Count - 1);
+                await view.PrepareFrame(page);
                 if (request == _structuredSwitchVersion && version == _structuredScoreVersion)
-                    ShowStructuredScorePage(view, document.Page);
+                    ShowStructuredScorePage(view, page);
             }
-            catch (Exception ex) { ShowStatus("歌谱配色未更新，原文保留：" + ex.Message); }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { if (request == _structuredSwitchVersion) ShowStatus("歌谱配色未更新，原文保留：" + ex.Message); }
         }
 
         private async Task SetStructuredScoreTextColorAsync(string hex)
@@ -286,41 +338,165 @@ namespace ImageColorChanger.UI
             var color = ResolveStructuredTextColor(snapshot);
             bool invert = _isColorEffectEnabled;
             string key = StructuredViewKey(snapshot);
-            if (_structuredViews.TryGetValue(key, out var existing) && !existing.IsFaulted && !existing.IsCanceled) return existing;
-            var task = Task.Run(() =>
+            if (_structuredViews.TryGetValue(key, out var existing) && !existing.IsFaulted && !existing.IsCanceled &&
+                (!existing.IsCompletedSuccessfully || existing.Result.Rendering == null ||
+                    !existing.Result.Rendering.IsFaulted && !existing.Result.Rendering.IsCanceled)) return existing;
+            _structuredViewCancellation ??= new CancellationTokenSource();
+            var cancellation = _structuredViewCancellation.Token;
+            var task = Task.Run(async () =>
             {
-                bool canCombine = ExtendedScoreNotationRenderer.CanCombine(snapshot.Notation, CancellationToken.None);
+                using var trace = Utils.StructuredScorePerfTrace.Start("view-first-frame");
+                cancellation.ThrowIfCancellationRequested();
+                bool canCombine = ExtendedScoreNotationRenderer.CanCombine(snapshot.Notation, cancellation);
+                trace?.Mark("analysis");
                 if (snapshot.Layout == StructuredScoreLayout.Combined && !canCombine)
                 {
                     snapshot.Layout = StructuredScoreLayout.Paginated;
                     snapshot.Page = 0;
                 }
                 var background = StructuredScoreDocument.TextBackground(color);
-                var paths = snapshot.RenderWithColors(color, background, CancellationToken.None);
-                var frames = paths.Select(path => _imageProcessor.PrepareStructuredPage(path, invert, color, nativeTextRendered: true)).ToArray();
-                return new StructuredScoreView { Document = snapshot, Paths = paths, Frames = frames, CanCombine = canCombine };
-            });
+                var firstPage = new TaskCompletionSource<IReadOnlyList<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                TaskCompletionSource<bool>[] ready = null;
+                var readyGate = new object();
+                Core.ImageProcessor.PreparedImage firstMemoryFrame = null;
+                void EnsurePageSignals(IReadOnlyList<string> allPaths)
+                {
+                    ready ??= Enumerable.Range(0, allPaths.Count).Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)).ToArray();
+                }
+                var renderCompletion = new TaskCompletionSource<IReadOnlyList<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var rendering = renderCompletion.Task;
+                void CompleteCancellation()
+                {
+                    firstPage.TrySetCanceled(cancellation);
+                    lock (readyGate) if (ready != null) foreach (var page in ready) page.TrySetCanceled(cancellation);
+                    renderCompletion.TrySetCanceled(cancellation);
+                    Utils.StructuredScorePerfTrace.Event("render-canceled");
+                }
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        if (cancellation.IsCancellationRequested) { CompleteCancellation(); return; }
+                        trace?.Mark("first-draw-start");
+                        var rendered = snapshot.RenderForDisplayMemory(color, background, cancellation, (allPaths, page) =>
+                        {
+                            lock (readyGate)
+                            {
+                                EnsurePageSignals(allPaths);
+                                ready[page].TrySetResult(true);
+                                if (page == 0) firstPage.TrySetResult(allPaths);
+                            }
+                        }, (allPaths, page, bitmap) =>
+                        {
+                            lock (readyGate)
+                            {
+                                cancellation.ThrowIfCancellationRequested();
+                                EnsurePageSignals(allPaths);
+                                if (page == 0) trace?.Mark("first-draw-ready-before-bitmap-copy");
+                                var frame = _imageProcessor.PrepareStructuredBitmap(allPaths[page], bitmap, invert, color, nativeTextRendered: true);
+                                try
+                                {
+                                    cancellation.ThrowIfCancellationRequested();
+                                    firstMemoryFrame = frame;
+                                    Utils.StructuredScorePerfTrace.Event("first-memory-frame-ready");
+                                    firstPage.TrySetResult(allPaths); // 显示不等待PNG编码/写盘/再次解码。
+                                }
+                                catch { frame.Bitmap.Dispose(); throw; }
+                            }
+                        });
+                        if (cancellation.IsCancellationRequested) CompleteCancellation();
+                        else renderCompletion.TrySetResult(rendered);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                        // 切歌/重置是正常终止；不将未请求的页包装为Faulted异常。
+                        CompleteCancellation();
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.StructuredScorePerfTrace.Error("render-failed", ex);
+                        firstPage.TrySetException(ex);
+                        lock (readyGate) if (ready != null) foreach (var page in ready) page.TrySetException(ex);
+                        renderCompletion.TrySetException(ex);
+                    }
+                });
+                // 完成/失败始终观察；后续页失败不把正在显示的第一张误报为完整缓存。
+                _ = rendering.ContinueWith(t => System.Diagnostics.Debug.WriteLine("结构谱后续页未完成：" + t.Exception?.GetBaseException().Message),
+                    CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                IReadOnlyList<string> paths;
+                try { paths = await firstPage.Task.WaitAsync(cancellation); trace?.Mark("first-page-ready"); }
+                catch
+                {
+                    lock (readyGate) firstMemoryFrame?.Bitmap.Dispose();
+                    throw;
+                }
+                var frames = new Core.ImageProcessor.PreparedImage[paths.Count];
+                frames[0] = firstMemoryFrame;
+                var pending = new Task<Core.ImageProcessor.PreparedImage>[paths.Count];
+                var frameGate = new object();
+                Task<Core.ImageProcessor.PreparedImage> PrepareFrame(int page)
+                {
+                    lock (frameGate)
+                    {
+                        if (frames[page] != null) return Task.FromResult(frames[page]);
+                        if (pending[page] != null && !pending[page].IsFaulted && !pending[page].IsCanceled) return pending[page];
+                        return pending[page] = Task.Run(async () =>
+                        {
+                            await ready[page].Task.WaitAsync(cancellation);
+                            cancellation.ThrowIfCancellationRequested();
+                            var frame = _imageProcessor.PrepareStructuredPage(paths[page], invert, color, nativeTextRendered: true);
+                            try { cancellation.ThrowIfCancellationRequested(); frames[page] = frame; return frame; }
+                            catch { frame.Bitmap.Dispose(); throw; }
+                        }, cancellation);
+                    }
+                }
+                // 首图先交付，不等待后续页解码；同页请求共用任务，其余页在显示后顺序预备。
+                await PrepareFrame(0);
+                trace?.Mark("display-frame-ready");
+                return new StructuredScoreView { Document = snapshot, Paths = paths, Frames = frames, CanCombine = canCombine, PrepareFrame = PrepareFrame, Rendering = rendering };
+            }, cancellation);
             _structuredViews[key] = task;
             return task;
+        }
+
+        private void ResetStructuredViews()
+        {
+            Utils.StructuredScorePerfTrace.Event("view-reset-cancel-requested");
+            _structuredWarmCancellation?.Cancel();
+            var previous = _structuredViewCancellation;
+            _structuredViewCancellation = new CancellationTokenSource();
+            previous?.Cancel();
+            _structuredViews.Clear();
+            previous?.Dispose();
         }
 
         private static bool UsesStructuredScoreOriginalMode(StructuredScoreDocument document) =>
             document?.Layout is StructuredScoreLayout.Paginated or StructuredScoreLayout.Combined;
 
         // 只用于新歌打开，不放进通用渲染入口，避免覆盖用户在当前歌里的手动版式切换。
-        private static void SelectStructuredScoreOpeningLayout(StructuredScoreDocument document, CancellationToken ct)
+        private static void SelectStructuredScoreOpeningLayout(StructuredScoreDocument document, CancellationToken ct,
+            Utils.StructuredScorePerfTrace trace = null)
         {
             ct.ThrowIfCancellationRequested();
             bool singleCombinedPage = false;
-            if (ExtendedScoreNotationRenderer.CanCombine(document.Notation, ct))
+            bool canCombine = ExtendedScoreNotationRenderer.CanCombine(document.Notation, ct);
+            trace?.Mark("opening-can-combine-checked");
+            if (canCombine)
             {
                 // 在副本上兼容旧分页，避免合页探测更新了分页模式尚未迁移的版本/来源。
                 var combined = CloneStructuredScore(document); combined.Layout = StructuredScoreLayout.Combined;
                 try
                 {
+                    bool needsAnalysis = combined.CombinedPageLines == null || combined.RenderRevision != StructuredScoreDocument.CurrentRenderRevision;
                     combined.PreparePageLines(ct);
-                    singleCombinedPage = StructuredScoreLayoutRenderer.GetCombinedPageCount(combined.Notation,
-                        combined.CombinedPageLines, combined.CombinedPageLinesManual == true, ct) == 1;
+                    trace?.Mark("opening-combined-page-lines-prepared");
+                    singleCombinedPage = (needsAnalysis && (document.CombinedPageLines == null || combined.PaginationWasUpdated)
+                        ? combined.CombinedPageLines.Length
+                        : StructuredScoreLayoutRenderer.GetCombinedPageCount(combined.Notation,
+                            combined.CombinedPageLines, combined.CombinedPageLinesManual == true, ct)) == 1;
+                    trace?.Mark("opening-combined-page-count-resolved");
+                    document.CombinedPageLines = combined.CombinedPageLines;
+                    document.CombinedPageLinesManual = combined.CombinedPageLinesManual;
                 }
                 catch (ScoreIntegrationException ex)
                 {
@@ -330,6 +506,7 @@ namespace ImageColorChanger.UI
             }
             document.Layout = singleCombinedPage ? StructuredScoreLayout.Combined : StructuredScoreLayout.Paginated;
             document.Page = 0;
+            trace?.Mark("opening-layout-selected");
         }
 
         private bool TryGetPreparedStructuredView(string path, out StructuredScoreView view)
@@ -340,22 +517,20 @@ namespace ImageColorChanger.UI
                 StructuredFrameMatchesColor(view.Frames[0]);
         }
 
-        private async void WarmStructuredViews(StructuredScoreDocument document)
+        private async void WarmStructuredViews(StructuredScoreView current)
         {
             _structuredWarmCancellation?.Cancel();
             var cancellation = new CancellationTokenSource(); _structuredWarmCancellation = cancellation;
             try
             {
-                // 先让当前画面和鼠标反馈完成，再顺序预备其余版式；不阻塞UI或同时抢三套CPU。
+                // 先让当前画面和鼠标反馈完成；只预备当前版式，不为未使用的合页/长页抢占CPU。
                 await Task.Delay(80, cancellation.Token);
-                var current = await GetStructuredViewAsync(document);
-                foreach (var layout in new[] { StructuredScoreLayout.Paginated, StructuredScoreLayout.Combined, StructuredScoreLayout.LongPage })
+                // 使用首次打开已返回的会话，避免自动分页方案补齐后重新查找并创建视图任务。
+                if (current == null) return;
+                for (int page = 1; page < current.Paths.Count; page++)
                 {
                     cancellation.Token.ThrowIfCancellationRequested();
-                    if (layout == document.Layout) continue;
-                    if (layout == StructuredScoreLayout.Combined && !current.CanCombine) continue;
-                    var other = CloneStructuredScore(document); other.Layout = layout; other.Page = 0;
-                    try { await GetStructuredViewAsync(other); } catch (ScoreIntegrationException) { }
+                    await current.PrepareFrame(page).WaitAsync(cancellation.Token);
                 }
             }
             catch (OperationCanceledException) { }
@@ -371,6 +546,7 @@ namespace ImageColorChanger.UI
         {
             if (view == null || _structuredScoreAnchor == null) return false;
             page = (page % view.Paths.Count + view.Paths.Count) % view.Paths.Count;
+            if (view.Frames[page] == null) return false;
             ApplyStructuredScoreViewingMode(_structuredScoreAnchor, view.Document, _originalManager?.ShouldUseOriginalMode(_currentImageId) == true);
             if (layoutChanged && !_originalMode) ResetNormalImageZoomState();
             _imageProcessor.CurrentStructuredScore = view.Document;
@@ -389,6 +565,7 @@ namespace ImageColorChanger.UI
             _structuredPreparedView = view; _structuredPreparedAnchor = _structuredScoreAnchor;
             if (sourceChanged) _structuredPreparedFileKey = Core.ImageFileCacheKey.GetRawKey(_structuredScoreAnchor);
             StructuredScorePageText.Text = $"{page + 1} / {view.Paths.Count}";
+            UpdateStructuredScorePageNumbers();
             if (layoutChanged || sourceChanged) UpdateStructuredScoreButtons(view.Document.Layout, view.CanCombine);
             UpdateImageZoomControlsVisibility();
             if (layoutChanged)
@@ -445,37 +622,47 @@ namespace ImageColorChanger.UI
             long version = ++_structuredOpenVersion;
             _structuredOpenCancellation?.Cancel();
             var cancellation = new CancellationTokenSource(); _structuredOpenCancellation = cancellation;
+            using var trace = Utils.StructuredScorePerfTrace.Start("open-request");
             try
             {
                 if (TryGetPreparedStructuredView(path, out _))
                 {
+                    trace?.Mark("prepared-cache-hit");
                     ApplyStructuredScoreColorDefault(true);
                     return true;
                 }
                 var document = await Task.Run(() => StructuredScoreDocument.ReadFromFile(path), cancellation.Token);
+                trace?.Mark("read-document");
                 if (version != _structuredOpenVersion) return false;
                 if (document == null) { ApplyStructuredScoreColorDefault(false); return true; }
                 ApplyStructuredScoreColorDefault(true);
                 string identity = Core.ImageFileCacheKey.GetRawKey(path);
                 if (_structuredPreparedAnchor != path || _structuredPreparedFileKey != identity)
                 {
-                    _structuredWarmCancellation?.Cancel(); _structuredViews.Clear();
+                    ResetStructuredViews();
                 }
-                await Task.Run(() => SelectStructuredScoreOpeningLayout(document, cancellation.Token), cancellation.Token);
+                string storedRenderRevision = document.RenderRevision;
+                bool hadCombinedPlan = document.CombinedPageLines != null;
+                await Task.Run(() => SelectStructuredScoreOpeningLayout(document, cancellation.Token, trace), cancellation.Token);
+                trace?.Mark("opening-policy");
                 if (version != _structuredOpenVersion) return false;
                 var view = await GetStructuredViewAsync(document);
+                trace?.Mark("first-frame");
                 if (version != _structuredOpenVersion) return false;
-                if ((document.Layout == StructuredScoreLayout.Paginated && document.PageLines == null) ||
-                    (document.Layout == StructuredScoreLayout.Combined && document.CombinedPageLines == null))
-                    if (StructuredScoreDocument.IsScoreFile(path)) await Task.Run(() => view.Document.Save(path), cancellation.Token);
+                bool saveNormalizedPlan = (document.Layout == StructuredScoreLayout.Paginated && document.PageLines == null) ||
+                    (document.Layout == StructuredScoreLayout.Combined && !hadCombinedPlan) ||
+                    storedRenderRevision != view.Document.RenderRevision || view.Document.PaginationWasUpdated;
                 _structuredPreparedView = view; _structuredPreparedAnchor = path;
                 _structuredPreparedFileKey = Core.ImageFileCacheKey.GetRawKey(path);
-                WarmStructuredViews(view.Document);
+                if (saveNormalizedPlan && StructuredScoreDocument.IsScoreFile(path))
+                    _ = SaveNormalizedStructuredPlanAsync(path, view, version);
+                WarmStructuredViews(view);
                 return version == _structuredOpenVersion;
             }
-            catch (OperationCanceledException) { return false; }
+            catch (OperationCanceledException) { trace?.Mark("open-canceled"); return false; }
             catch (Exception ex)
             {
+                Utils.StructuredScorePerfTrace.Error("open-failed", ex);
                 if (version == _structuredOpenVersion)
                 {
                     ShowStatus("结构谱原文保留，未切换画面：" + ex.Message);
@@ -487,6 +674,27 @@ namespace ImageColorChanger.UI
                 if (_structuredOpenCancellation == cancellation) _structuredOpenCancellation = null;
                 cancellation.Dispose();
             }
+        }
+
+        private async Task SaveNormalizedStructuredPlanAsync(string path, StructuredScoreView view, long openVersion)
+        {
+            // 保存不可阻塞已就绪的首帧；仍与用户触发的编辑保存共用同一写门，防止并发覆盖。
+            var snapshot = CloneStructuredScore(view.Document);
+            bool entered = false;
+            try
+            {
+                await _structuredWriteGate.WaitAsync();
+                entered = true;
+                if (openVersion != _structuredOpenVersion || _imagePath != path ||
+                    !ReferenceEquals(_structuredPreparedView, view)) return;
+                await Task.Run(() => snapshot.Save(path));
+                Utils.StructuredScorePerfTrace.Event("normalized-plan-saved");
+            }
+            catch (Exception ex)
+            {
+                Utils.StructuredScorePerfTrace.Error("normalized-plan-save-failed", ex);
+            }
+            finally { if (entered) _structuredWriteGate.Release(); }
         }
 
         private async void RefreshStructuredScoreBar(string path)
@@ -508,7 +716,7 @@ namespace ImageColorChanger.UI
             if (string.IsNullOrEmpty(path))
             {
                 ++_structuredOpenVersion; ++_structuredSwitchVersion; _structuredOpenCancellation?.Cancel();
-                _structuredWarmCancellation?.Cancel(); _structuredViews.Clear();
+                ResetStructuredViews();
                 _structuredCurrentView = _structuredPreparedView = null; _structuredPreparedAnchor = null;
                 _structuredButtonLayout = null; return;
             }
@@ -520,7 +728,7 @@ namespace ImageColorChanger.UI
                     var loaded = await Task.Run(() => StructuredScoreDocument.ReadFromFile(path));
                     if (loaded == null)
                     {
-                        _structuredViews.Clear(); _structuredCurrentView = _structuredPreparedView = null;
+                        ResetStructuredViews(); _structuredCurrentView = _structuredPreparedView = null;
                         _structuredPreparedAnchor = null; _structuredWarmCancellation?.Cancel(); return;
                     }
                     await Task.Run(() => SelectStructuredScoreOpeningLayout(loaded, CancellationToken.None));
@@ -534,6 +742,7 @@ namespace ImageColorChanger.UI
                 StructuredScoreBar.Tag = true;
                 document.Page = Math.Min(document.Page, view.Paths.Count - 1);
                 _structuredScorePages = view.Paths; StructuredScorePageText.Text = $"{document.Page + 1} / {view.Paths.Count}";
+                UpdateStructuredScorePageNumbers();
             }
             catch (Exception ex) { if (version == _structuredScoreVersion) ShowStatus("结构谱原文保留；排版失败：" + ex.Message); }
         }
@@ -550,6 +759,12 @@ namespace ImageColorChanger.UI
             return true;
         }
 
+        private bool StructuredScoreContentChanged(StructuredScoreDocument document) =>
+            _structuredScore?.Notation != document.Notation || _structuredScore?.TextColor != document.TextColor ||
+            _structuredScore?.PageLinesManual != document.PageLinesManual || _structuredScore?.CombinedPageLinesManual != document.CombinedPageLinesManual ||
+            System.Text.Json.JsonSerializer.Serialize(_structuredScore?.PageLines) != System.Text.Json.JsonSerializer.Serialize(document.PageLines) ||
+            System.Text.Json.JsonSerializer.Serialize(_structuredScore?.CombinedPageLines) != System.Text.Json.JsonSerializer.Serialize(document.CombinedPageLines);
+
         private async Task<bool> ApplyStructuredScoreAsync(StructuredScoreDocument document)
         {
             if (_structuredScoreAnchor == null || !StructuredScoreBar.IsEnabled || !CanChangeStructuredScore()) return false;
@@ -557,11 +772,15 @@ namespace ImageColorChanger.UI
             string source = StructuredScoreDocument.IsScoreFile(anchor) ? anchor : Path.ChangeExtension(anchor, StructuredScoreDocument.Extension);
             try
             {
+                // 先取消旧编辑会话，再生成新结果；不能生成后取消，否则新结果的冷页也会被取消。
+                if (StructuredScoreContentChanged(document)) ResetStructuredViews();
                 var view = await GetStructuredViewAsync(document);
                 if (version != _structuredScoreVersion || request != _structuredSwitchVersion || _imagePath != anchor) return false;
                 await StopCompositePlaybackAsync();
                 if (version != _structuredScoreVersion || request != _structuredSwitchVersion || _imagePath != anchor) return false;
                 int page = Math.Min(document.Page, view.Paths.Count - 1);
+                await view.PrepareFrame(page);
+                if (version != _structuredScoreVersion || request != _structuredSwitchVersion || _imagePath != anchor) return false;
                 var saveDocument = CloneStructuredScore(view.Document); saveDocument.Page = page;
                 await _structuredWriteGate.WaitAsync();
                 try
@@ -578,22 +797,12 @@ namespace ImageColorChanger.UI
                 finally { _structuredWriteGate.Release(); }
                 if (version != _structuredScoreVersion || request != _structuredSwitchVersion || _imagePath != anchor) return true;
                 bool changed = _structuredScore?.Layout != view.Document.Layout;
-                bool contentChanged = _structuredScore?.Notation != view.Document.Notation || _structuredScore?.TextColor != view.Document.TextColor ||
-                    _structuredScore?.PageLinesManual != view.Document.PageLinesManual || _structuredScore?.CombinedPageLinesManual != view.Document.CombinedPageLinesManual ||
-                    System.Text.Json.JsonSerializer.Serialize(_structuredScore?.PageLines) != System.Text.Json.JsonSerializer.Serialize(view.Document.PageLines) ||
-                    System.Text.Json.JsonSerializer.Serialize(_structuredScore?.CombinedPageLines) != System.Text.Json.JsonSerializer.Serialize(view.Document.CombinedPageLines);
-                if (contentChanged)
-                {
-                    // 编辑切分后淘汰旧方案会话，保留本次已准备的结果；不积累每一次切割的位图。
-                    _structuredWarmCancellation?.Cancel(); _structuredViews.Clear();
-                    string key = StructuredViewKey(view.Document);
-                    _structuredViews[key] = Task.FromResult(view);
-                }
                 if (!ShowStructuredScorePage(view, page, changed, sourceChanged: true)) return false;
-                WarmStructuredViews(view.Document);
+                WarmStructuredViews(view);
                 return true;
             }
-            catch (Exception ex) { ShowStatus("结构谱生成失败，原画面保持：" + ex.Message); return false; }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex) { if (request == _structuredSwitchVersion) ShowStatus("结构谱生成失败，原画面保持：" + ex.Message); return false; }
         }
 
         private void UpdateStructuredScoreButtons(StructuredScoreLayout layout, bool canCombine)
@@ -636,22 +845,71 @@ namespace ImageColorChanger.UI
         {
             await TryNavigateStructuredScoreAsync(1);
         }
+        private async void StructuredScorePageNumber_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button { IsEnabled: true, Tag: int page })
+                await TryShowStructuredScorePageAsync(page);
+        }
+
+        private Task<bool> TryShowStructuredScorePageAsync(int page)
+        {
+            if (_structuredShowingImage || _structuredScore == null || _structuredScore.Layout == StructuredScoreLayout.LongPage ||
+                StructuredScoreBar?.IsEnabled != true || _structuredCurrentView == null ||
+                page < 0 || page >= _structuredCurrentView.Paths.Count) return Task.FromResult(false);
+            // 即使点回当前页，也使此前尚未完成的跳页失效；缓存命中直接显示，不重新解析谱文。
+            long request = ++_structuredSwitchVersion;
+            if (_structuredCurrentView.Frames[page] != null && StructuredFrameMatchesColor(_structuredCurrentView.Frames[page]))
+                return Task.FromResult(ShowStructuredScorePage(_structuredCurrentView, page));
+            return PrepareStructuredScorePageByIndexAsync(page, request);
+        }
+
+        private async Task<bool> PrepareStructuredScorePageByIndexAsync(int page, long request)
+        {
+            long version = _structuredScoreVersion;
+            string anchor = _structuredScoreAnchor;
+            var document = _structuredScore;
+            try
+            {
+                var view = await GetStructuredViewAsync(document);
+                if (page >= view.Paths.Count) return false;
+                await view.PrepareFrame(page);
+                if (request != _structuredSwitchVersion || version != _structuredScoreVersion ||
+                    anchor != _structuredScoreAnchor || anchor != _imagePath || _structuredShowingImage) return false;
+                return ShowStructuredScorePage(view, page);
+            }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                if (request == _structuredSwitchVersion) ShowStatus("歌谱跳页失败，原画面保留：" + ex.Message);
+                return false;
+            }
+        }
         private Task<bool> TryNavigateStructuredScoreAsync(int direction)
         {
             if (_structuredShowingImage || _structuredScore == null || _structuredScore.Layout == StructuredScoreLayout.LongPage) return Task.FromResult(false);
             if (_structuredCurrentView == null) return Task.FromResult(true);
             if (!StructuredFrameMatchesColor(_structuredCurrentView.Frames[0]))
                 return NavigateStructuredScoreWithEffectAsync(direction);
+            int page = (_structuredScore.Page + direction + _structuredCurrentView.Paths.Count) % _structuredCurrentView.Paths.Count;
+            if (_structuredCurrentView.Frames[page] == null) return NavigateStructuredScoreWithEffectAsync(direction);
             ++_structuredSwitchVersion;
             ShowStructuredScorePage(_structuredCurrentView, _structuredScore.Page + direction);
             return Task.FromResult(true);
         }
         private async Task<bool> NavigateStructuredScoreWithEffectAsync(int direction)
         {
-            long request = ++_structuredSwitchVersion;
-            var view = await GetStructuredViewAsync(_structuredScore);
-            if (request == _structuredSwitchVersion) ShowStructuredScorePage(view, _structuredScore.Page + direction);
-            return true;
+            long request = ++_structuredSwitchVersion, version = _structuredScoreVersion;
+            var document = _structuredScore;
+            try
+            {
+                var view = await GetStructuredViewAsync(document);
+                int page = (document.Page + direction + view.Paths.Count) % view.Paths.Count;
+                await view.PrepareFrame(page);
+                if (request == _structuredSwitchVersion && version == _structuredScoreVersion) ShowStructuredScorePage(view, page);
+                return true;
+            }
+            catch (OperationCanceledException) { return true; }
+            catch (Exception ex) { if (request == _structuredSwitchVersion) ShowStatus("歌谱翻页失败，原画面保留：" + ex.Message); return true; }
         }
         private static StructuredScoreDocument CloneStructuredScore(StructuredScoreDocument source) => new()
         {

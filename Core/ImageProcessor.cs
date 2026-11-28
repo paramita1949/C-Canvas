@@ -117,7 +117,23 @@ namespace ImageColorChanger.Core
 
         public PreparedImage PrepareStructuredPage(string rasterPath, bool invert, SKColor color, bool nativeTextRendered = false)
         {
+            using var trace = Utils.StructuredScorePerfTrace.Start("page-decode");
             var bitmap = SKBitmap.Decode(rasterPath) ?? throw new IOException("无法解码歌谱缓存。");
+            trace?.Mark("png-decode");
+            return PrepareOwnedStructuredBitmap(rasterPath, bitmap, invert, color, nativeTextRendered);
+        }
+
+        /// <summary>从借用的原生页直接准备显示图；持有独立副本，不依赖PNG写盘或渲染器位图生命周期。</summary>
+        public PreparedImage PrepareStructuredBitmap(string rasterPath, SKBitmap source, bool invert, SKColor color, bool nativeTextRendered = false)
+        {
+            using var trace = Utils.StructuredScorePerfTrace.Start("memory-frame");
+            var bitmap = source?.Copy() ?? throw new IOException("无法复制歌谱显示页。");
+            trace?.Mark("owned-bitmap-copy");
+            return PrepareOwnedStructuredBitmap(rasterPath, bitmap, invert, color, nativeTextRendered);
+        }
+
+        private PreparedImage PrepareOwnedStructuredBitmap(string rasterPath, SKBitmap bitmap, bool invert, SKColor color, bool nativeTextRendered)
+        {
             try
             {
                 BitmapSource photo;
@@ -125,13 +141,30 @@ namespace ImageColorChanger.Core
                 {
                     using var effected = bitmap.Copy();
                     ApplyYellowTextEffect(effected, color);
-                    photo = ConvertToBitmapSource(effected);
+                    photo = ConvertStructuredBitmapToSource(effected);
                 }
-                else photo = ConvertToBitmapSource(bitmap);
+                else photo = ConvertStructuredBitmapToSource(bitmap);
                 if (photo == null) throw new IOException("无法生成歌谱显示缓存。");
                 return new PreparedImage(rasterPath, bitmap, photo, invert, color, nativeTextRendered);
             }
             catch { bitmap.Dispose(); throw; }
+        }
+
+        private static BitmapSource ConvertStructuredBitmapToSource(SKBitmap bitmap)
+        {
+            using var trace = Utils.StructuredScorePerfTrace.Start("frame-convert");
+            // 结构页不需要可写的WPF后缓冲。Create同步复制像素，Freeze后可跨线程，
+            // 不借用Skia内存，也不改变普通图片/文本编辑器的WriteableBitmap接口。
+            using var converted = bitmap.ColorType == SKColorType.Bgra8888 ? null : bitmap.Copy(SKColorType.Bgra8888);
+            var source = converted ?? bitmap;
+            if (source.ColorType != SKColorType.Bgra8888) throw new IOException("无法转换歌谱显示像素。");
+            var format = source.AlphaType == SKAlphaType.Premul ? PixelFormats.Pbgra32 : PixelFormats.Bgra32;
+            var photo = BitmapSource.Create(source.Width, source.Height, 96, 96, format, null,
+                source.GetPixels(), source.ByteCount, source.RowBytes);
+            trace?.Mark("pixel-copy");
+            photo.Freeze();
+            trace?.Mark("freeze");
+            return photo;
         }
 
         public bool LoadPreparedImage(string sourcePath, PreparedImage prepared)
@@ -146,6 +179,7 @@ namespace ImageColorChanger.Core
             {
                 // 首次从其它视图进入时WPF可能尚未Measure；先挂冻结图，布局完成后应用尺寸。
                 currentPhoto = prepared.Photo; imageControl.Source = prepared.Photo;
+                Utils.StructuredScorePerfTrace.SourceAssigned(imageControl, prepared.Photo);
                 scrollViewer.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
                 {
                     if (ReferenceEquals(currentImage, prepared.Bitmap) && scrollViewer.ActualWidth > 0 && scrollViewer.ActualHeight > 0)
@@ -155,6 +189,7 @@ namespace ImageColorChanger.Core
             }
             lastUpdateTime = DateTime.Now;
             bool success = UpdateCanvasDisplay(prepared.Photo, width, height, scrollViewer.ActualWidth, scrollViewer.ActualHeight);
+            if (success) Utils.StructuredScorePerfTrace.SourceAssigned(imageControl, prepared.Photo);
             if (success) { scrollViewer.ScrollToTop(); scrollViewer.ScrollToLeftEnd(); }
             return success;
         }

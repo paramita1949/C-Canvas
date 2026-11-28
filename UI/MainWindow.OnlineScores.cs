@@ -413,6 +413,9 @@ namespace ImageColorChanger.UI
         private void DisposeOnlineScores()
         {
             _onlineScoreClosed = true;
+            ++_structuredOpenVersion; ++_structuredSwitchVersion; ++_structuredScoreVersion;
+            _structuredOpenCancellation?.Cancel(); _structuredWarmCancellation?.Cancel();
+            _structuredViewCancellation?.Cancel(); CancelStructuredScoreImageRequest();
             CancelOnlineScoreRequests();
             _onlineScoreClient?.Dispose(); _onlineScoreClient = null;
             // YM 属于用户的本地歌谱库，关闭窗口不删除文件或图片歌词。

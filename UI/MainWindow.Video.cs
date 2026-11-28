@@ -548,7 +548,7 @@ namespace ImageColorChanger.UI
         /// <summary>
         /// 切换回图片显示模式
         /// </summary>
-        internal void SwitchToImageMode()
+        internal void SwitchToImageMode(string preparedImagePath = null)
         {
             // 停止视频播放
             if (_videoPlayerManager != null && _videoPlayerManager.IsPlaying)
@@ -562,7 +562,14 @@ namespace ImageColorChanger.UI
             // 隐藏媒体控制栏
             MediaPlayerPanel.Visibility = Visibility.Collapsed;
             
-            // 清空图片显示（避免回到之前的图片）
+            // 结构谱首帧已异步准备好时只切换媒体区域；LoadImage随后直接交换帧。
+            // 不能清空会话，否则会取消新歌后续页并在UI线程重新生成同一首谱。
+            if (preparedImagePath != null && TryGetPreparedStructuredView(preparedImagePath, out _))
+            {
+                Utils.StructuredScorePerfTrace.Event("mode-switch-prepared-view-retained");
+                return;
+            }
+            // 普通图片、缺失/已失效的结构谱仍沿用原来的清空行为。
             ClearImageDisplay();
         }
         

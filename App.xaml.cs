@@ -244,6 +244,7 @@ namespace ImageColorChanger
             if (e.ExceptionObject is Exception ex)
             {
                 StartupPerfLogger.Error("AppDomain.UnhandledException", ex);
+                StructuredScorePerfTrace.Error("appdomain-unhandled", ex);
                 #if DEBUG
                 System.Diagnostics.Debug.WriteLine($" [FATAL] 未处理的异常: {ex.Message}\n{ex.StackTrace}");
                 #endif
@@ -261,6 +262,7 @@ namespace ImageColorChanger
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
             StartupPerfLogger.Error("Dispatcher.UnhandledException", e.Exception);
+            StructuredScorePerfTrace.Error("dispatcher-unhandled", e.Exception);
             #if DEBUG
             System.Diagnostics.Debug.WriteLine($" [ERROR] UI线程未处理的异常: {e.Exception.Message}\n{e.Exception.StackTrace}");
             #endif
